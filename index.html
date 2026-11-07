@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="ja"><head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>にっぽん であい絵図｜土地の魅力に出会う、四季の鳥瞰図</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f4ead2'/%3E%3Ccircle cx='23' cy='9.5' r='5' fill='%23c8402c'/%3E%3Cpath d='M1.5 27.5 11 12.5l3.6 5.4L19 11.5l11.5 16z' fill='%232a3146'/%3E%3Cpath d='M11 12.5l2.3 3.5-2-.6-2.3 1.3zM19 11.5l2.6 3.8-2.2-.7-2.3 1.2z' fill='%23f4ead2'/%3E%3Cpath d='M3 29.5q3.5-1.6 7 0t7 0 7 0 6 0' stroke='%23c9a24a' stroke-width='1.2' fill='none'/%3E%3C/svg%3E">
+<style>
+  :root { --ink: #2a3146; --shu: #c8402c; --paper: #f4ead2; --gold: #c9a24a; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #efe2c4; color: var(--ink);
+    font-family: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", serif; }
+  /* 地図をドラッグした時に、札や題の字まで選択されて青く反転した（本人 2026-10-30「各カードが選択時の反転みたいに」）。字を選べるのは読む窓と入力だけ */
+  body { -webkit-user-select: none; user-select: none; }
+  #card, #tour, #mame-card, #eki-card, #quiz, input, textarea { -webkit-user-select: text; user-select: text; }
+  #sky { position: fixed; inset: 0; background: linear-gradient(var(--sky, #a8d4f2) 0%, #f4ead2 34%, #efe2c4 100%); }
+  /* 夜（map3d.js の setNight）：空を夜の紺へ、ふわっと。飾りの白い霞の帯はしまう */
+  /* 朝焼け・夕焼け（map3d.js の時刻）：太陽が地平線の近くにある間、空の上を暖かい色に。外側は同じ色の透明 */
+  #sky::before { content: ''; position: absolute; inset: 0; opacity: var(--dusk, 0);
+    background: linear-gradient(#e7967a 0%, #f3c39b 26%, rgba(243,195,155,0) 52%); }
+  /* 太陽と月：見ている向きの前にある時だけ、空に切り紙の丸で。月は夜だけ、影の丸をずらして満ち欠け */
+  #sun, #moon { position: absolute; left: 0; top: 0; border-radius: 50%; display: none; z-index: 2; pointer-events: none; }
+  #sun { width: 54px; height: 54px; margin: -27px 0 0 -27px; background: radial-gradient(circle, #fff1c2 0 34%, #f6c24f 36% 52%, rgba(246,194,79,0) 70%); }
+  #moon { width: 30px; height: 30px; margin: -15px 0 0 -15px; background: #f4ecd2; box-shadow: 0 0 14px rgba(244,236,210,.45); overflow: hidden; }
+  #moon::after { content: ''; position: absolute; inset: -1px; border-radius: 50%; background: #121e46; transform: translateX(var(--ph, 0%)); }
+  body.night #sun { display: none !important; }
+  /* 空の雲（本人 2026-10-29「雲も流れがあっても楽しい」）：ふちの無いやわらかい白の雲（下に紙の色がにじむ）が、空を西から東へゆっくり。
+     CSS の動きだけ（主スレッドを使わない）。前は丸の重ね描きが、金のふちの角丸の四角に小さな四角が付いた形になり、吹き出し・空の入力欄に見えた（本人 2026-10-30） */
+  .cloud { position: absolute; left: 0; width: 210px; height: 56px; z-index: 2; pointer-events: none; opacity: .9; background: no-repeat center / 100% 100%;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 80'><defs><filter id='f' x='-10%25' y='-30%25' width='120%25' height='160%25'><feGaussianBlur stdDeviation='1.8'/></filter><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0.3' stop-color='%23ffffff'/><stop offset='1' stop-color='%23efe2c4'/></linearGradient></defs><g fill='url(%23g)' filter='url(%23f)'><ellipse cx='72' cy='54' rx='52' ry='17'/><ellipse cx='118' cy='40' rx='42' ry='27'/><ellipse cx='172' cy='36' rx='48' ry='30'/><ellipse cx='226' cy='52' rx='56' ry='17'/><rect x='34' y='50' width='240' height='19' rx='9.5'/></g></svg>");
+    animation: cloud-go linear infinite; }
+  .cloud.c1 { top: 6vh; animation-duration: 210s; animation-delay: -40s; }
+  .cloud.c2 { top: 13vh; width: 150px; height: 40px; animation-duration: 260s; animation-delay: -150s; opacity: .8;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 80'><defs><filter id='f' x='-10%25' y='-30%25' width='120%25' height='160%25'><feGaussianBlur stdDeviation='1.8'/></filter><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0.3' stop-color='%23ffffff'/><stop offset='1' stop-color='%23efe2c4'/></linearGradient></defs><g fill='url(%23g)' filter='url(%23f)'><ellipse cx='80' cy='50' rx='58' ry='19'/><ellipse cx='136' cy='34' rx='50' ry='31'/><ellipse cx='196' cy='44' rx='40' ry='24'/><ellipse cx='236' cy='56' rx='46' ry='14'/><rect x='30' y='52' width='238' height='17' rx='8.5'/></g></svg>"); }
+  .cloud.c3 { top: 3vh; width: 270px; height: 72px; animation-duration: 300s; animation-delay: -230s; opacity: .7; }
+  @keyframes cloud-go { from { transform: translateX(-24vw); } to { transform: translateX(110vw); } }
+  body.night .cloud { opacity: .18; }
+  @media (prefers-reduced-motion: reduce) { .cloud { animation: none; transform: translateX(60vw); } }
+  #sky::after { z-index: 1; content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity 1.2s ease;
+    background: radial-gradient(1px 1px at 12% 18%, #fff8 99%, #0000), radial-gradient(1px 1px at 37% 9%, #fff6 99%, #0000),
+      radial-gradient(1.5px 1.5px at 61% 22%, #fff9 99%, #0000), radial-gradient(1px 1px at 83% 12%, #fff7 99%, #0000),
+      radial-gradient(1px 1px at 72% 31%, #fff5 99%, #0000), radial-gradient(1.5px 1.5px at 24% 29%, #fff6 99%, #0000),
+      linear-gradient(#060b1e 0%, #111d44 40%, #1b2850 100%); }
+  body.night #sky::after { opacity: 1; }
+  body.night .kasumi { display: none; }
+  /* 夜は、地図の上に直に置いた字（季節の名・出典の注・小さな島の名）を明るく（暗い紺の上で読めなかった） */
+  body.night #title span, body.night #note, body.night .isle span, body.night #o-title span { color: #e8dcc0; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #gl.drag { cursor: grabbing; }
+  #gl.on { cursor: pointer; }
+  /* 古い刷り物の紙：ふちが少し黄ばむ */
+  #paper { position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, rgba(170,120,50,0) 50%, rgba(170,120,50,.22) 100%); }
+  /* 飾りの霞（すやり霞）：両端が空に溶ける帯。金のふちを付けると、ボタンや空の入力欄に見えた（2026-10-30） */
+  .kasumi { position: fixed; height: 30px; border-radius: 15px; pointer-events: none;
+    background: linear-gradient(90deg, rgba(250,244,226,0), rgba(250,244,226,.9) 18%, rgba(250,244,226,.9) 82%, rgba(250,244,226,0)); filter: blur(1.5px); }
+  #title { position: fixed; left: 34px; top: 26px; cursor: pointer; }
+  /* 入口（入口.js）：開くと日本列島を真上から。左上に題、右に「〇〇から始める」。入口の間は検索・下の札・いつもの題をしまう */
+  #opening { display: none; }
+  body.opening #opening { display: block; }
+  body.opening #search, body.opening #bar, body.opening #title, body.opening .kasumi { display: none !important; }
+  /* 最初の画面は地図の名前だけを大きく。県名などの札は出さない（本人 2026-10-31） */
+  body.opening #labels, body.opening #pins, body.opening #ranks, body.opening #compass { display: none !important; }   /* 方位は選ぶ欄の角と北海道に重なった */
+  #o-title { position: fixed; left: 34px; top: 26px; margin: 0; font-weight: 400; pointer-events: none; }
+  #o-title b { display: inline-block; font-size: 50px; line-height: 1.18; color: var(--shu); border: 2.5px solid var(--shu); padding: 8px 18px 12px;
+    background: rgba(250,244,226,.6); letter-spacing: .04em; }
+  #o-title span { display: block; font-size: 18px; color: #3a3428; margin: 12px 0 0 4px; }
+  #o-regions { position: fixed; right: 40px; top: 50%; transform: translateY(-50%); width: 300px; box-sizing: border-box; max-height: calc(100vh - 40px); overflow-y: auto;
+    background: rgba(250,244,226,.95); border: 1.6px solid var(--gold); box-shadow: 0 6px 16px rgba(60,40,10,.18); padding: 12px 14px 14px; }
+  #o-regions p { margin: 0 0 6px; font-size: 15px; color: var(--shu); font-weight: 700; }
+  #o-regions .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
+  #o-regions .chips button { font-size: 13px; padding: 3px 9px; }
+  #o-regions .chips button[aria-pressed="true"] { background: var(--shu); color: #fffaf0; border-color: var(--ink); }
+  #o-toki { margin-bottom: 5px !important; }
+  #o-regions .list { display: grid; grid-template-columns: 1fr; gap: 6px; }
+  #o-regions .list button { text-align: left; font-size: 15px; padding: 5px 10px; }
+  #o-go[inert] { opacity: .45; }
+  #o-wait, #o-fail, #o-retry { display: none; margin-left: 4px; font-size: 12px; font-weight: 400; color: #3a3428; }
+  body.ui-wait #o-wait { display: inline; animation: breathe 1.6s ease-in-out infinite; }
+  body.ui-fail #o-wait { display: none; }
+  body.ui-fail #o-fail { display: inline; }
+  body.ui-fail #o-retry { display: inline-block; padding: 1px 8px; }
+  body.no-book .book-only { display: none !important; }
+  .o-book { display: block; padding: 8px 0 0; text-align: center; font-size: 13px; color: #3c5a8c; }
+  #o-all { margin-top: 12px; width: 100%; font-size: 14px; }
+  #o-tour { margin-top: 6px; width: 100%; font-size: 14px; }
+  @media (max-width: 700px) and (orientation: portrait), (max-width: 700px) and (min-height: 521px) {
+    #o-title b { font-size: 30px; padding: 4px 10px 6px; } #o-title span { font-size: 13px; margin-top: 6px; } #o-title { left: 16px; top: 16px; }
+    #o-regions { left: 16px; right: 16px; top: auto; bottom: 28px; transform: none; width: auto; padding: 10px; max-height: 60vh; }
+    #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips { margin-bottom: 7px; } #o-regions .chips button { font-size: 12px; padding: 3px 7px; }
+    #o-regions .list { grid-template-columns: 1fr 1fr 1fr; } #o-regions .list button { font-size: 15px; padding: 6px 4px; text-align: center; }
+    #o-regions .list button span { display: none; }
+  }
+  #title b { display: inline-block; font-size: 56px; color: var(--shu); border: 2.5px solid var(--shu); padding: 0 14px 4px; line-height: 1.2; }
+  #title span { display: block; font-size: 24px; font-weight: 700; margin: 8px 0 0 16px; }
+  #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  /* 県の名は朱の札に白い字（観光鳥瞰図の流儀） */
+  #labels div { position: absolute; left: 0; top: 0; font-weight: 700; font-size: 12px; line-height: 16px; white-space: nowrap; color: #fffaf0;
+    background: var(--shu); border: 1px solid var(--ink); padding: 0 5px 1px; transition: opacity .25s; }
+  /* 県の中の地名：山＝朱の札、市＝墨の囲み、町村・湖・峠＝字だけ */
+  #inlabels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  #inlabels .tag { position: absolute; left: 0; top: 0; white-space: nowrap; font-weight: 700; transition: opacity .2s; opacity: 0; }
+  #inlabels .t-peak { background: var(--shu); color: #fffaf0; border: 1px solid var(--ink); padding: 1px 6px 2px; font-size: 14px; }
+  #inlabels .t-peak small { font-size: 11px; font-weight: 400; }
+  #inlabels .t-city { background: rgba(250,244,226,.95); color: var(--ink); border: 1.5px solid var(--ink); padding: 1px 7px 2px; font-size: 15px; }
+  #inlabels .t-town, #inlabels .t-lake, #inlabels .t-marsh, #inlabels .t-pass { font-size: 12px; text-shadow: 0 0 3px #fbf6e8, 0 0 3px #fbf6e8, 0 0 2px #fbf6e8; }
+  #inlabels .t-town { color: var(--ink); }
+  #inlabels .t-lake, #inlabels .t-marsh { color: #1f5f9a; font-size: 13px; }
+  #inlabels .t-pass { color: #6a4a30; font-size: 11px; }
+  /* 寄せた島の枠の札（県の中.js の moveL）：本当の距離ではないことを、枠の上に小さく */
+  #inlabels .t-move { color: #3a3f55; font-size: 11px; background: rgba(250,244,226,.85); border: 1px dashed #6a6f85; padding: 1px 6px; }
+  #inlabels .t-spot { display: flex; flex-direction: column-reverse; align-items: center; }
+  #inlabels .t-spot img { width: 64px; height: 64px; }
+  #inlabels .t-spot.link { pointer-events: auto; cursor: pointer; }
+  #inlabels .t-spot.link span { color: var(--shu); border-color: var(--shu); text-align: center; line-height: 1.3; }
+  #inlabels .t-spot.link small { display: block; font-size: 10px; color: #6a6250; }
+  /* 駅の札（県の中.js・駅.js）：白い札に墨の枠と、左に小さな駅の印。押すと駅の案内。電車が着くと少しの間、山吹に光る */
+  #inlabels .t-station { pointer-events: auto; cursor: pointer; font-size: 11px; color: var(--ink); background: #fffdf6; border: 1.2px solid var(--ink);
+    padding: 0 5px 1px 4px; display: flex; align-items: center; gap: 3px; transition: opacity .2s, background .3s, box-shadow .3s; }
+  #inlabels .t-station::before { content: ''; width: 9px; height: 5px; border: 1.2px solid var(--ink); background: linear-gradient(90deg, var(--ink) 50%, #fffdf6 50%); }
+  #inlabels .t-station.hub { font-size: 13px; font-weight: 700; }
+  #inlabels .t-station.busy { background: #ffe08a; box-shadow: 0 0 0 2px rgba(255,214,90,.6); }
+  #inlabels .t-station.on { box-shadow: 0 0 0 2px #fffaf0, 0 0 0 3.5px var(--shu); }
+  /* 駅の豆知識がある駅（駅.js）：札の右に金の「？」（地図の豆と同じ色）。開いたら淡く。豆知識帳から探しに来た駅は朱の輪が広がる */
+  #inlabels .t-station i { position: relative; width: 14px; height: 14px; box-sizing: border-box; border-radius: 50%; margin-left: 1px;
+    border: 1.2px solid var(--ink); background: radial-gradient(circle at 35% 30%, #fff6cc 0 15%, #f2c440 55%, #c08a1c 100%);
+    font: 700 10px/12px "Yu Mincho", "YuMincho", serif; font-style: normal; text-align: center; }
+  #inlabels .t-station.got i { background: #ece2c6; border-color: #8a7a5a; color: #8a7a5a; }
+  #inlabels .t-station.hunt { z-index: 2; box-shadow: 0 0 0 2px #fffaf0, 0 0 0 3.5px var(--shu); }
+  #inlabels .t-station.hunt i::after { content: ''; position: absolute; inset: -3px; border-radius: 50%; border: 2.5px solid var(--shu); pointer-events: none;
+    animation: mame-ring 1.4s ease-out infinite; }
+  @media (prefers-reduced-motion: reduce) { #inlabels .t-station.hunt i::after { animation: none; transform: scale(1.5); } }
+  #inlabels .t-spot span { font-size: 12px; background: rgba(250,244,226,.94); border: 1px solid var(--ink); padding: 0 5px 1px; margin-bottom: -3px; position: relative; z-index: 1; }
+  /* 全国と県の中を差しかえる間だけ、紙の色の幕で隠す */
+  /* 空から遊覧：下の札の上に、名所の一言と操作 */
+  #tour { position: fixed; left: 50%; bottom: 78px; transform: translateX(-50%); width: min(600px, calc(100vw - 32px)); box-sizing: border-box;
+    background: rgba(250,244,226,.97); border: 1.6px solid var(--gold); box-shadow: 0 6px 16px rgba(60,40,10,.18); padding: 10px 14px 10px; display: none; }
+  #tour.open { display: block; }
+  #tour .head { display: flex; align-items: baseline; gap: 8px; }
+  #tour #t-step { font-size: 12px; color: #6a6250; }
+  #tour #t-name { font-size: 20px; color: var(--shu); }
+  #tour.flying #t-name { color: #6a6250; font-size: 16px; }
+  #tour #t-text { font-size: 14px; line-height: 1.7; margin: 4px 0 2px; }
+  #tour #t-when { font-size: 12px; color: #6a6250; margin: 0 0 6px; }
+  #tour.flying #t-text, #tour.flying #t-when { display: none; }
+  #tour #t-src { display: none; font-size: 12px; line-height: 1.6; margin: 0 0 8px; max-height: 30vh; overflow: auto; }
+  #tour.src #t-src { display: block; }
+  #tour #t-src ol { margin: 2px 0 4px; padding-left: 20px; }
+  #tour #t-src a { color: #3c5a8c; }
+  #tour .ctl { display: flex; gap: 6px; justify-content: flex-end; }
+  /* 県の中だけで使うボタン（空から遊覧・空を飛ぶ）。下の並びの #bar .ico が display を持つので、それより強く書く
+     （id 1つの指定では負けて、全国の眺めでも押せないボタンが出ていた。本人 2026-11-01）。
+     人口のボタンはどこでも出す（全国では日本のデータ・県の中では世帯数の塗り分け） */
+  #bar #tour-open, #bar #fly-open { display: none; }
+  body.inside #bar #tour-open, body.inside #bar #fly-open { display: inline-flex; }
+  /* 日本のデータ（全国の眺めで人口のボタンを押した時。案内.js） */
+  #natdata { position: fixed; left: 16px; bottom: 236px; width: 300px; max-width: calc(100vw - 32px); background: rgba(250,244,226,.97); border: 1.6px solid var(--gold);
+    box-shadow: 0 6px 16px rgba(60,40,10,.15); padding: 10px 12px; display: none; font-size: 13px; line-height: 1.6; z-index: 6; }
+  #natdata.open { display: block; }
+  #natdata h3 { margin: 0 0 4px; font-size: 16px; color: var(--shu); }
+  #natdata dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 4px 0; }
+  #natdata dt { color: #6a6250; }
+  #natdata dd { margin: 0; font-weight: 700; }
+  #natdata small { display: block; font-size: 11px; color: #6a6250; line-height: 1.5; margin-top: 4px; }
+  #natdata small a { color: #3c5a8c; }
+  #natdata button { margin-top: 6px; }
+  /* 人口の表示の凡例（左の端） */
+  #pop { position: fixed; left: 16px; bottom: 236px; width: 270px; background: rgba(250,244,226,.97); border: 1.6px solid var(--gold);
+    box-shadow: 0 6px 16px rgba(60,40,10,.15); padding: 10px 12px; display: none; font-size: 13px; line-height: 1.6; }
+  #pop.open { display: block; }
+  #pop h3 { margin: 0 0 4px; font-size: 16px; color: var(--shu); }
+  #pop .now { font-size: 15px; font-weight: 700; margin: 4px 0; }
+  #pop .now img { width: 34px; height: 34px; vertical-align: middle; margin-right: 2px; }
+  #pop .scale { display: flex; gap: 2px; margin: 6px 0 2px; }
+  #pop .scale i { flex: 1; height: 12px; border: 1px solid #b8a878; }
+  #pop .ticks { display: flex; justify-content: space-between; font-size: 10px; color: #6a6250; }
+  #pop small { display: block; font-size: 11px; color: #6a6250; line-height: 1.5; margin-top: 4px; }
+  body.touring #bar #tour-open, body.inside #tour-nat, body.touring #tour-nat { display: none; }
+  /* 空を飛ぶ（旅.js）：飛ぶ間は下の札・札の窓・検索をしまい、下に飛ぶ札。スマホは左下のスティックと右の上へ／下へ */
+  /* 題と飾りの霞もしまう：低く飛ぶと、霞の帯は空に浮いた白い棒に見え、題には遠くの名物の印が重なった */
+  body.flying #bar, body.flying #card, body.flying #search, body.flying #pop, body.flying #tour, body.flying #title, body.flying .kasumi { display: none !important; }
+  body.flying #pins { pointer-events: none; }
+  #fly { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); width: min(720px, calc(100vw - 32px)); box-sizing: border-box;
+    background: rgba(250,244,226,.95); border: 1.6px solid var(--gold); box-shadow: 0 6px 16px rgba(60,40,10,.18); padding: 8px 14px; display: none; }
+  body.flying #fly { display: block; }
+  #fly .head { display: flex; align-items: baseline; gap: 10px; }
+  #fly .head b { font-size: 18px; color: var(--shu); }
+  #fly #f-where { font-size: 14px; flex: 1; }
+  #fly #f-near { font-size: 14px; margin: 4px 0 0; min-height: 1.4em; }
+  #fly #f-near button { font-size: 14px; padding: 1px 8px; }
+  #fly #f-keys { font-size: 12px; color: #6a6250; margin: 4px 0 0; }
+  #fly-pad, #fly-ud { display: none; }
+  #fly-pad { position: fixed; left: 24px; bottom: 140px; width: 128px; height: 128px; border-radius: 50%; background: rgba(250,244,226,.55);
+    border: 1.6px solid var(--gold); touch-action: none; z-index: 6; }
+  #fly-pad i { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px; border-radius: 50%; background: rgba(200,64,44,.82); pointer-events: none; }
+  #fly-ud { position: fixed; right: 24px; bottom: 140px; flex-direction: column; gap: 10px; z-index: 6; }
+  #fly-ud button { width: 72px; height: 56px; touch-action: none; }
+  @media (pointer: coarse) { body.flying #fly-pad { display: block; } body.flying #fly-ud { display: flex; } }
+  #veil { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .34s ease;
+    display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: #6a6250;
+    background: radial-gradient(ellipse at 50% 55%, #f7f0de 0%, #efe2c4 100%); }
+  #veil.on { opacity: 1; }
+  /* 小さすぎて地図に出ない島：いつも出す印と名、乗せる・押す・その県を浮かせた時の吹き出し */
+  #isles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  #leaders { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  #leaders line { stroke: var(--ink); stroke-width: 1.4; }
+  .isle { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 4px; pointer-events: auto; cursor: pointer;
+    font-weight: 700; font-size: 12px; white-space: nowrap; text-shadow: 0 0 3px #fbf6e8, 0 0 3px #fbf6e8; }
+  .isle i { width: 9px; height: 9px; border-radius: 50%; border: 2.5px solid var(--shu); background: #fbf6e8; }
+  .bubble { position: absolute; left: 0; top: 0; display: block; visibility: hidden; background: rgba(250,244,226,.97); border: 1.6px solid var(--gold);
+    box-shadow: 0 6px 16px rgba(60,40,10,.18); padding: 8px 10px 8px; pointer-events: none; }
+  .bubble.open { visibility: visible; }   /* 最初から組版しておき、見せるだけ切りかえる（初めて出すコマが100ms止まった） */
+  .bubble h3 { margin: 0; font-size: 18px; color: var(--shu); }
+  .bubble p { margin: 1px 0 6px; font-size: 13px; font-weight: 700; }
+  .bubble canvas { display: block; width: 250px; border: 1px solid #c9b88a; }
+  .bubble small { display: block; width: 250px; margin-top: 5px; font-size: 11px; line-height: 1.45; color: #6a6250; }
+  /* 県の紹介（カードの中の一覧と、浮いた県の上の印） */
+  /* 高さの上限は、右下の方位（下から 22+70px）の上で止まるように。中身の高さなので、上の 22px と余白・枠の約 33px も引く
+     （100vh-140px では、1280×720 で中身の長い県の窓の下端が方位にかかった 2026-11-07） */
+  #card { max-height: calc(100vh - 175px); overflow-y: auto; }
+  #c-intro .lead { font-size: 13px; line-height: 1.6; margin: 4px 0 8px; }
+  #c-intro ul { list-style: none; margin: 0; padding: 0; }
+  #c-intro li { display: flex; gap: 8px; align-items: baseline; padding: 6px 2px; border-top: 1px dotted #c9b88a; cursor: pointer; font-size: 15px; font-weight: 700; }
+  #c-intro li:hover { background: #fff8e4; }
+  /* 札は観光鳥瞰図の流儀（画風見本 04 と同じ）：名所・歴史・祭りは朱に白い字、作物と食べ物は山吹に墨の字。墨の枠 */
+  .cat { flex: none; display: inline-block; min-width: 2.6em; text-align: center; font-size: 11px; font-weight: 700; color: #fffaf0;
+    background: var(--shu); border: 1px solid var(--ink); padding: 0 4px; }
+  .cat.c-特産, .cat.c-食 { background: #f2c94a; color: var(--ink); }
+  .mark { flex: none; margin-left: auto; font-size: 12px; color: #6a6250; }
+  #c-intro .detail h3 { margin: 6px 0 4px; font-size: 22px; }
+  #c-intro .detail p { font-size: 14px; font-weight: 400; line-height: 1.75; margin: 6px 0; }
+  #c-intro .detail .when { font-size: 13px; font-weight: 700; }
+  #c-intro .detail ol { margin: 6px 0 0; padding-left: 1.4em; font-size: 12px; line-height: 1.55; }
+  #c-intro .detail a { color: #2a5a8a; word-break: break-all; }
+  #c-intro .how { font-size: 11px; line-height: 1.55; color: #6a6250; margin-top: 10px; }
+  #c-intro .ask { font-size: 11px; line-height: 1.55; font-weight: 400; color: #6a6250; margin: 8px 0 0; }
+  /* 県のデータ（たたんだ欄。押した人だけ開く） */
+  #c-intro details.spec { margin-top: 10px; border-top: 1px dotted #c9b88a; padding-top: 6px; font-size: 13px; }
+  #c-intro details.spec summary { cursor: pointer; font-weight: 700; color: #6a6250; }
+  #c-intro details.spec dl { display: grid; grid-template-columns: 6.2em 1fr; gap: 3px 8px; margin: 8px 0 4px; }
+  #c-intro details.spec dt { color: #6a6250; }
+  #c-intro details.spec dd { margin: 0; font-weight: 700; }
+  #c-intro details.spec .note, #c-intro details.spec .src { font-size: 11px; color: #6a6250; line-height: 1.5; margin: 4px 0 0; }
+  #c-intro details.spec a { color: #2a5a8a; }
+  #pins { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  /* 印：紙の札（種類と名）→ 細い軸 → 地点の点。札の下の点が、その場所 */
+  .pin { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; }
+  .pin b { transition: opacity .2s; }
+  #inlabels .t-spot span { transition: opacity .2s; }
+  .pin b { display: block; background: var(--shu); color: #fffaf0; border: 1px solid var(--ink); padding: 1px 6px 2px;
+    font-size: 13px; white-space: nowrap; }
+  .pin.crop b { background: #f2c94a; color: var(--ink); }
+  .pin i { width: 1.5px; height: 9px; background: var(--ink); }
+  .pin u { width: 7px; height: 7px; border-radius: 50%; background: var(--shu); border: 1.5px solid #fffaf0; box-shadow: 0 0 0 1px var(--ink); }
+  .pin img { display: none; width: 58px; height: 58px; margin: -2px 0 -6px; pointer-events: none; }
+  body.inside .pin img { display: block; }
+  body.inside .pin i { display: none; }
+  .pin.on, .pin.tour { z-index: 2; } .pin.on b, .pin.tour b { box-shadow: 0 0 0 2px #fffaf0, 0 0 0 3.5px var(--shu); }
+  /* 検索 */
+  #search { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); width: min(440px, 40vw); z-index: 5; }
+  #q { box-sizing: border-box; width: 100%; font: inherit; font-size: 16px; font-weight: 700; color: var(--ink); padding: 8px 12px;
+    background: rgba(250,244,226,.97); border: 1.6px solid var(--gold); outline: none; }
+  #q:focus { border-color: var(--ink); }
+  #results { display: none; background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); border-top: none; max-height: 60vh; overflow-y: auto; }
+  #results.open { display: block; }
+  #results h4 { margin: 0; padding: 6px 12px 2px; font-size: 11px; color: #6a6250; }
+  #results div.r { padding: 5px 12px; cursor: pointer; font-size: 15px; font-weight: 700; }
+  #results div.r small { font-size: 12px; font-weight: 400; color: #6a6250; margin-left: 8px; }
+  #results div.r.on, #results div.r:hover { background: #fff3cf; }
+  #results .none { padding: 8px 12px; font-size: 13px; color: #6a6250; }
+  /* 品目の主な産地 */
+  #legend { position: fixed; left: 22px; top: 286px; width: 250px; background: rgba(250,244,226,.97); border: 1.6px solid var(--gold);
+    padding: 10px 12px; display: none; box-shadow: 0 6px 16px rgba(60,40,10,.15); }
+  #legend.open { display: block; }
+  #legend h3 { margin: 0 0 4px; font-size: 18px; color: var(--shu); }
+  #legend ol { margin: 4px 0; padding-left: 1.6em; font-size: 14px; font-weight: 700; line-height: 1.7; }
+  #legend ol li span { font-weight: 400; color: #6a6250; margin-left: 6px; font-size: 12px; }
+  #legend small { display: block; font-size: 11px; line-height: 1.5; color: #6a6250; }
+  #legend a { color: #2a5a8a; }
+  #legend button { margin-top: 6px; font-size: 13px; padding: 3px 10px; }
+  #ranks { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  #ranks div { position: absolute; left: 0; top: 0; background: var(--shu); color: #fffaf0; font-weight: 700; font-size: 13px; padding: 1px 7px 2px;
+    border: 1px solid var(--ink); white-space: nowrap; }
+  #place { position: fixed; left: 0; top: 0; pointer-events: none; display: none; }
+  #place i { position: absolute; left: -7px; top: -7px; width: 10px; height: 10px; border-radius: 50%; background: var(--shu); border: 2px solid #fffaf0;
+    box-shadow: 0 0 0 1.5px var(--ink); }
+  #place span { position: absolute; left: 10px; top: -30px; background: rgba(250,244,226,.97); border: 1.4px solid var(--ink); padding: 2px 8px;
+    font-size: 15px; font-weight: 700; white-space: nowrap; }
+  /* 旬のカレンダー（カレンダーが主役、右に小さな日本地図） */
+  #cal { position: fixed; inset: 40px 40px 90px; background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); display: none; z-index: 6;
+    box-shadow: 0 10px 30px rgba(60,40,10,.25); padding: 18px 22px; box-sizing: border-box; }
+  #cal.open { display: flex; gap: 20px; }
+  #cal .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  #cal h2 { margin: 0 0 2px; font-size: 26px; color: var(--shu); }
+  #cal .lead { margin: 0 0 8px; font-size: 13px; color: #6a6250; }
+  #cal .months { display: grid; grid-template-columns: 11em repeat(12, 1fr); gap: 2px; font-size: 13px; font-weight: 700; }
+  #cal .months button { padding: 3px 0; font-size: 13px; }
+  #cal .rows { overflow-y: auto; margin-top: 4px; flex: 1; }
+  #cal .row { display: grid; grid-template-columns: 11em 1fr; gap: 2px; align-items: center; padding: 2px 0; cursor: pointer; font-size: 13px; }   /* 字の大きさを「〇月」の並びとそろえる（11em の幅が 33px ずれ、列が月とそろっていなかった） */
+  #cal .row { content-visibility: auto; contain-intrinsic-size: auto 22px; }   /* 見えていない行は組版しない（191行で、スマホで開くのに組版だけで 0.6 秒止まった。2026-11-07） */
+  #cal .row:hover, #cal .row.on { background: #fff3cf; }
+  #cal .row .nm { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #cal .row .nm small { font-weight: 400; color: #6a6250; font-size: 11px; margin-left: 4px; }
+  #cal .row i { height: 14px; display: block; }
+  #cal .side { width: min(36vw, 420px); display: flex; flex-direction: column; }
+  #cal svg { width: 100%; flex: 1; min-height: 0; }
+  #cal svg path { fill: #e6dcc0; stroke: #8a7a5a; stroke-width: 1.2; vector-effect: non-scaling-stroke; cursor: pointer; }
+  #cal svg path.in { fill: #9ac35a; } #cal svg path.hot { fill: #e0952a; }
+  #cal svg path:hover { stroke: var(--shu); stroke-width: 2.5; }
+  #cal .side p { font-size: 13px; line-height: 1.6; margin: 6px 0 0; }
+  #cal .side small { font-size: 11px; color: #6a6250; line-height: 1.5; }
+  #cal .close { position: absolute; right: 14px; top: 12px; }
+  #tip { position: fixed; left: 0; top: 0; pointer-events: none; display: none; background: var(--shu); color: #fffaf0;
+    font-weight: 700; font-size: 16px; padding: 2px 9px 3px; border: 1px solid var(--ink); }
+  #card { position: fixed; right: 22px; top: 22px; width: 290px; background: rgba(250,244,226,.97); border: 1.6px solid var(--gold);
+    box-shadow: 0 6px 18px rgba(60,40,10,.18); padding: 16px 18px 14px; display: block; visibility: hidden; }
+  /* 閉じている間も組版しておき、見せるだけ切りかえる（display で出すと、初めて出すコマで組版がまとめて走り、県を押したコマが CPU4倍で 50ms を超えた） */
+  #card.open { visibility: visible; }
+  #card h2 { margin: 0 0 6px; font-size: 34px; color: var(--shu); }
+  #card p { margin: 6px 0 8px; font-size: 19px; font-weight: 700; line-height: 1.5; }
+  #card small { display: block; font-size: 12px; line-height: 1.5; color: #6a6250; }
+  #card .row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 700; color: var(--ink); background: #fbf6e8; border: 1.4px solid var(--ink);
+    padding: 5px 12px; cursor: pointer; }
+  button:hover { background: #fff; }
+  button[disabled] { opacity: .55; cursor: default; }
+  button.on { background: var(--shu); color: #fffaf0; border-color: var(--shu); }
+  #bar { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; gap: 14px; align-items: center;
+    background: rgba(250,244,226,.92); border: 1.4px solid var(--gold); padding: 8px 12px; }
+  #bar .grp { display: flex; gap: 6px; }
+  #bar button { white-space: nowrap; }
+  body.inside #bar { gap: 10px; }
+  /* 下の並びのアイコン（とき.js）：パソコンは名前を隠し、乗せると説明の札。押すと窓が開く物（季節と時刻・向き）は上へ開く */
+  #bar .ico { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 7px; min-width: 40px; }
+  #bar .ico svg { width: 24px; height: 24px; fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  #bar .ico svg .f { fill: var(--ink); stroke: none; }
+  #bar .ico.on svg { stroke: #fffaf0; }
+  #bar .ico.on svg .f { fill: #fffaf0; }
+  #bar .ico:disabled { opacity: .35; cursor: default; }
+  #bar .ico .lab { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  #bar .dock { position: relative; display: inline-flex; }
+  #bar .dock .pop { position: absolute; bottom: calc(100% + 12px); left: 50%; transform: translateX(-50%); display: none; z-index: 9; width: max-content; max-width: 340px;
+    background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 8px 12px 10px; }
+  #bar .dock.open .pop { display: block; }
+  #bar .dock .pop p { margin: 4px 0; font-size: 13px; font-weight: 700; }
+  #bar .dock .pop .grp { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
+  #bar .dock .pop small { display: block; font-size: 11px; color: #6a6250; line-height: 1.5; white-space: normal; }
+  #toki-range { width: 100%; margin: 0 0 6px; accent-color: #c8402c; }
+  #dock-tip { position: fixed; left: 0; top: 0; display: none; z-index: 10; pointer-events: none; background: var(--ink); color: #fffaf0;
+    font-size: 12px; padding: 3px 8px; white-space: nowrap; }
+  #dock-tip.on { display: block; }
+  #compass { position: fixed; right: 26px; bottom: 22px; width: 70px; height: 70px; cursor: pointer; }
+  #compass svg { width: 100%; height: 100%; transition: none; }
+  #note { position: fixed; left: 16px; bottom: 74px; max-width: 300px; font-size: 11px; line-height: 1.5; color: #6a6250; pointer-events: none; }
+  #note button { pointer-events: auto; font: inherit; font-weight: 700; color: #3c5a8c; background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
+  /* 出典とご利用にあたって（案内.js）：左下の一行のボタンで開く窓 */
+  #credits { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(640px, calc(100vw - 32px)); max-height: 76vh; overflow-y: auto;
+    background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 24px rgba(60,40,10,.2); padding: 14px 18px; display: none;
+    font-size: 13px; line-height: 1.7; z-index: 30; }
+  #credits.open { display: block; }
+  #credits h3 { margin: 0 0 6px; font-size: 18px; color: var(--shu); }
+  #credits h4 { margin: 10px 0 2px; font-size: 14px; }
+  #credits p { margin: 0 0 6px; }
+  #credits ul { margin: 0 0 8px; padding-left: 18px; }
+  #credits li { margin: 2px 0; }
+  #credits a { color: #3c5a8c; text-underline-offset: 3px; }
+  #msg { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%); background: #fbf6e8; border: 2px solid var(--shu);
+    padding: 14px 18px; font-size: 16px; display: none; max-width: 70vw; }
+  #wait { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 20px; font-weight: 700;
+    animation: breathe 1.6s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity: .35; } }
+  /* 豆知識（豆知識.js）：地図の上の「？」の豆。まだ知らない豆は金でまたたき、開いた豆は紙の色。またたきは opacity と transform だけ */
+  #mame { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
+  .mame { position: absolute; left: 0; top: 0; width: 30px; height: 30px; margin: -15px 0 0 -15px; padding: 0; border: 0; background: none;
+    display: none; pointer-events: auto; cursor: pointer; }
+  .mame::before { content: ''; position: absolute; left: 1px; top: 1px; width: 28px; height: 28px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, rgba(255,222,110,.95) 0%, rgba(255,222,110,0) 68%); opacity: .25;
+    animation: mame-tw 2.8s ease-in-out infinite; animation-delay: var(--d, 0s); }
+  .mame i { position: absolute; left: 6px; top: 6px; width: 18px; height: 18px; box-sizing: border-box; border-radius: 50%;
+    border: 1.4px solid var(--ink); background: radial-gradient(circle at 35% 30%, #fff6cc 0 15%, #f2c440 55%, #c08a1c 100%);
+    font: 700 12px/16px "Yu Mincho", "YuMincho", serif; font-style: normal; color: var(--ink); text-align: center; }
+  .mame:hover i, .mame:focus-visible i { box-shadow: 0 0 0 2px #fffaf0, 0 0 0 3.5px var(--shu); }
+  .mame:focus { outline: none; }             /* 押した後に白い四角の枠が残った */
+  .mame.got::before { animation: none; opacity: 0; }
+  .mame.got i { background: #ece2c6; border-color: #8a7a5a; color: #8a7a5a; }
+  /* まだ知らない豆知識へ：探す豆は大きく、朱の輪が広がり続ける（またたきだけでは、浮いた県の上で見つけにくかった） */
+  /* 札.js：豆知識のテーマを出していない間は、光の粒だけ（押せない）。灯りに入ると「？」の豆に。開いた豆の粒は淡く */
+  .mame i { transition: opacity .25s, transform .25s; }
+  .mame.faint { pointer-events: none; }
+  .mame.faint i { opacity: 0; transform: scale(.3); }
+  .mame.faint::before { background: radial-gradient(circle, rgba(255,240,170,1) 0 9%, rgba(255,222,110,.6) 24%, rgba(255,222,110,0) 55%); }
+  .mame.got.faint::before { animation: none; opacity: .55; background: radial-gradient(circle, rgba(236,226,198,.95) 0 8%, rgba(236,226,198,0) 30%); }
+  .mame.hunt { z-index: 2; }
+  .mame.hunt i { transform: scale(1.35); }
+  .mame.hunt::before { animation: mame-hunt 1.1s ease-in-out infinite; }
+  .mame.hunt::after { content: ''; position: absolute; left: 3px; top: 3px; width: 24px; height: 24px; box-sizing: border-box; border-radius: 50%;
+    border: 2.5px solid var(--shu); pointer-events: none; animation: mame-ring 1.4s ease-out infinite; }
+  @keyframes mame-tw { 0%, 100% { opacity: .2; transform: scale(.8); } 50% { opacity: 1; transform: scale(1.15); } }
+  @keyframes mame-hunt { 0%, 100% { opacity: .55; transform: scale(1.2); } 50% { opacity: 1; transform: scale(2.2); } }
+  @keyframes mame-ring { from { opacity: 1; transform: scale(.7); } to { opacity: 0; transform: scale(2.8); } }
+  @media (pointer: coarse) { .mame { width: 40px; height: 40px; margin: -20px 0 0 -20px; } .mame::before { left: 6px; top: 6px; } .mame i { left: 11px; top: 11px; }
+    .mame.hunt::after { left: 8px; top: 8px; } }
+  @media (prefers-reduced-motion: reduce) { .mame::before { animation: none; opacity: .6; } .mame.hunt::before { animation: none; opacity: 1; transform: scale(1.8); }
+    .mame.hunt::after { animation: none; transform: scale(1.6); } }
+  /* 札の出し方（札.js）：灯りはマウスの周り（スマホは触れた所）。ぼかしの外側は同じ色の透明（灰色の輪を出さない） */
+  #lamp { position: fixed; left: 0; top: 0; width: 340px; height: 340px; margin: -170px 0 0 -170px; border-radius: 50%; pointer-events: none;
+    background: radial-gradient(circle, rgba(255,246,214,.24) 0%, rgba(255,246,214,.12) 42%, rgba(255,246,214,0) 70%); opacity: 0; transition: opacity .35s; }
+  #lamp.on { opacity: 1; }
+  @media (pointer: coarse) { #lamp { width: 260px; height: 260px; margin: -130px 0 0 -130px; } }
+  body.opening #lamp, body.flying #lamp { display: none; }
+  #fuda-open { position: fixed; left: 34px; top: 222px; font-size: 14px; padding: 4px 10px; background: rgba(250,244,226,.95); border-color: var(--gold); }
+  #fuda { position: fixed; left: 34px; top: 258px; width: 300px; box-sizing: border-box; z-index: 8; display: none;
+    background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 10px 12px; }
+  #fuda.open { display: block; }
+  #fuda p { margin: 0 0 6px; font-size: 13px; font-weight: 700; }
+  #fuda .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  #fuda .chips button { font-size: 13px; padding: 3px 10px; }
+  #fuda .chips button[aria-pressed="true"] { background: var(--shu); color: #fffaf0; border-color: var(--ink); }
+  #fuda .chips .all { margin-left: auto; }
+  #fuda small { display: block; margin-top: 8px; font-size: 12px; color: #6a6250; line-height: 1.6; }
+  body.opening #fuda-open, body.opening #fuda { display: none; }
+  #mame-open { position: fixed; left: 34px; top: 186px; font-size: 14px; padding: 4px 10px; background: rgba(250,244,226,.95); border-color: var(--gold); }
+  body.opening #mame-open, body.opening #mame, body.opening #deai-open { display: none; }
+  /* であい帖（であい帖.js） */
+  #deai-open { position: fixed; left: 34px; top: 150px; font-size: 14px; padding: 4px 10px; background: rgba(250,244,226,.95); border-color: var(--gold); }
+  #deai-open b { color: var(--shu); margin-left: 2px; }
+  #deai-open.dot::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--shu); }
+  #deai { position: fixed; inset: 40px 40px 90px; background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); display: none; z-index: 8;
+    box-shadow: 0 10px 30px rgba(60,40,10,.25); padding: 18px 22px; box-sizing: border-box; overflow-y: auto; }
+  #deai.open { display: block; }
+  #deai h2 { margin: 0 0 8px; font-size: 26px; color: var(--shu); }
+  #deai h3 { margin: 0 0 6px; font-size: 16px; color: var(--shu); border-bottom: 1px dotted #c9b88a; padding-bottom: 2px; }
+  #deai h4 { margin: 10px 0 4px; font-size: 14px; color: #6a6250; }
+  #deai .close { position: absolute; right: 14px; top: 12px; }
+  #deai .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 14px 22px; align-items: start; margin-bottom: 14px; }
+  #deai .who { display: block; font-size: 13px; color: #6a6250; }
+  #deai .who input { width: 11em; font: inherit; font-size: 15px; padding: 2px 6px; border: 1px solid #b8a878; background: #fffdf5; color: var(--ink); }
+  #deai .rank { margin: 8px 0 4px; font-size: 32px; font-weight: 700; color: var(--shu); letter-spacing: .04em; }
+  #deai .bar { display: block; height: 10px; border: 1px solid #b8a878; background: #fbf6e8; }
+  #deai .bar i { display: block; height: 100%; background: #e0b030; }
+  #deai .line { margin: 5px 0 0; font-size: 13px; line-height: 1.6; }
+  #deai .task { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px dotted #d9caa0; font-size: 14px; line-height: 1.45; }
+  #deai .task .check { flex: none; width: 24px; height: 24px; border: 1.5px solid #b8a878; border-radius: 50%; font-size: 12px; line-height: 21px; text-align: center; box-sizing: border-box; }
+  #deai .task.done .check { background: var(--shu); border-color: var(--shu); color: #fffaf0; font-weight: 700; }
+  #deai .task.done .tx { color: #8a8270; }
+  #deai .task .tx { flex: 1; min-width: 0; }
+  #deai .task button { flex: none; font-size: 13px; padding: 3px 12px; }
+  #deai .mine svg { display: block; width: 100%; max-height: 300px; }
+  #deai .mine svg path { stroke: #8a7a5a; stroke-width: 1; vector-effect: non-scaling-stroke; cursor: pointer; fill: #efe7cf; }
+  #deai .mine svg path.s1 { fill: #f3d9a8; } #deai .mine svg path.s2 { fill: #e9a860; } #deai .mine svg path.s3 { fill: #d5683f; }
+  #deai .mine svg path.s4 { fill: var(--shu); stroke: #b8922e; stroke-width: 2; }
+  #deai .mine > button { margin-top: 6px; font-size: 13px; padding: 3px 12px; }
+  #deai .lead { margin: 0 0 6px; font-size: 13px; line-height: 1.6; color: #6a6250; }
+  #deai .seals { display: grid; grid-template-columns: repeat(auto-fill, 76px); gap: 4px 6px; }
+  #deai .cell { background: none; border: 0; padding: 2px 0; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 0; box-shadow: none; }
+  #deai .cell small { font-size: 11px; color: #6a6250; line-height: 1.2; min-height: 13px; }
+  .seal { --r: -5deg; display: inline-flex; align-items: center; justify-content: center; flex: none; width: 62px; height: 62px; box-sizing: border-box; border-radius: 50%;
+    writing-mode: vertical-rl; font-size: 15px; font-weight: 700; line-height: 1.05; letter-spacing: .02em; transform: rotate(var(--r)); color: var(--shu); }
+  .seal.s0 { border: 1.5px dashed #c9b88a; color: #b4a884; transform: none; }
+  .seal.s1 { border: 2px solid var(--shu); }
+  .seal.s2 { border: 2px solid var(--shu); box-shadow: inset 0 0 0 3px #faf4e2, inset 0 0 0 4.5px var(--shu); }
+  .seal.s3 { background: var(--shu); color: #fff4e2; box-shadow: inset 0 0 0 3px var(--shu), inset 0 0 0 4.5px #fff4e2; }
+  .seal.s4 { background: var(--shu); color: #fff4e2; box-shadow: 0 0 0 2.5px #c9a24a, inset 0 0 0 3px var(--shu), inset 0 0 0 4.5px #e9cf85; }
+  #deai .det { margin: 8px 0 4px; padding: 10px 12px; background: #fff8e4; border: 1px solid #d9caa0; }
+  #deai .det h4 { margin: 0 0 6px; color: var(--shu); font-size: 15px; }
+  #deai .row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  #deai .row button { font-size: 13px; padding: 3px 10px; }
+  #deai .row .cert { background: var(--shu); color: #fffaf0; border-color: var(--ink); }
+  #deai .book { margin-bottom: 14px; }
+  #deai .pass textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 8px; font-size: 12px; }
+  #deai .pass [hidden] { display: none; }
+  #deai .say { margin: 6px 0 0; min-height: 1.5em; font-size: 13px; color: var(--shu); }
+  #deai .nudge { margin: 0 0 6px; font-size: 13px; font-weight: 700; color: var(--shu); }
+  #deai .clear { margin-top: 6px; font-size: 12px; padding: 2px 10px; }
+  #deai .pic { position: fixed; inset: 40px 40px 90px; z-index: 9; background: #faf4e2; padding: 14px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  #deai .pic canvas { display: block; max-width: 100%; min-height: 0; flex: 0 1 auto; max-height: calc(100% - 48px); box-shadow: 0 4px 14px rgba(60,40,10,.25); }
+  #deai-cheer { position: fixed; left: 50%; top: 92px; transform: translateX(-50%); z-index: 12; display: none; align-items: center; gap: 12px; width: max-content; max-width: min(460px, calc(100vw - 24px));
+    box-sizing: border-box; background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.25); padding: 10px 16px 10px 12px; pointer-events: none; }
+  #deai-cheer.on { display: flex; animation: cheer-in .2s ease-out; }
+  #deai-cheer .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  #deai-cheer b { font-size: 17px; color: var(--shu); line-height: 1.35; }
+  #deai-cheer small { font-size: 13px; line-height: 1.45; color: var(--ink); }
+  #deai-cheer .seal { animation: seal-press .36s cubic-bezier(.2,1.3,.4,1) both; }
+  @keyframes cheer-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes seal-press { 0% { transform: scale(2) rotate(var(--r)); opacity: 0; } 65% { transform: scale(.93) rotate(var(--r)); opacity: 1; } 100% { transform: scale(1) rotate(var(--r)); } }
+  @media (prefers-reduced-motion: reduce) { #deai-cheer.on, #deai-cheer .seal { animation: none; } }
+  /* 全国の眺めの県名の札に、その県の段の小さな印 */
+  #labels div[data-s]::after { content: ''; position: absolute; right: -5px; top: -5px; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; background: #fffaf0; border: 1px solid var(--ink); }
+  #labels div[data-s="2"]::after { background: #f2c94a; }
+  #labels div[data-s="3"]::after { background: #e9a860; box-shadow: 0 0 0 1.5px #fffaf0; }
+  #labels div[data-s="4"]::after { background: #c9a24a; box-shadow: 0 0 0 2px #fff4e2; width: 11px; height: 11px; }
+  #mame-card { position: fixed; left: 50%; bottom: 78px; transform: translateX(-50%); width: min(480px, calc(100vw - 32px)); box-sizing: border-box; z-index: 7;
+    background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 10px 14px 10px; display: none; }
+  #mame-card.open { display: block; }
+  body.flying #mame-card { bottom: 130px; }
+  #mame-card .head { display: flex; gap: 8px; align-items: baseline; }
+  #mame-card .head b { font-size: 13px; color: var(--shu); }
+  #mame-card .head .pref { font-size: 13px; color: #6a6250; font-weight: 700; }
+  #mame-card h3 { margin: 4px 0 2px; font-size: 21px; }
+  #mame-card .text { margin: 4px 0; font-size: 15px; line-height: 1.75; }
+  #mame-card .where { margin: 2px 0 4px; font-size: 12px; color: #6a6250; }
+  #mame-card details.src { font-size: 12px; color: #6a6250; }
+  #mame-card details.src summary { cursor: pointer; }
+  #mame-card details.src ol { margin: 4px 0 2px; padding-left: 1.4em; line-height: 1.55; }
+  #mame-card details.src a { color: #2a5a8a; word-break: break-all; }
+  #mame-card .got { margin: 6px 0 6px; font-size: 13px; font-weight: 700; color: #6a5a20; }
+  #mame-card .row { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+  /* クイズ（クイズ.js）：左の窓。答えは4択か地図の県。今日の一問がまだならアイコンに赤い点 */
+  #quiz { position: fixed; left: 16px; top: 268px; z-index: 7; width: min(340px, calc(100vw - 32px)); max-height: calc(100vh - 366px); overflow-y: auto; box-sizing: border-box;
+    background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 10px 14px; display: none; }
+  #quiz.open { display: block; }
+  #quiz .head { display: flex; gap: 8px; align-items: baseline; }
+  #quiz .head b { font-size: 16px; color: var(--shu); }
+  #quiz .head .n { font-size: 13px; color: #6a6250; font-weight: 700; }
+  #quiz .head .x { margin-left: auto; border: 0; background: none; font-size: 18px; cursor: pointer; color: #6a6250; }
+  #quiz .q { font-size: 17px; line-height: 1.6; margin: 6px 0 8px; font-weight: 700; }
+  #quiz .time { height: 4px; background: #e8dcc0; margin-bottom: 8px; }
+  #quiz .time i { display: block; height: 100%; width: 100%; background: var(--gold); transition: width linear; }
+  #quiz .ch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  #quiz .ch button { padding: 9px 6px; font-size: 15px; font-weight: 700; border: 1.4px solid var(--ink); background: #fffdf6; cursor: pointer; }
+  #quiz .ch button.good { background: #2f7a4a; color: #fff; border-color: #2f7a4a; }
+  #quiz .ch button.bad { background: var(--shu); color: #fff; border-color: var(--shu); }
+  #quiz .hint { display: block; margin-top: 6px; color: #6a6250; }
+  #quiz .res { margin-top: 8px; }
+  #quiz .res b { font-size: 16px; }
+  #quiz .res.ok b { color: #2f7a4a; } #quiz .res.ng b { color: var(--shu); }
+  #quiz .res p { font-size: 14px; line-height: 1.7; margin: 4px 0 8px; }
+  #quiz button.next, #quiz button.big, #quiz .row button, #quiz .log button { padding: 8px 12px; font-size: 15px; font-weight: 700; border: 1.4px solid var(--ink); background: #fffdf6; cursor: pointer; margin: 4px 0; }
+  #quiz button.big { display: block; width: 100%; }
+  #quiz button:disabled { opacity: .55; cursor: default; }
+  #quiz .ch button:disabled { opacity: .45; }
+  #quiz .ch button.good:disabled, #quiz .ch button.bad:disabled { opacity: 1; }
+  #quiz p.big { font-size: 22px; font-weight: 700; margin: 6px 0 2px; }
+  #quiz .title { font-size: 16px; color: var(--shu); font-weight: 700; margin: 0 0 6px; }
+  #quiz .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  #quiz .log { margin-top: 8px; font-size: 13px; }
+  #quiz .log summary { cursor: pointer; font-weight: 700; }
+  #quiz .log ul, #quiz .log ol { margin: 4px 0; padding-left: 1.4em; }
+  #quiz .log .keep { display: block; color: #6a6250; margin-top: 4px; }
+  #bar .ico.dot { position: relative; }
+  #bar .ico.dot::after { content: ''; position: absolute; top: 3px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--shu); }
+  @media (max-width: 700px) and (orientation: portrait), (max-width: 700px) and (min-height: 521px) { #quiz { left: 8px; right: 8px; top: auto; bottom: 146px; width: auto; max-height: calc(100vh - 290px); } }   /* スマホの下の並びは2段＋出典の字の上 */
+  /* 観光の一言（一言.js）：札のそばの小さな窓。一言のある札は名前の後ろに小さな赤い点 */
+  #hito { position: fixed; left: 0; top: 0; z-index: 7; width: min(300px, calc(100vw - 16px)); box-sizing: border-box; display: none;
+    background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 6px 18px rgba(60,40,10,.22); padding: 8px 12px; }
+  #hito.open { display: block; }
+  #hito .head { display: flex; gap: 8px; align-items: center; }
+  #hito .head b { font-size: 16px; color: var(--ink); }
+  #hito p { margin: 4px 0 6px; font-size: 14px; line-height: 1.7; }
+  #hito .foot { display: flex; gap: 4px 10px; flex-wrap: wrap; align-items: baseline; font-size: 12px; color: #6a6250; }
+  #hito .foot a { color: #2a5a8a; }
+  #inlabels .tag.note { pointer-events: auto; cursor: pointer; }
+  #inlabels .tag.note::after { content: ''; display: inline-block; width: 5px; height: 5px; margin-left: 3px; border-radius: 50%; background: var(--shu); vertical-align: middle; }
+  #inlabels .tag.note.on { outline: 2px solid var(--shu); outline-offset: 2px; }
+  #eki-card { position: fixed; left: 50%; bottom: 78px; transform: translateX(-50%); width: min(480px, calc(100vw - 32px)); box-sizing: border-box; z-index: 7;
+    background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 10px 14px 10px; display: none;
+    max-height: 60vh; overflow-y: auto; }
+  #eki-card.open { display: block; }
+  body.flying #eki-card { bottom: 130px; }
+  #eki-card .head { display: flex; gap: 8px; align-items: baseline; }
+  #eki-card .head b { font-size: 13px; color: var(--shu); }
+  #eki-card .head .pref { font-size: 13px; color: #6a6250; font-weight: 700; }
+  #eki-card h3 { margin: 2px 0 4px; font-size: 22px; }
+  #eki-card .eki-mame { background: #fff8de; border: 1.2px solid var(--gold); padding: 6px 10px 6px; margin: 4px 0 8px; }
+  #eki-card .eki-mame .top { display: flex; gap: 8px; align-items: center; }
+  #eki-card .eki-mame .top b { font-size: 13px; color: var(--shu); }
+  #eki-card .eki-mame h4 { margin: 2px 0 0; padding: 0; border: 0; font-size: 17px; color: var(--ink); }
+  #eki-card .eki-mame p { margin: 2px 0 4px; font-size: 15px; line-height: 1.7; }
+  #eki-card .eki-mame .foot { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  #eki-card .eki-mame .foot small { font-size: 11px; color: #6a6250; }
+  #eki-card .eki-mame .foot button { font-size: 13px; padding: 1px 8px; }
+  #eki-card ul { list-style: none; margin: 0; padding: 0; }
+  #eki-card .lines li { font-size: 14px; font-weight: 700; padding: 2px 0; }
+  #eki-card .lines small, #eki-card .near small { font-weight: 400; color: #6a6250; margin-left: 4px; }
+  #eki-card .kinds { font-size: 13px; margin: 6px 0; }
+  #eki-card h4 { margin: 8px 0 2px; font-size: 13px; color: #6a6250; border-top: 1px dotted #c9b88a; padding-top: 6px; }
+  #eki-card .near li { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; }
+  #eki-card .near button { font-size: 14px; padding: 1px 8px; text-align: left; }
+  #eki-card .none { font-size: 13px; color: #6a6250; }
+  #eki-card .src { font-size: 11px; color: #6a6250; margin: 8px 0 4px; }
+  #eki-card .row { display: flex; justify-content: flex-end; }
+  #mame-book { position: fixed; inset: 40px 40px 90px; background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); display: none; z-index: 8;
+    box-shadow: 0 10px 30px rgba(60,40,10,.25); padding: 18px 22px; box-sizing: border-box; flex-direction: column; }
+  #mame-book.open { display: flex; }
+  #mame-book h2 { margin: 0 0 2px; font-size: 26px; color: var(--shu); }
+  #mame-book .lead { margin: 0 0 8px; font-size: 13px; color: #6a6250; }
+  #mame-book .close { position: absolute; right: 14px; top: 12px; }
+  #mame-book .prog { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  #mame-book .prog b { font-size: 16px; }
+  #mame-book .prog .bar { flex: 1; min-width: 120px; height: 10px; border: 1px solid #b8a878; background: #fbf6e8; }
+  #mame-book .prog .bar i { display: block; height: 100%; background: #e0b030; }
+  /* 地方を升目に並べ、縦にだけ動かす（段組みでは高さに収まらない地方が横へはみ出し、スマホで北海道しか見えなかった。2026-11-07） */
+  #mame-book .list { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 0 22px; align-content: start; align-items: start; }
+  #mame-book section { break-inside: avoid; margin-bottom: 10px; }
+  #mame-book h3 { margin: 4px 0 4px; font-size: 16px; color: var(--shu); border-bottom: 1px dotted #c9b88a; }
+  #mame-book .pref { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; padding: 2px 0; }
+  #mame-book .pref .nm { width: 6.4em; font-size: 13px; font-weight: 700; white-space: nowrap; }   /* 「神奈川県の駅」の6字が入る幅 */
+  #mame-book .chip { font-size: 12px; padding: 2px 8px; border-color: #b8a878; background: #f2c440; }
+  #mame-book .chip small { font-size: 12px; font-weight: 700; margin-left: 1px; }
+  #mame-book .chip.got { background: #fbf6e8; border-color: var(--ink); }
+  #mame-book .foot { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-top: 8px; flex-wrap: wrap; }
+  #mame-book .foot small { font-size: 11px; color: #6a6250; line-height: 1.5; flex: 1; min-width: 200px; }
+  #mame-book .foot .clear { font-size: 12px; padding: 2px 10px; }
+  #mame-toast { position: fixed; left: 50%; top: 70px; transform: translateX(-50%); max-width: min(560px, calc(100vw - 32px)); z-index: 9; pointer-events: none;
+    background: var(--ink); color: #fbf6e8; font-size: 14px; font-weight: 700; padding: 7px 14px; opacity: 0; transition: opacity .35s; }
+  #mame-toast.on { opacity: 1; }
+  /* 音楽（音楽.js）：鳴らし始めた曲の名を、下の札の上にそっと出す */
+  #bgm-cap { position: fixed; left: 50%; bottom: 72px; transform: translateX(-50%); z-index: 5; pointer-events: none; white-space: nowrap;
+    font-size: 13px; font-weight: 700; color: #6a5a20; background: rgba(250,244,226,.9); border: 1px solid var(--gold); padding: 2px 10px;
+    opacity: 0; transition: opacity .6s; }
+  #bgm-cap.on { opacity: 1; }
+  /* 県の横の吹き出し「〇〇の中へ」（県の中.js）：朱に白い字、浮いた県を指す三角。三角は置いた側で向きを変える */
+  #enter-bub { position: fixed; left: 0; top: 0; display: none; z-index: 4; font-size: 15px; padding: 6px 14px 7px; white-space: nowrap;
+    background: var(--shu); color: #fffaf0; border: 1.5px solid var(--ink); box-shadow: 0 4px 12px rgba(60,40,10,.28); }
+  #enter-bub:hover { background: #b0341f; }
+  #enter-bub::after { content: ''; position: absolute; width: 10px; height: 10px; background: var(--shu); border: 1.5px solid var(--ink);
+    border-left: none; border-top: none; }
+  #enter-bub.s-up::after { left: var(--ax, 50%); bottom: -7px; margin-left: -6px; transform: rotate(45deg); }
+  #enter-bub.s-down::after { left: var(--ax, 50%); top: -7px; margin-left: -6px; transform: rotate(225deg); }
+  #enter-bub.s-right::after { left: -7px; top: 50%; margin-top: -6px; transform: rotate(135deg); }
+  #enter-bub.s-left::after { right: -7px; top: 50%; margin-top: -6px; transform: rotate(-45deg); }
+  /* スマホ（幅700未満・本人 2026-10-27「スマホの画面の並びを直して」）：題・検索・方位は上の1段に小さく、下の札は折り返して2段、
+     県の札の窓・産地・遊覧・豆知識の札は、下の札のすぐ上から出す（右に開くと画面の大半を覆い、地図が見えなかった）。
+     --bar-h は下の札の高さ（案内.js が測る）。飾りの霞はしまう */
+  @media (max-width: 700px) and (orientation: portrait), (max-width: 700px) and (min-height: 521px) {
+    :root { --bar-h: 96px; }
+    .kasumi { display: none; }
+    #title { left: 10px; top: 8px; }
+    #title b { font-size: 26px; padding: 0 8px 2px; border-width: 2px; }
+    #title span { font-size: 12px; margin: 2px 0 0 2px; }
+    #search { left: auto; right: 8px; top: 8px; transform: none; width: calc(100vw - 104px); }
+    #q { font-size: 15px; padding: 6px 8px; }
+    #deai-open { left: 10px; top: 72px; font-size: 12px; padding: 2px 8px; }
+    #mame-open { left: 10px; top: 100px; font-size: 12px; padding: 2px 8px; }
+    #fuda-open { left: 10px; top: 128px; font-size: 12px; padding: 2px 8px; }
+    #deai { inset: 10px; padding: 14px; }
+    #deai .pic { inset: 10px; }
+    #deai .seals { grid-template-columns: repeat(auto-fill, 70px); }
+    #fuda { left: 6px; right: 6px; width: auto; top: 156px; }
+    #compass { right: 8px; bottom: auto; top: 56px; width: 44px; height: 44px; }
+    #bar { left: 6px; right: 6px; bottom: 6px; transform: none; flex-wrap: wrap; justify-content: center; gap: 4px 6px; padding: 5px; }
+    body.inside #bar { gap: 4px 6px; }
+    #bar .grp { gap: 3px; }
+    #bar button { font-size: 13px; padding: 3px 7px; }
+    /* スマホは乗せられないので、アイコンの下に名前を小さく。開く窓は下の並びのすぐ上に、画面の幅で */
+    #bar .ico { min-width: 38px; padding: 3px 4px; }
+    #bar .ico svg { width: 20px; height: 20px; }
+    #bar .ico .lab { position: static; width: auto; height: auto; overflow: visible; clip-path: none; font-size: 9px; font-weight: 400; }
+    #bar .dock { position: static; }
+    #bar .dock .pop { position: fixed; left: 6px; right: 6px; bottom: calc(var(--bar-h) + 10px); transform: none; width: auto; max-width: none; }
+    #note { left: 6px; bottom: calc(var(--bar-h) + 6px); max-width: calc(100vw - 12px); font-size: 10px; line-height: 1.5; pointer-events: auto;
+      max-height: 1.5em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: rgba(250,244,226,.85); padding: 1px 6px; box-sizing: border-box; }
+    body:has(#card.open) #note, body:has(#legend.open) #note, body:has(#mame-card.open) #note, body:has(#eki-card.open) #note, body.touring #note { display: none; }
+    body.opening #note { bottom: 6px; }
+    body:has(#card.open) #mame-open, body:has(#card.open) #fuda-open, body:has(#card.open) #deai-open { display: none; }
+    /* 下から出る札は1枚ずつ：豆知識の札・空から遊覧の札を出す間は、県の札の窓をしまう（重なって両方読めなかった） */
+    body:has(#mame-card.open) #card, body:has(#eki-card.open) #card, body.touring #card { display: none !important; }
+    #eki-card { bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); max-height: 50vh; }
+    #card { left: 6px; right: 6px; top: auto; bottom: calc(var(--bar-h) + 10px); width: auto; height: 42vh; max-height: 42vh; padding: 10px 12px 10px; box-sizing: border-box; }
+    #card h2 { font-size: 22px; margin: 0 0 2px; cursor: pointer; }
+    #card h2::after { content: ' ▴ たたむ'; font-size: 12px; color: #6a6250; font-weight: 400; }
+    #card.mini h2::after { content: ' ▾ ひらく'; }
+    #card.mini { height: auto; }
+    #card.mini #c-intro { display: none; }
+    #card .row { margin-top: 8px; }
+    #legend { left: 6px; right: 6px; top: auto; bottom: calc(var(--bar-h) + 10px); width: auto; max-height: 40vh; overflow-y: auto; box-sizing: border-box; }
+    #pop { left: 6px; right: 6px; width: auto; bottom: calc(var(--bar-h) + 10px); box-sizing: border-box; }
+    #tour { bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); }
+    #mame-card { bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); max-height: 50vh; overflow-y: auto; }
+    #mame-book { inset: 10px 10px 10px; padding: 14px 14px; }
+    #mame-toast { top: 106px; font-size: 13px; }
+    #bgm-cap { bottom: calc(var(--bar-h) + 8px); }
+    #cal { inset: 6px; padding: 12px; }
+    #cal.open { flex-direction: column; gap: 8px; }
+    #cal .side { width: 100%; height: 26vh; flex: none; }
+    #cal .months { grid-template-columns: 6.5em repeat(12, 1fr); font-size: 11px; }
+    #cal .row { grid-template-columns: 6.5em 1fr; font-size: 11px; }
+    #cal .months button { font-size: 11px; padding: 2px 0; }
+    #cal .row .nm { font-size: 12px; }
+    #cal h2 { font-size: 20px; }
+  }
+  /* 幅の狭いパソコンの並び（タブレットを縦にした時など）：真ん中の検索の枠が右の札の窓に、下の並びが出典の注にかかった（820×1180・2026-11-07）。
+     検索は題の右から札の窓の手前まで、出典の注は下の並びの上へ */
+  @media (min-width: 701px) and (max-width: 1100px) {
+    #search { left: 200px; transform: none; width: min(440px, calc(100vw - 570px)); }   /* 札の窓は余白と枠を足して約 330px（右 22px） */
+    #note { bottom: 86px; }
+  }
+  /* 背の低い横長の画面（スマホを横にした時）：パソコンの並びのまま、部品を小さく詰める。
+     844×390 で、検索の枠が札の窓の題に・方位が札の窓の角に・出典の注が下の並びと「〇〇の中へ」にかぶった（2026-11-07） */
+  @media (max-height: 520px) and (orientation: landscape) {
+    .kasumi { display: none; }
+    #title { left: 12px; top: 8px; }
+    #title b { font-size: 26px; padding: 0 8px 2px; border-width: 2px; }
+    #title span { font-size: 12px; margin: 2px 0 0 2px; }
+    #deai-open { left: 12px; top: 72px; font-size: 12px; padding: 2px 8px; }
+    #mame-open { left: 12px; top: 100px; font-size: 12px; padding: 2px 8px; }
+    #fuda-open { left: 12px; top: 128px; font-size: 12px; padding: 2px 8px; }
+    #deai { inset: 8px; padding: 12px; }
+    #deai .pic { inset: 8px; }
+    #fuda { left: 12px; top: 156px; max-height: calc(100vh - 170px); overflow-y: auto; }
+    #search { top: 8px; left: 150px; transform: none; width: min(320px, calc(100vw - 430px)); }   /* 題の右から、右の札の窓（約 270px）の手前まで */
+    #q { font-size: 15px; padding: 6px 8px; }
+    #o-title { left: 12px; top: 8px; }
+    #o-title b { font-size: 28px; padding: 4px 10px 6px; } #o-title span { font-size: 12px; margin-top: 4px; }
+    #o-regions { right: 8px; width: 280px; padding: 8px 10px; max-height: calc(100vh - 16px); }
+    #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips button { font-size: 12px; padding: 2px 7px; }
+    #o-regions .list { grid-template-columns: 1fr 1fr; } #o-regions .list button { font-size: 13px; padding: 4px 8px; }
+    #card { right: 8px; top: 8px; width: 260px; padding: 10px 12px; box-sizing: border-box; max-height: calc(100vh - 80px); }
+    #card h2 { font-size: 24px; margin: 0 0 2px; }
+    #compass { right: 8px; bottom: 8px; width: 44px; height: 44px; }
+    #bar { bottom: 6px; gap: 6px; padding: 4px 8px; }
+    body.inside #bar { gap: 6px; }
+    #bar .grp { gap: 3px; }
+    #bar .ico { min-width: 34px; padding: 3px 4px; }
+    #bar .ico svg { width: 20px; height: 20px; }
+    #note { left: 8px; bottom: 8px; max-width: min(200px, calc(50vw - 230px)); font-size: 10px; line-height: 1.5; pointer-events: auto;
+      max-height: 1.5em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: rgba(250,244,226,.85); padding: 1px 6px; box-sizing: border-box; }
+    #legend { left: 12px; top: 156px; max-height: calc(100vh - 170px); overflow-y: auto; box-sizing: border-box; }
+  }
+</style>
+</head>
+<body class="ui-wait">
+<div id="sky"><div id="sun"></div><div id="moon"></div><div class="cloud c1"></div><div class="cloud c2"></div><div class="cloud c3"></div></div>
+<canvas id="gl"></canvas>
+<div id="lamp" aria-hidden="true"></div>
+<div id="labels"></div>
+<svg id="leaders"></svg>
+<div id="isles"></div>
+<div id="ranks"></div>
+<div id="pins"></div>
+<div id="inlabels"></div>
+<!-- 豆知識の豆は札の上に（灯りで浮かんだ札が豆にかぶり、豆を押すと札が開いた。2026-10-29） -->
+<div id="mame"></div>
+<div id="place"><i></i><span></span></div>
+<div id="paper"></div>
+<div id="veil"></div>
+<div class="kasumi" style="left:-40px;top:178px;width:300px"></div>
+<div class="kasumi" style="left:30px;top:216px;width:190px;height:24px"></div>
+<div class="kasumi" style="right:-40px;top:120px;width:360px"></div>
+<div class="kasumi" style="right:60px;top:158px;width:220px;height:24px"></div>
+<div id="title"><b>日本</b><span id="season-name">夏の巻</span></div>
+<div id="tip"></div>
+<div id="search"><input id="q" type="search" placeholder="地名・名物・品目で探す（例：つまごい、りんご）" autocomplete="off" spellcheck="false" aria-label="地名・名物・品目で探す"><div id="results" role="listbox"></div></div>
+<div id="legend"></div>
+<div id="cal" role="dialog" aria-label="旬のカレンダー"></div>
+<div id="card">
+  <h2 id="c-name"></h2>
+  <div id="c-intro"></div>
+  <div class="row">
+    <button id="c-enter" disabled>この県の中へ（これから）</button>
+    <button id="c-back">もどる（Esc）</button>
+  </div>
+</div>
+<div id="bar">
+  <!-- 下の並び（本人 2026-10-29「常時表示ではなく、アイコンと説明のホバーで。クリックで選ぶ」）。季節と時刻・向きは押すと窓が開く（とき.js） -->
+  <button class="ico" id="back-one" data-tip="ひとつ前の眺めへ（Backspace）" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg><span class="lab">ひとつ前へ</span></button>
+  <div class="dock" id="toki">
+    <button class="ico" id="toki-open" aria-haspopup="true" aria-expanded="false" data-tip="季節と時刻"><span class="glyph"></span><span class="lab">季節と時刻</span></button>
+    <div class="pop" id="toki-pop" role="dialog" aria-label="季節と時刻">
+      <p>季節</p>
+      <div class="grp" id="seasons"><button data-s="0">春</button><button data-s="1" class="on">夏</button><button data-s="2">秋</button><button data-s="3">冬</button></div>
+      <p>時刻 <b id="toki-h">12:00</b></p>
+      <input type="range" id="toki-range" min="0" max="24" step="0.25" value="12" aria-label="時刻">
+      <div class="grp" id="toki-quick"><button data-h="6">朝</button><button data-h="12">昼</button><button data-h="17.25">夕</button><button id="night" data-h="21" title="夜の日本（N）">夜</button></div>
+      <div class="grp"><button id="toki-now">今に合わせる</button><button id="toki-meguri">季節めぐり</button><button id="toki-flow">時間を流す</button></div>
+      <small id="toki-state"></small>
+    </div>
+  </div>
+  <div class="grp" id="views">
+    <div class="dock" id="muki">
+      <button class="ico" id="muki-open" aria-haspopup="true" aria-expanded="false" data-tip="向き"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 4.5 14.6 12 12 19.5 9.4 12Z"/><path class="f" d="M12 4.5 14.6 12H9.4Z"/></svg><span class="lab">向き</span></button>
+      <div class="pop" id="muki-pop" role="dialog" aria-label="向き"><button data-v="0">南から</button><button data-v="1">東から</button><button data-v="2">北から</button><button data-v="3">西から</button></div>
+    </div>
+    <button class="ico" data-v="all" data-tip="全体（日本全体と、どこから旅を始めるか）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path d="M9 14c1.5-1 2-2.5 4-3 1.5-.4 2.2-1.6 2.6-2.6"/></svg><span class="lab">全体</span></button>
+  </div>
+  <button class="ico" id="quiz-open" data-tip="クイズ（今日の一問・10問で点数）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10H10l-4 3.5v-3.5H4Z"/><path d="M10 8.6a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.3"/><circle class="f" cx="12" cy="13.6" r=".9"/></svg><span class="lab">クイズ</span></button>
+  <button class="ico" id="cal-open" data-tip="旬のカレンダー"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path class="f" d="M7 12.5h3v3H7z"/></svg><span class="lab">旬のカレンダー</span></button>
+  <button class="ico" id="tour-nat" data-tip="全国を遊覧（見ている所から）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c2.5-4 5-1 7-5s4-6 9-7" stroke-dasharray="2.2 2.2"/><circle cx="4" cy="18" r="1.6"/><path class="f" d="M20 3.5c-1.7 0-3 1.3-3 3 0 2.2 3 5 3 5s3-2.8 3-5c0-1.7-1.3-3-3-3Z"/></svg><span class="lab">全国を遊覧</span></button>
+  <button class="ico" id="tour-open" data-tip="空から遊覧"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14c3-2 5-2 8 0s5 2 8 0"/><path d="M12 4 21 9l-9 1-3 4V9.5L3 8Z"/></svg><span class="lab">空から遊覧</span></button>
+  <button class="ico" id="fly-open" data-tip="空を飛ぶ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 21 4l-5.5 16-3.8-6.6Z"/><path d="M11.7 13.4 21 4"/></svg><span class="lab">空を飛ぶ</span></button>
+  <button class="ico" id="pop-open" data-tip="人口を表示"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="2.6"/><circle cx="16.5" cy="9" r="2.2"/><path d="M3 19c.5-3.5 2.6-5.5 5-5.5s4.5 2 5 5.5M13.5 17c.4-2.4 1.6-3.8 3-3.8s2.8 1.4 3.5 4"/></svg><span class="lab">人口を表示</span></button>
+  <button class="ico" id="bgm" data-tip="音楽"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v11"/><circle class="f" cx="6.5" cy="18" r="2.5"/><circle class="f" cx="16.5" cy="15" r="2.5"/></svg><span class="lab">音楽</span></button>
+</div>
+<div id="dock-tip" role="tooltip"></div>
+<div id="compass" title="北を上にもどす">
+  <svg viewBox="-50 -50 100 100"><circle r="44" fill="#fbf6e8" stroke="#2a3146" stroke-width="2.5"/>
+    <g id="needle"><path d="M0-26 L8 0 L0 5 L-8 0Z" fill="#c8402c" stroke="#2a3146" stroke-width="1.5"/>
+      <path d="M0 26 L8 0 L0 5 L-8 0Z" fill="#fbf6e8" stroke="#2a3146" stroke-width="1.5"/>
+      <text y="-29" text-anchor="middle" font-size="13" font-weight="700" fill="#c8402c">北</text></g></svg>
+</div>
+<div id="note">作りかけ　地図データ：国土地理院・国土交通省・総務省統計局・林野庁ほか（いずれも加工して作成）　<button id="credits-open" type="button">出典とご利用にあたって ›</button></div>
+<div id="credits" role="dialog" aria-label="出典とご利用にあたって">
+  <h3>出典とご利用にあたって</h3>
+  <h4>ご利用にあたって</h4>
+  <p>この地図は、訪れる方に、各地の魅力を気持ちよく楽しんでいただくための場です。頼まれての宣伝や、どこかを悪く言うための掲載はありません。</p>
+  <p>公開されている資料をもとに AI内製化工房 が作ったもので、各機関が作ったものではありません。紹介・豆知識は、公式のページなどで確かめ、できるかぎり正確にしていますが、間違いや、古くなった所があるかもしれません。<b>お気づきの点があれば、ぜひお知らせください。確かめて直します。</b><span class="book-only">お知らせは、<a id="ask-link" href="" target="_blank" rel="noopener noreferrer">絵図帳</a>へどうぞ。</span></p>
+  <h4 class="book-only">絵図帳</h4>
+  <p class="book-only">宿帳に名前を書くように、ここを訪れた足跡を残していってください。ひとことだけでも歓迎です。書いた内容は工房の主だけが読みます。</p>
+  <p class="book-only">「この場所も載せてほしい」「こんな話も入れてほしい」といったご要望も、お気軽にお声がけください。工房主の気分次第で、お応えできないこともありますが、できるだけお応えしたいと思っています。</p>
+  <p>お出かけの前には、各施設・自治体の公式の情報をご確認ください。山の高さを強めて描き、場所もおおよその位置です。<b>道案内・登山・防災には使わないでください。</b>現地では、私有地や立入禁止の場所に入らず、地元の決まりを守ってください。</p>
+  <p>作成者の故意または重大な過失による場合を除き、この地図の利用によって生じた損害について作成者が負う責任は、直接かつ通常の損害の範囲に限ります。リンク先の内容は、それぞれのサイトの責任です。</p>
+  <h4>この地図の使い方</h4>
+  <p>地図の画面の写しは、地図を紹介するためなら、自由にお使いください。その時は「にっぽん であい絵図（AI内製化工房）」と書き添えてください。</p>
+  <h4>記録と通信</h4>
+  <p>豆知識帳・クイズの記録・選んだ表示は、この端末のブラウザの中だけに残し、どこにも送りません（ブラウザの設定で消せます）。アクセス解析・広告・クッキーは使っていません。地図を置いている GitHub は、安全のため、訪れた方の IP アドレスを記録します。</p>
+  <h4>描き方について</h4>
+  <p>山の高さは、全国の眺めで10倍・県の中で5倍に強めています（空を飛ぶ間は高い所で3倍、低く飛ぶほど本物の高さに近づけます）。県の中の家の絵1つはおよそ100世帯、ビルの絵1つはおよそ300世帯です（もっと寄ると、町並みの絵として家を足します）。本土から遠い島（東京の八丈島・青ヶ島・小笠原、石川の舳倉島）は、県の中の地図では間の海を縮めて本土の近くに描き、点線の枠と札で本当の向きと距離を示しています。東京タワーと東京スカイツリーは、目印として大きく描いています。</p>
+  <h4>出典</h4>
+  <ul>
+    <li>地形（標高）：地理院タイル（標高タイル（基盤地図情報数値標高モデル））を加工して作成（出典：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院</a>）</li>
+    <li>川・湖・鉄道・道路・地名（県の中）：<a href="https://github.com/gsi-cyberjapan/optimal_bvmap" target="_blank" rel="noopener noreferrer">国土地理院最適化ベクトルタイル</a>を加工して作成</li>
+    <li>山の名と高さ：国土地理院「<a href="https://www.gsi.go.jp/KOKUJYOHO/MOUNTAIN/1003zan20260331.csv" target="_blank" rel="noopener noreferrer">日本の主な山岳標高（1003山）</a>」を加工して作成</li>
+    <li>名所の町名と位置の確認：国土地理院の住所検索・逆ジオコーダ（地理院地図の検索機能）を使用</li>
+    <li>新幹線と駅：「<a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N02-2025.html" target="_blank" rel="noopener noreferrer">国土数値情報（鉄道データ）</a>」（国土交通省・2025年度版）をもとに AI内製化工房 作成（CC BY 4.0）</li>
+    <li>田畑・森・工場：「<a href="https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-L03-b-2021.html" target="_blank" rel="noopener noreferrer">国土数値情報（土地利用細分メッシュデータ）</a>」（国土交通省）をもとに AI内製化工房 作成（CC BY 4.0）</li>
+    <li>家とビルの数：「令和2年国勢調査に関する地域メッシュ統計」（総務省統計局）を加工して作成（出典：<a href="https://www.e-stat.go.jp/" target="_blank" rel="noopener noreferrer">政府統計の総合窓口(e-Stat)</a>）</li>
+    <li>森の針葉樹の割合：林野庁「<a href="https://www.rinya.maff.go.jp/j/keikaku/genkyou/r4/4.html" target="_blank" rel="noopener noreferrer">森林資源の現況（令和4年3月31日現在）</a>」を加工して作成</li>
+    <li>県の人口・面積・市町村の数：総務省統計局・国土地理院・総務省の公表値（出典は各県のデータの欄と、日本のデータの窓に）</li>
+    <li>主な産地の順位：農林水産省の統計（出典は各品目の欄に）</li>
+    <li>町と地名：「<a href="https://github.com/geolonia/japanese-addresses" target="_blank" rel="noopener noreferrer">Geolonia 住所データ</a>」（株式会社Geolonia）を加工して作成（<a href="https://creativecommons.org/licenses/by/4.0/deed.ja" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>）</li>
+    <li>県の形：Made with <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener noreferrer">Natural Earth</a>.</li>
+    <li>名所の位置合わせの参考：OpenStreetMap（<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>）</li>
+    <li>紹介の文：各地の公式のページなどを参考に AI内製化工房 が書いたものです（出どころは各紹介のリンク）</li>
+    <li>3D表示：three.js r160（MIT License, Copyright © 2010-2023 three.js authors。全文は vendor/three.LICENSE.txt）</li>
+    <li>BGM：AI内製化工房のオリジナル曲（Suno で制作）</li>
+  </ul>
+  <button id="credits-close" type="button">閉じる</button>
+</div>
+<div id="pop" role="region" aria-label="人口の表示">
+  <h3>人口（2020年 国勢調査）</h3>
+  <div id="pop-total"></div>
+  <div class="now" id="pop-house"></div>
+  <div class="now" id="pop-bldg"></div>
+  <div>色の濃さ：1km² あたりの世帯数</div>
+  <div class="scale"><i style="background:#f2e8b8"></i><i style="background:#f2d878"></i><i style="background:#f0a84c"></i><i style="background:#dc6e33"></i><i style="background:#b32e21"></i></div>
+  <div class="ticks"><span>50</span><span>500</span><span>1,500</span><span>3,000</span><span>6,000</span></div>
+  <small>遠くから見る時は家の絵を間引いて描くので、1つの絵が表す数は増えます（いまの見え方で数えています）。<br>出典：「令和2年国勢調査に関する地域メッシュ統計」（総務省統計局）を加工して作成</small>
+</div>
+<div id="tour" role="region" aria-label="空から遊覧">
+  <div class="head"><span id="t-step"></span><span id="t-cat" class="cat"></span><b id="t-name"></b></div>
+  <p id="t-text"></p>
+  <p id="t-when"></p>
+  <div id="t-src"></div>
+  <div class="ctl"><button id="t-more">くわしく</button><button id="t-prev">‹ 前へ</button><button id="t-pause">一時停止</button><button id="t-next">次へ ›</button><button id="t-end">遊覧を終える</button></div>
+</div>
+<div id="quiz" role="dialog" aria-label="クイズ"></div>
+<div id="fly" role="region" aria-label="空を飛ぶ">
+  <div class="head"><b>空を飛ぶ</b><span id="f-where"></span><button id="f-end">降りる（Esc）</button></div>
+  <p id="f-near"></p>
+  <p id="f-keys"></p>
+</div>
+<div id="fly-pad" aria-label="進む・曲がる"><i></i></div>
+<div id="fly-ud"><button id="fly-up">上へ</button><button id="fly-dn">下へ</button></div>
+<div id="opening">
+  <h1 id="o-title"><b>にっぽん<br>であい絵図</b><span>土地の魅力に出会う、四季の鳥瞰図</span></h1>
+  <div id="o-regions">
+    <p>見たい情報（いくつでも）</p><div class="chips" id="o-miru"></div>
+    <p>季節と時刻</p>
+    <div class="chips" id="o-toki"><button type="button" data-now="1">今に合わせる</button><button type="button" data-s="0">春</button><button type="button" data-s="1">夏</button><button type="button" data-s="2">秋</button><button type="button" data-s="3">冬</button></div>
+    <div class="chips" id="o-hour"><button type="button" data-h="6">朝</button><button type="button" data-h="12">昼</button><button type="button" data-h="17.25">夕</button><button type="button" data-h="21">夜</button></div>
+    <p>どこから旅を始めますか<span id="o-wait">（読み込み中）</span><span id="o-fail">（読み込めませんでした）</span><button id="o-retry" type="button">もう一度</button></p><div id="o-go" inert><div class="list"></div><button id="o-all">日本全体をながめる</button><button id="o-tour">遊覧で旅する（出発はおまかせ）</button></div>
+  </div>
+</div>
+<button id="enter-bub" type="button"></button>
+<button id="deai-open">であい帖</button>
+<button id="mame-open"></button>
+<button id="fuda-open" aria-controls="fuda"></button>
+<div id="fuda"><p>見る情報（いくつでも）</p><div class="chips miru"></div><p>地図に出す札（テロップ）</p><div class="chips" id="fuda-chips"></div><small>出していない札も、地図にマウスを当てると、その周りだけ浮かびます（スマホは触れた所）。光の粒は豆知識です。</small></div>
+<div id="mame-card" role="dialog" aria-label="豆知識"></div>
+<div id="mame-book" role="dialog" aria-label="豆知識帳"></div>
+<div id="eki-card" role="dialog" aria-label="駅の案内"></div>
+<div id="mame-toast" role="status"></div>
+<div id="deai" role="dialog" aria-label="であい帖"></div>
+<div id="deai-cheer" role="status"></div>
+<div id="bgm-cap" role="status"></div>
+<div id="msg"></div>
+<div id="wait">地図をひろげています…</div>
+<script src="vendor/three.global.js"></script>
+<script src="日本.js"></script>
+<script src="森林.js"></script>
+<script src="鳥瞰.js"></script>
+<script src="map3d.js"></script>
+<script src="札.js"></script>
+<script src="見る物.js"></script>
+<script src="描き込み.js"></script>
+<script src="入口.js"></script>
+<script src="とき.js"></script>
+<script src="後から読む.js"></script>
+</body></html>
