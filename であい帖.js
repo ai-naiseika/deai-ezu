@@ -73,7 +73,32 @@
   const total = () => known.size + (window.MAME ? MAME.count()[0] : 0);
   const stageNow = (n) => { const st = S.stage[n]; return st ? Math.max(...Object.keys(st).map(Number)) : 0; };
 
-  // ---------------------------------------------------------------- 朱印（字の入った丸い印。絵は CSS だけ）
+  // ---------------------------------------------------------------- 県ごとの朱印（朱印の絵.js。骨/朱印を作る.py が作る。自前のファイルなので innerHTML で入れる）。
+  // 最初に何かを知った時か、窓を開いた時に読む（読むのは圧縮 150KB。であい帖を使わない人には読ませない）
+  let shuin = null, uid = 0;
+  function loadShuin() {
+    if (!shuin) shuin = new Promise((ok, ng) => {
+      const s = document.createElement('script');
+      s.src = '朱印の絵.js'; s.onload = ok;
+      s.onerror = () => { shuin = null; s.remove(); ng(new Error('朱印の絵が読めません')); };
+      document.head.appendChild(s);
+    });
+    return shuin;
+  }
+  function artOf(n, s) {
+    const e = window.SHUIN && SHUIN[n];
+    if (!e) return null;
+    uid++;      // 絵の中の id を重ねない（同じ印が朱印帳と知らせに同時に出る。隠れた窓の中の id を指すと、絵が欠ける）
+    return e.s[s].replace(/d="@(\d+)"/g, (m, i) => `d="${e.d[+i]}"`).replace(/Z_/g, `z${uid}_`);
+  }
+  function prefMark(p, s, big) {
+    const svg = artOf(p.n, s);
+    if (!svg) return seal(p.name, s, p.n);          // 読めない間は丸い印で
+    const d = el('span', big ? 'art big' : 'art');
+    d.innerHTML = svg;
+    return d;
+  }
+  // ---------------------------------------------------------------- 字の入った丸い印（位・便り。県の絵が読めない時も）。絵は CSS だけ
   function seal(text, s, n) {
     const d = el('span', 'seal s' + s, text);
     d.style.setProperty('--r', ((hash(String(n || text)) % 15) - 7) + 'deg');     // 押した向きを少しずつ変える
@@ -88,12 +113,17 @@
     const o = cheers.shift();
     if (!o) { cheering = false; return; }
     cheering = true;
-    cheerBox.textContent = '';
-    const t = el('div', 't');
-    t.append(el('b', null, o[1]), el('small', null, o[2]));
-    cheerBox.append(o[0], t);
-    cheerBox.classList.add('on');
-    setTimeout(() => { cheerBox.classList.remove('on'); setTimeout(nextCheer, 200); }, 3000);
+    const show = () => {
+      cheerBox.textContent = '';
+      const t = el('div', 't');
+      t.append(el('b', null, o[1]), el('small', null, o[2]));
+      cheerBox.append(typeof o[0] === 'function' ? o[0]() : o[0], t);
+      cheerBox.classList.add('on');
+      setTimeout(() => { cheerBox.classList.remove('on'); setTimeout(nextCheer, 200); }, 3000);
+    };
+    // 県の絵を待つのは少しだけ（遅い回線で知らせが遅れないように。間に合わなければ丸い印で押す）
+    if (typeof o[0] === 'function' && !window.SHUIN) Promise.race([loadShuin().catch(() => {}), new Promise((ok) => setTimeout(ok, 1200))]).then(show);
+    else show();
   }
 
   // ---------------------------------------------------------------- 上がったか
@@ -106,7 +136,7 @@
     const st = S.stage[n] = S.stage[n] || {};
     for (let i = cur + 1; i <= s; i++) st[i] = today();
     paintLabel(n);
-    if (!quiet) cheer(seal(p.name, s, n), `${M.FULL(p.name)}　${stageName(p, s)}`, stageLine(p, s));
+    if (!quiet) cheer(() => prefMark(p, s, true), `${M.FULL(p.name)}　${stageName(p, s)}`, stageLine(p, s));
   }
   function settleRank(quiet) {
     const r = rankOf(total());
@@ -145,6 +175,7 @@
   addEventListener('deai', (e) => {
     const { id, pref, mameNew, day } = e.detail || {};
     const L = letter();
+    loadShuin().catch(() => {});
     let fresh = !!mameNew;
     if (LEDGER.has(id) && !known.has(id)) { known.add(id); fresh = true; }
     const task = (id === L.id && !L.done[0]) || (mameNew && !L.done[1]);
@@ -182,6 +213,16 @@
     render();
     box.classList.add('open');
     box.scrollTop = 0;
+    if (!window.SHUIN) loadShuin().then(() => { if (box.classList.contains('open')) refreshSeals(); }, () => {});
+  }
+  // 朱印の絵が届いたら、丸い印を県の印に置きかえる（窓は開いたまま・動かさない）
+  function refreshSeals() {
+    for (const c of box.querySelectorAll('.cell')) {
+      const n = +c.dataset.n, p = prefOf(n);
+      c.firstChild.replaceWith(prefMark(p, stageNow(n)));
+    }
+    const det = box.querySelector('.det');
+    if (det) { const n = +det.dataset.n; det.querySelector('.seal, .art').replaceWith(prefMark(prefOf(n), stageNow(n), true)); }
   }
   function render() {
     const L = letter();
@@ -249,7 +290,7 @@
   function renderSeals() {
     const sec = el('section', 'book');
     sec.appendChild(el('h3', null, '朱印帳'));
-    sec.appendChild(el('p', 'lead', '紹介と豆知識を知るほど、県の朱印が変わります（3つで知人・4分の1で常連・半分で通・全部で名誉）。押すと、その県の進み具合が開きます。'));
+    sec.appendChild(el('p', 'lead', '県ごとに違う印があります。紹介と豆知識を知るほど、印が完成していきます（3つで知人・4分の1で常連・半分で通・全部で名誉）。名誉の印には、その県だけの仕上げがあります。押すと、進み具合が開きます。'));
     const REG = (window.OPENING && OPENING.regions) || [['全国', 1, 47]];
     for (const [name, a, z] of REG) {
       sec.appendChild(el('h4', null, name));
@@ -258,7 +299,7 @@
         const s = stageNow(p.n), c = el('button', 'cell');
         c.dataset.n = p.n;
         c.setAttribute('aria-label', `${M.FULL(p.name)}（${s ? stageName(p, s) : 'まだ'}）`);
-        c.appendChild(seal(p.name, s, p.n));
+        c.appendChild(prefMark(p, s));
         const last = s && S.stage[p.n][s];
         c.appendChild(el('small', null, last ? last.slice(5).split('-').map(Number).join('/') : ' '));
         c.addEventListener('click', () => detail(p, grid));
@@ -273,22 +314,25 @@
     if (old) { const same = +old.dataset.n === p.n; old.remove(); if (same) return; }
     const [k, D] = countOf(p.n), s = stageNow(p.n), st = S.stage[p.n] || {}, det = el('div', 'det');
     det.dataset.n = p.n;
-    det.append(el('h4', null, `${M.FULL(p.name)}　${s ? stageName(p, s) : 'まだこれから'}`));
+    const head = el('div', 'dhead'), hd = el('div', 'dtx');
+    head.append(prefMark(p, s, true), hd);
+    det.appendChild(head);
+    hd.appendChild(el('h4', null, `${M.FULL(p.name)}　${s ? stageName(p, s) : 'まだこれから'}`));
     const bar = el('span', 'bar'), fill = el('i');
     fill.style.width = (D ? k / D * 100 : 0).toFixed(1) + '%';
     bar.appendChild(fill);
     const nextAt = [3, Math.ceil(D / 4), Math.ceil(D / 2), D].find((v) => v > k);
     const nextS = s < 4 && nextAt != null ? stageOf([nextAt, D]) : 0;
-    det.append(bar, el('p', 'line', `知った数 ${k} / ${D}` + (nextS ? `　あと ${nextAt - k} で${stageName(p, nextS)}` : '')));
+    hd.append(bar, el('p', 'line', `知った数 ${k} / ${D}` + (nextS ? `　あと ${nextAt - k} で${stageName(p, nextS)}` : '')));
     const dates = [1, 2, 3, 4].filter((i) => st[i]).map((i) => `${stageName(p, i)} ${jpDate(st[i])}`);
-    if (dates.length) det.appendChild(el('p', 'line', dates.join('　')));
+    if (dates.length) hd.appendChild(el('p', 'line', dates.join('　')));
     const row = el('div', 'row');
     const go = el('button', null, 'この県へ'); go.addEventListener('click', () => goPref(p.n)); row.appendChild(go);
     const it = IN.items.find((q) => q.pref === p.n && !known.has(itemId(q)));
     if (it) { const b = el('button', null, 'まだ読んでいない紹介へ'); b.addEventListener('click', () => goItem(it)); row.appendChild(b); }
     const mm = (IN.mame || []).find((d) => d.pref === p.n && !hasMame(d.id));
     if (mm && window.MAME) { const b = el('button', null, 'まだ知らない豆知識へ'); b.addEventListener('click', () => { close(); MAME.goTo(mm.id); }); row.appendChild(b); }
-    if (s === 4) { const b = el('button', 'cert', `絵図の${meiyo(p)}証`); b.addEventListener('click', () => showPic(drawCert(p, D, st[4]), `絵図の${meiyo(p)}証_${p.name}.png`)); row.appendChild(b); }
+    if (s === 4) { const b = el('button', 'cert', `絵図の${meiyo(p)}証`); b.addEventListener('click', () => drawCert(p, D, st[4]).then((c) => showPic(c, `絵図の${meiyo(p)}証_${p.name}.png`))); row.appendChild(b); }
     det.appendChild(row);
     grid.after(det);
     det.scrollIntoView({ block: 'nearest' });
@@ -325,7 +369,7 @@
     write(g, 'にっぽん であい絵図（AI内製化工房）', 600, 1420, 30, '#6a6250');
     return c;
   }
-  function drawCert(p, D, date) {
+  async function drawCert(p, D, date) {
     const [c, g] = sheet(1400, 990), full = M.FULL(p.name), title = meiyo(p);
     g.fillStyle = PAPER; g.fillRect(0, 0, 1400, 990);
     g.strokeStyle = GOLD; g.lineWidth = 8; g.strokeRect(36, 36, 1328, 918);
@@ -334,12 +378,23 @@
     write(g, `${who()}　殿`, 700, 320, 56, INK);
     [`あなたは、${full}の紹介と豆知識 ${D}件を`, 'すべて知りました。', `よって、ここに絵図の${title}と認めます。`].forEach((t, i) => write(g, t, 700, 440 + i * 72, 44, INK));
     write(g, jpDate(date), 700, 700, 40, INK);
-    // 朱印：字は縦に
+    // その県の名誉の印を押す。絵が読めない時は、丸い印を描く
     const sx = 1130, sy = 720;
-    g.beginPath(); g.arc(sx, sy, 92, 0, Math.PI * 2); g.fillStyle = SHU; g.fill();
-    g.beginPath(); g.arc(sx, sy, 80, 0, Math.PI * 2); g.strokeStyle = '#fff4e2'; g.lineWidth = 3; g.stroke();
-    const ch = [...p.name], size = ch.length > 2 ? 44 : 56;
-    ch.forEach((t, i) => write(g, t, sx, sy + (i - (ch.length - 1) / 2) * (size + 4) + size * 0.36, size, '#fff4e2'));
+    let stamped = false;
+    try {
+      await loadShuin();
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(artOf(p.n, 4));
+      await img.decode();
+      g.save(); g.translate(sx, sy); g.rotate(-0.09); g.drawImage(img, -120, -120, 240, 240); g.restore();
+      stamped = true;
+    } catch (e) { /* 下の丸い印で */ }
+    if (!stamped) {
+      g.beginPath(); g.arc(sx, sy, 92, 0, Math.PI * 2); g.fillStyle = SHU; g.fill();
+      g.beginPath(); g.arc(sx, sy, 80, 0, Math.PI * 2); g.strokeStyle = '#fff4e2'; g.lineWidth = 3; g.stroke();
+      const ch = [...p.name], size = ch.length > 2 ? 44 : 56;
+      ch.forEach((t, i) => write(g, t, sx, sy + (i - (ch.length - 1) / 2) * (size + 4) + size * 0.36, size, '#fff4e2'));
+    }
     write(g, 'にっぽん であい絵図（AI内製化工房）', 700, 830, 32, '#6a6250');
     write(g, `この絵図の中の遊びの称号です。${full}や市町村とは関係ありません。`, 700, 884, 28, '#6a6250');
     return c;
@@ -490,7 +545,7 @@
   window.DEAI = {
     open, close, pass: passText, read: apply0,
     get state() { return { name: S.name, known: known.size, total: total(), rank: S.rank, rankName: RANKS[S.rank][1], days: S.days.length, letters: S.letters, letter: letter(), stage: S.stage, canKeep }; },
-    stageNow, countOf,
+    stageNow, countOf, art: artOf, load: loadShuin,
     pics: { mine: () => drawMine([0, 0, 0, 0, 0]), cert: (n) => drawCert(prefOf(n), countOf(n)[1], today()) },
   };
   function apply0(text) { const o = readPass(text); return o ? mergePass(o) : null; }

@@ -454,6 +454,11 @@
   #deai .seals { display: grid; grid-template-columns: repeat(auto-fill, 76px); gap: 4px 6px; }
   #deai .cell { background: none; border: 0; padding: 2px 0; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; min-height: 0; box-shadow: none; }
   #deai .cell small { font-size: 11px; color: #6a6250; line-height: 1.2; min-height: 13px; }
+  .art { display: block; flex: none; width: 66px; height: 66px; }
+  .art svg { display: block; width: 100%; height: 100%; }
+  .art.big { width: 96px; height: 96px; }
+  #deai .dhead { display: flex; gap: 12px; align-items: flex-start; }
+  #deai .dtx { flex: 1; min-width: 0; }
   .seal { --r: -5deg; display: inline-flex; align-items: center; justify-content: center; flex: none; width: 62px; height: 62px; box-sizing: border-box; border-radius: 50%;
     writing-mode: vertical-rl; font-size: 15px; font-weight: 700; line-height: 1.05; letter-spacing: .02em; transform: rotate(var(--r)); color: var(--shu); }
   .seal.s0 { border: 1.5px dashed #c9b88a; color: #b4a884; transform: none; }
@@ -480,10 +485,10 @@
   #deai-cheer .t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   #deai-cheer b { font-size: 17px; color: var(--shu); line-height: 1.35; }
   #deai-cheer small { font-size: 13px; line-height: 1.45; color: var(--ink); }
-  #deai-cheer .seal { animation: seal-press .36s cubic-bezier(.2,1.3,.4,1) both; }
+  #deai-cheer .seal, #deai-cheer .art { animation: seal-press .36s cubic-bezier(.2,1.3,.4,1) both; }
   @keyframes cheer-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes seal-press { 0% { transform: scale(2) rotate(var(--r)); opacity: 0; } 65% { transform: scale(.93) rotate(var(--r)); opacity: 1; } 100% { transform: scale(1) rotate(var(--r)); } }
-  @media (prefers-reduced-motion: reduce) { #deai-cheer.on, #deai-cheer .seal { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { #deai-cheer.on, #deai-cheer .seal, #deai-cheer .art { animation: none; } }
   /* 全国の眺めの県名の札に、その県の段の小さな印 */
   #labels div[data-s]::after { content: ''; position: absolute; right: -5px; top: -5px; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; background: #fffaf0; border: 1px solid var(--ink); }
   #labels div[data-s="2"]::after { background: #f2c94a; }
@@ -636,6 +641,8 @@
     #deai { inset: 10px; padding: 14px; }
     #deai .pic { inset: 10px; }
     #deai .seals { grid-template-columns: repeat(auto-fill, 70px); }
+    .art { width: 62px; height: 62px; }
+    .art.big { width: 84px; height: 84px; }
     #fuda { left: 6px; right: 6px; width: auto; top: 156px; }
     #compass { right: 8px; bottom: auto; top: 56px; width: 44px; height: 44px; }
     #bar { left: 6px; right: 6px; bottom: 6px; transform: none; flex-wrap: wrap; justify-content: center; gap: 4px 6px; padding: 5px; }
