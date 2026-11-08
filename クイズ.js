@@ -239,7 +239,9 @@
     b2.addEventListener('click', () => startRound('round'));
     const b3 = el('button', 'big', `かたちで当てる（${ROUND}問）`);
     b3.addEventListener('click', () => startRound('shape'));
-    box.append(head, el('p', null, '答えは4つから選ぶか、地図の都道府県を押します。速く答えるほど点が増えます。'), b1, b2, b3, logView(save(L)));
+    const b4 = el('button', 'big', '日本一周すごろく（1〜4人）');
+    b4.addEventListener('click', () => { if (window.SUGO) SUGO.open(); });
+    box.append(head, el('p', null, '答えは4つから選ぶか、地図の都道府県を押します。速く答えるほど点が増えます。'), b1, b2, b3, b4, logView(save(L)));
     box.classList.add('open'); open.classList.add('on');
   }
   function stop() { S = null; box.classList.remove('open'); open.classList.remove('on'); }
