@@ -205,6 +205,8 @@
     for (const [k, at, name, what] of TOOLS) if (at > was && at <= r) cheer(() => toolIcon(k), `旅の道具を手に入れました　${name}`, what);
   }
   function toolIcon(k) { const d = el('span', 'tool-ic'); d.innerHTML = TOOL_ICON[k]; return d; }
+  // 縁の道の形（小さな地図・絵にして残す1枚に重ねる）。筋の始まり（b）で線を切る
+  const enD = (e) => e.pts.map((p, i) => (i === 0 || p.b ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.z.toFixed(1)).join('');
   function enIcon(dim) { const d = el('span', 'tool-ic' + (dim ? ' dim' : '')); d.innerHTML = EN_ICON; return d; }
   // 縁：道の県がみな知人（段1）以上になったら結ぶ。知らせの後、であい帖の「縁」から地図に出せる
   function settleEn(quiet) {
@@ -449,11 +451,14 @@
       path.addEventListener('click', () => { const c = box.querySelector(`[data-n="${jp.n}"]`); if (c) c.click(); });
       svg.appendChild(path);
     });
+    // 結んだ縁の道を金の線で重ねる（縁の点は小さな地図と同じ km の座標）
+    const lit = ENS.filter((e) => S.en[e.id]);
+    for (const e of lit) { const r = document.createElementNS('http://www.w3.org/2000/svg', 'path'); r.setAttribute('d', enD(e)); r.setAttribute('class', 'en'); svg.appendChild(r); }
     const counts = [0, 0, 0, 0, 0];
     for (const p of M.P) counts[stageNow(p.n)]++;
     const pic = el('button', null, '絵にして残す');
     pic.addEventListener('click', () => showPic(drawMine(counts), 'わたしの日本.png'));
-    sec.append(svg, el('p', 'line', `知人 ${counts[1]}・常連 ${counts[2]}・通 ${counts[3]}・名誉 ${counts[4]}`), pic);
+    sec.append(svg, el('p', 'line', `知人 ${counts[1]}・常連 ${counts[2]}・通 ${counts[3]}・名誉 ${counts[4]}` + (lit.length ? `・縁 ${lit.length}本` : '')), pic);
     return sec;
   }
   function renderSeals() {
@@ -527,6 +532,8 @@
       g.fillStyle = FILL[st]; g.fill(path);
       g.strokeStyle = st === 4 ? GOLD : '#8a7a5a'; g.lineWidth = (st === 4 ? 2.4 : 1.2) / s; g.stroke(path);
     });
+    g.strokeStyle = '#d9a520'; g.lineWidth = 4 / s; g.lineJoin = g.lineCap = 'round';
+    for (const e of ENS) if (S.en[e.id]) g.stroke(new Path2D(enD(e)));
     g.restore();
     ['知人', '常連', '通', '名誉'].forEach((t, i) => {
       const x = 190 + i * 230;
@@ -534,7 +541,8 @@
       g.strokeStyle = '#8a7a5a'; g.lineWidth = 2; g.strokeRect(x - 70, 1232, 36, 36);
       write(g, `${t} ${counts[i + 1]}`, x - 24, 1262, 34, INK, 'left');
     });
-    write(g, `知った数 ${total()}　旅の日数 ${S.days.length}日　${jpDate(today())}`, 600, 1340, 34, INK);
+    const nEn = ENS.filter((e) => S.en[e.id]).length;
+    write(g, `知った数 ${total()}　${nEn ? `縁 ${nEn}本　` : ''}旅の日数 ${S.days.length}日　${jpDate(today())}`, 600, 1340, 34, INK);
     write(g, 'にっぽん であい絵図（AI内製化工房）', 600, 1420, 30, '#6a6250');
     return c;
   }

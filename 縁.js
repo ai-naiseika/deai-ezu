@@ -53,9 +53,20 @@
     card.classList.add('open');
     // 道の点が、札の窓を除いた空いた所に収まる眺めへ（県の中にいれば出てから・浮かせた県は下ろしてから）。
     // 札はパソコンでは右、スマホでは下。前は県まるごとを画面の真ん中に収め、パソコンで四国遍路の下半分が札の下に隠れた
+    // 空いた所は画面の部品を測って決める：上は題と検索の下、右は札（パソコン）か右上の方位と＋－（スマホ）の左、下は札（スマホ）か下の並びの上。
+    // 札だけを避けた時は、スマホで東海道・中山道・三大松原の点が＋－や題の下に、パソコンで三名山の点が下の並びの下に入った
     const W = M.vw, H = M.vh, c = card.getBoundingClientRect(), side = c.left > W * 0.4 && c.height < H * 0.9 && c.top < H * 0.3;
-    const area = side ? [-0.94, (c.left - 24) / W * 2 - 1, -0.8, 0.72] : [-0.92, 0.92, 1 - (c.top - 16) / H * 2, 0.62];
-    M.fly(M.fit(M.goal.th, 0.75, e.pts.map((p) => [p.x, p.z, 0]), area));
+    const R = (q) => { const e = document.querySelector(q); return e && e.offsetWidth ? e.getBoundingClientRect() : null; };
+    let t = 0, b = side ? H : c.top, r = side ? c.left : W;
+    for (const q of ['#title', '#search']) { const k = R(q); if (k) t = Math.max(t, k.bottom); }
+    for (const q of ['#compass', '#zoom']) { const k = R(q); if (k && k.left > W * 0.6 && k.top < b) r = Math.min(r, k.left); }
+    const bar = R('#bar');
+    if (bar) b = Math.min(b, bar.top);
+    const area = [-1 + 24 / W, (r - 16) / W * 2 - 1, 1 - (b - 16) / H * 2, 1 - (t + 20) / H * 2];
+    // 点の高さは地面の高さで（0 で収めると、立山・白山のような高い山の点が画面の上の外へ出た）
+    const kOf = (p) => (p.n ? (M.P.find((q) => q.n === p.n) || {}).k : null);
+    const gy = e.pts.map((p) => { const k = kOf(p); return k != null ? M.groundY(k, p.x, p.z) : 0; });
+    M.fly(M.fit(M.goal.th, 0.75, e.pts.map((p, i) => [p.x, p.z, gy[i]]), area));
     rings.textContent = ''; names.textContent = '';
     const stops = e.pts.filter((p) => p.n);
     // 名前を出すのは、巡りは全部の名所・陸と海は筋ごとの始まりと終わり（絹の道は2筋。横浜は2筋の終わりで重なるので1つに）
@@ -65,7 +76,7 @@
     for (const p of stops) { const r = svg('circle', { r: 6 }); r.dataset.i = e.pts.indexOf(p); rings.appendChild(r); }
     for (const p of label) { const t = svg('text', {}); t.textContent = p.name; t.dataset.i = e.pts.indexOf(p); names.appendChild(t); }
     mover.innerHTML = ICON[e.kind] || '';
-    cur = { e, t0: performance.now() + 900, ys: e.pts.map((p) => null) };
+    cur = { e, t0: performance.now() + 900, gy, ks: e.pts.map(kOf) };
     layer.classList.add('on');
     return true;
   }
@@ -94,8 +105,7 @@
     if (!cur) return;
     const e = cur.e, t = (performance.now() - cur.t0) / 1000, strands = [[]], at = [];
     e.pts.forEach((p, i) => {
-      if (cur.ys[i] == null) { const k = p.n ? (M.P.find((q) => q.n === p.n) || {}).k : null; cur.ys[i] = k != null ? M.groundY(k, p.x, p.z) + M.liftY(k) : 0; }
-      const s = M.project(p.x, cur.ys[i], p.z);
+      const k = cur.ks[i], s = M.project(p.x, cur.gy[i] + (k != null ? M.liftY(k) : 0), p.z);     // 浮き上がりは毎コマ（下りる途中の県もある）
       at[i] = s.ok ? [s.x, s.y] : null;
       if (p.b && strands[strands.length - 1].length) strands.push([]);      // 別の筋（絹の道の2筋）
       if (s.ok) strands[strands.length - 1].push([s.x, s.y]);
