@@ -95,10 +95,13 @@
   const bub = $('#enter-bub');
   let bw = 0, bh = 0, side = '', lim = null, loose = false;
   const measure = () => {
-    const top = Math.max(...['#search', '#title', '#deai-open', '#mame-open', '#compass'].map((q) => $(q)).filter((e) => e && e.offsetWidth)
+    const top = Math.max(0, ...['#search', '#title', '#deai-open', '#mame-open', '#compass'].map((q) => $(q)).filter((e) => e && e.offsetWidth)
       .map((e) => { const r = e.getBoundingClientRect(); return r.top < innerHeight / 3 ? r.bottom : 0; }));
-    const c = $('#card').classList.contains('open') ? $('#card').getBoundingClientRect() : null, sheet = M.phone();
-    lim = { top: top + 8, left: 6, right: c && !sheet ? c.left - 8 : innerWidth - 6, bottom: c && sheet ? c.top - 8 : innerHeight - 90 };
+    const c = $('#card').classList.contains('open') ? $('#card').getBoundingClientRect() : null, sheet = M.phone(), z = $('#zoom');
+    // ＋－のボタン（指で触る端末だけ）は、上の段にせず避ける物に入れる（上の段にすると iPhone SE で置き場が狭まり、吹き出しが印にかかった）
+    const zr = z && z.offsetWidth ? z.getBoundingClientRect() : null;
+    lim = { top: top + 8, left: 6, right: c && !sheet ? c.left - 8 : innerWidth - 6, bottom: c && sheet ? c.top - 8 : innerHeight - 90,
+      keep: zr ? [[zr.left - 6, zr.top - 6, zr.right + 6, zr.bottom + 6]] : [] };
   };
   // 測るのは、中の地図がある県だけ・浮き上がりの途中を避けて手の空いた時に（押した直後に測ると、せり上がりのコマが CPU4倍で 50ms 止まった）
   M.on('select', (k) => {
@@ -126,7 +129,7 @@
     for (const dx of [0, 40, -40, 80, -80]) at['down' + dx] = [cx - bw / 2 + dx, y1 + 14];
     // 避ける物：印の札の取り置き（名前を隠した印も、名前の場所ごと）と、島の拡大図の吹き出し（尖閣・竹島）。
     // 取り置きで空きが無い時（小さいスマホで札の窓の上が埋まる）は、いま見えている印の部分（案内.js の pinMarks）だけを避ける
-    const isl = M.isleBoxes ? M.isleBoxes() : [], strict = (M.pinRects || []).concat(isl), seen = (M.pinMarks || []).concat(isl);
+    const isl = (M.isleBoxes ? M.isleBoxes() : []).concat(lim.keep), strict = (M.pinRects || []).concat(isl), seen = (M.pinMarks || []).concat(isl);
     const fits = ([x, y]) => x >= lim.left && x + bw <= lim.right && y >= lim.top && y + bh <= lim.bottom;
     const inLim = ([x, y]) => [clamp(x, lim.left, Math.max(lim.left, lim.right - bw)), clamp(y, lim.top, Math.max(lim.top, lim.bottom - bh))];
     const free = (s, L = strict) => { const [x, y] = inLim(at[s]); const [ox, oy] = M.screenOf(k);
@@ -1455,7 +1458,7 @@
       M.ekiShown = shown;              // 豆知識.js：札が出ている駅には、光の粒を置かない
     });
 
-    // ---- 入った時の眺め：南南東から、県全体が収まる距離（右の札の窓のぶん、少し左に寄せる）
+    // ---- 入った時の眺め：南南東から、県全体が画面の空いた所（上の題・検索と、下の並び・札の窓のあいだ）に収まる距離と位置
     // 県境の点と山の頂を、地面の高さで写して収める（高さを入れないと、北の山が画面の上で切れた）
     const ring = [];
     for (const r of D.border) for (let q = 0; q + 1 < r.length; q += 2) ring.push([r[q] / 100, r[q + 1] / 100, hAt(r[q] / 100, r[q + 1] / 100) * EXI]);
@@ -1464,9 +1467,25 @@
     const fitPts = ring.filter(([x, z]) => homeIn(x, z)).concat(D.labels.filter((L) => L.in && L.kind === 'peak' && homeIn(L.x, L.z)).map((L) => [L.x, L.z, hAt(L.x, L.z) * EXI]));
     let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9;
     for (const [x, z] of ring) { x0 = Math.min(x0, x); z0 = Math.min(z0, z); x1 = Math.max(x1, x); z1 = Math.max(z1, z); }
-    const th = -0.18, home = M.fit(th, 0.62, fitPts);
-    home.D *= 1.12;
-    home.x += Math.cos(th) * home.D * 0.12; home.z += Math.sin(th) * home.D * 0.12;
+    // 空いた所は画面の部品を測って決める（入った後に map3d.js の enter が呼び直す）。前は右の札の窓のぶん一定の割合で左へ寄せていたので、
+    // 札の窓が下に出るスマホの縦長の画面では、県の半分が左の外へ出た（2026-11-08 本人「県の中に入るといきなり中心に絵図がなくずれている（群馬は左にずれていた）」）
+    const th = -0.18, home = {}, DL = [10, 420];
+    const fitHome = () => {
+      const W = M.vw, H = M.vh;
+      let t = 0, b = H, r = W;
+      for (const q of ['#title', '#search', '#compass', '#card', '#note', '#bar', '#menu-open']) {
+        const e = $(q);
+        if (!e || !e.offsetWidth || (q === '#card' && !e.classList.contains('open'))) continue;
+        const c = e.getBoundingClientRect();
+        if (q === '#card' && c.left > W * 0.4 && c.height > H * 0.5) r = Math.min(r, c.left);
+        else if (c.top + c.bottom < H) t = Math.max(t, c.bottom);
+        else b = Math.min(b, c.top);
+      }
+      Object.assign(home, M.fit(th, 0.62, fitPts, [-1 + 24 / W, (r - 12) / W * 2 - 1, 1 - (b - 8) / H * 2, 1 - (t + 8) / H * 2]));
+      home.D *= 1.08;
+      DL[1] = Math.max(420, home.D * 1.6);
+    };
+    fitHome();
     // 入る時・出る時（map3d.js の enter・leave が「県の中」の知らせの前に呼ぶ）：紹介・目印・山と湖・豆知識の点のうち、寄せた島の本当の場所にある物を寄せる・戻す
     const lists = () => [INTRO.items, INTRO.spots, INTRO.yama, INTRO.mame].filter(Boolean);
     const warpIn = () => {
@@ -1481,7 +1500,7 @@
       for (const arr of lists()) for (const e of arr) if (e._mv) { [e.x, e.z] = e._mv; delete e._mv; }
     };
     return {
-      name, group, home, warpIn, warpOut, move: MV,
+      name, group, home, fitHome, fitPts, warpIn, warpOut, move: MV,
       dispose() {
         for (const [e, f] of subs) M.off(e, f);
         removeEventListener('resize', onResize);
@@ -1493,7 +1512,7 @@
         });
         tw.dispose(); if (LUT) LUT.dispose();
       },
-      box: [x0 - 6, z0 - 6, x1 + 6, z1 + 6], D: [10, Math.max(420, home.D * 1.6)],
+      box: [x0 - 6, z0 - 6, x1 + 6, z1 + 6], D: DL,
       heightAt: (x, z) => hAt(x, z) * EXI * U.uInY.value,           // 空を飛ぶ間は、山の強め方を下げる（旅.js）
       exag: EXI * 1000,
       pop: { cnt: popCnt, S: cell, hh: D.hhIn, people: D.popIn, perHouse: PER_HOUSE },

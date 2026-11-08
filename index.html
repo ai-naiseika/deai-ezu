@@ -349,7 +349,25 @@
   #dock-tip { position: fixed; left: 0; top: 0; display: none; z-index: 10; pointer-events: none; background: var(--ink); color: #fffaf0;
     font-size: 12px; padding: 3px 8px; white-space: nowrap; }
   #dock-tip.on { display: block; }
+  /* メニューをたたむ（スマホだけ。案内.js。本人 2026-11-08「メニューを隠さないと、指での操作できる画面範囲が狭い」）：
+     題・検索・左のボタン・下の並び・出典の注・たたんだ札の窓をしまい、右下の「メニュー」1つにする。
+     県を押して開く札の窓・豆知識の札など、見る人が開いた物は出す（--bar-h をボタンの高さに替え、そのすぐ上から） */
+  #bar #wide-open, #menu-open { display: none; }
+  #menu-open { position: fixed; right: 8px; bottom: 8px; z-index: 5; font-size: 15px; padding: 7px 14px; background: rgba(250,244,226,.95);
+    border-color: var(--gold); box-shadow: 0 3px 10px rgba(60,40,10,.18); }
+  body.wide { --bar-h: 46px; }
+  body.wide #title, body.wide #search, body.wide #deai-open, body.wide #mame-open, body.wide #fuda-open, body.wide #fuda, body.wide #bar, body.wide #note,
+  body.wide #tip, body.wide #legend, body.wide #bgm-cap, body.wide #dock-tip, body.wide #card.mini { display: none !important; }
+  body.wide #menu-open { display: block; }
+  body.wide.opening #menu-open { display: none; }
   #compass { position: fixed; right: 26px; bottom: 22px; width: 70px; height: 70px; cursor: pointer; }
+  /* 寄る・引くのボタン（指で触る端末だけ。2本指で広げるのを知らない人にも。本人 2026-11-08「近づいて拡大するための移動キーがなかった」）：方位のそばに縦に */
+  #zoom { position: fixed; right: 39px; bottom: 100px; display: none; flex-direction: column; gap: 6px; z-index: 3; }
+  #zoom button { width: 44px; height: 44px; padding: 0; font-size: 24px; line-height: 1; border-radius: 50%; background: rgba(251,246,232,.95); }
+  @media (pointer: coarse) { #zoom { display: flex; } }
+  body.opening #zoom, body.flying #zoom { display: none !important; }
+  /* 地図に重ねた札・印の上から始めた指も、地図を動かす操作に（map3d.js）。ブラウザがページごと拡大しないように */
+  #labels, #pins, #inlabels, #mame, #isles, #ranks { touch-action: none; }
   #compass svg { width: 100%; height: 100%; transition: none; }
   #note { position: fixed; left: 16px; bottom: 74px; max-width: 300px; font-size: 11px; line-height: 1.5; color: #6a6250; pointer-events: none; }
   #note button { pointer-events: auto; font: inherit; font-weight: 700; color: #3c5a8c; background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
@@ -645,6 +663,12 @@
     .art.big { width: 84px; height: 84px; }
     #fuda { left: 6px; right: 6px; width: auto; top: 156px; }
     #compass { right: 8px; bottom: auto; top: 56px; width: 44px; height: 44px; }
+    body.wide #compass { top: 8px; }
+    #zoom { right: 8px; bottom: auto; top: 108px; }
+    body.wide #zoom { top: 60px; }
+    /* 全国の眺めで県の札の窓を開いている間は、左のボタンと同じくしまう（iPhone SE で札の窓の上の空きが狭く、「〇〇の中へ」の吹き出しが印にかかった） */
+    body:not(.inside):has(#card.open) #zoom { display: none; }
+    #bar #wide-open { display: inline-flex; }
     #bar { left: 6px; right: 6px; bottom: 6px; transform: none; flex-wrap: wrap; justify-content: center; gap: 4px 6px; padding: 5px; }
     body.inside #bar { gap: 4px 6px; }
     #bar .grp { gap: 3px; }
@@ -715,12 +739,15 @@
     #card { right: 8px; top: 8px; width: 260px; padding: 10px 12px; box-sizing: border-box; max-height: calc(100vh - 80px); }
     #card h2 { font-size: 24px; margin: 0 0 2px; }
     #compass { right: 8px; bottom: 8px; width: 44px; height: 44px; }
+    #bar #wide-open { display: inline-flex; }
+    #menu-open { right: 60px; }
+    #zoom { right: auto; left: 8px; bottom: 30px; }   /* 右は札の窓と方位 */
     #bar { bottom: 6px; gap: 6px; padding: 4px 8px; }
     body.inside #bar { gap: 6px; }
     #bar .grp { gap: 3px; }
     #bar .ico { min-width: 34px; padding: 3px 4px; }
     #bar .ico svg { width: 20px; height: 20px; }
-    #note { left: 8px; bottom: 8px; max-width: min(200px, calc(50vw - 230px)); font-size: 10px; line-height: 1.5; pointer-events: auto;
+    #note { left: 8px; bottom: 8px; max-width: min(200px, calc(50vw - 245px)); font-size: 10px; line-height: 1.5; pointer-events: auto;
       max-height: 1.5em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: rgba(250,244,226,.85); padding: 1px 6px; box-sizing: border-box; }
     #legend { left: 12px; top: 156px; max-height: calc(100vh - 170px); overflow-y: auto; box-sizing: border-box; }
   }
@@ -787,7 +814,9 @@
   <button class="ico" id="fly-open" data-tip="空を飛ぶ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 21 4l-5.5 16-3.8-6.6Z"/><path d="M11.7 13.4 21 4"/></svg><span class="lab">空を飛ぶ</span></button>
   <button class="ico" id="pop-open" data-tip="人口を表示"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="2.6"/><circle cx="16.5" cy="9" r="2.2"/><path d="M3 19c.5-3.5 2.6-5.5 5-5.5s4.5 2 5 5.5M13.5 17c.4-2.4 1.6-3.8 3-3.8s2.8 1.4 3.5 4"/></svg><span class="lab">人口を表示</span></button>
   <button class="ico" id="bgm" data-tip="音楽"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V6l10-2v11"/><circle class="f" cx="6.5" cy="18" r="2.5"/><circle class="f" cx="16.5" cy="15" r="2.5"/></svg><span class="lab">音楽</span></button>
+  <button class="ico" id="wide-open" data-tip="メニューをたたむ（地図を広く）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8l6 6 6-6"/><path d="M5 19h14"/></svg><span class="lab">たたむ</span></button>
 </div>
+<button id="menu-open" type="button" aria-label="メニューを出す">▴ メニュー</button>
 <div id="dock-tip" role="tooltip"></div>
 <div id="compass" title="北を上にもどす">
   <svg viewBox="-50 -50 100 100"><circle r="44" fill="#fbf6e8" stroke="#2a3146" stroke-width="2.5"/>
@@ -795,6 +824,7 @@
       <path d="M0 26 L8 0 L0 5 L-8 0Z" fill="#fbf6e8" stroke="#2a3146" stroke-width="1.5"/>
       <text y="-29" text-anchor="middle" font-size="13" font-weight="700" fill="#c8402c">北</text></g></svg>
 </div>
+<div id="zoom"><button id="zoom-in" type="button" aria-label="寄る">＋</button><button id="zoom-out" type="button" aria-label="引く">－</button></div>
 <div id="note">作りかけ　地図データ：国土地理院・国土交通省・総務省統計局・林野庁ほか（いずれも加工して作成）　<button id="credits-open" type="button">出典とご利用にあたって ›</button></div>
 <div id="credits" role="dialog" aria-label="出典とご利用にあたって">
   <h3>出典とご利用にあたって</h3>

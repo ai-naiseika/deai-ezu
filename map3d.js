@@ -915,6 +915,8 @@
       document.body.classList.add('inside');
       if (w.warpIn) w.warpIn();                        // 寄せた島の点を寄せる（県の中.js。知らせを受けて置き直す側が、寄せた後の位置を使う）
       emit('world', w);
+      // 入った後の画面の並び（スマホは札の窓をたたむ）で、県が空いた所に収まる眺めを測り直す
+      if (w.fitHome) { w.fitHome(); Object.assign(goal, w.home); keepIn(goal); Object.assign(cam, goal); place(); }
       veil(false);
     });
   }
@@ -962,31 +964,61 @@
   const inRead = (t) => { t = t && t.nodeType === 3 ? t.parentElement : t; return !!(t && t.closest && t.closest(READ)); };
   document.addEventListener('selectstart', (e) => { if (!inRead(e.target)) e.preventDefault(); });
   document.addEventListener('mousedown', (e) => { if (e.detail > 1 && !inRead(e.target)) e.preventDefault(); });
-  cv.addEventListener('pointerdown', (e) => {
+  // 指（タッチ）は、地図に重ねた札・印（地名・名物の印・豆知識の豆・島の札）の上から始めても、地図を動かす操作に数える。
+  // 前は絵（canvas）の上で始めた指だけを数えたので、札と印の多い県の中では、2本指で広げても寄らなかった（2026-11-08 本人「指でも拡大はできなかった」）。
+  // 札を押すだけ（動かさない）なら札の働きのまま。動かした時は、離した後に札へ届くクリックを捨てる
+  const LAYERS = '#labels, #pins, #inlabels, #mame, #isles, #ranks';
+  let eatAt = -1e9;
+  // 指の操作は地図の決まりに合わせる（本人 2026-11-08「近づいて拡大するための移動キーがなかった」）：1本指でなぞる＝動かす、
+  // 2本指で広げる・狭める＝寄る・引く、ひねる＝回す、2本指をそろえて上下＝傾ける。マウスは今のまま（左で回す・右か Shift で動かす・ホイールで寄る）
+  const down = (e) => {
     unselect();
     if (e.pointerType === 'mouse') { e.preventDefault(); if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); }
     if (free) return;
-    cv.setPointerCapture(e.pointerId);
+    if (e.target === cv) cv.setPointerCapture(e.pointerId);
     ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (ptrs.size === 1) {
-      drag = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, moved: false,
-        mode: e.button === 2 || e.button === 1 || e.shiftKey ? 'pan' : 'rot' };
+      drag = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, moved: false, cv: e.target === cv,
+        mode: e.pointerType !== 'mouse' || e.button === 2 || e.button === 1 || e.shiftKey ? 'pan' : 'rot' };
     } else if (ptrs.size === 2) {
-      const [a, b] = [...ptrs.values()];
-      drag = { mode: 'pinch', moved: true, d: Math.hypot(a.x - b.x, a.y - b.y), mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+      const [a, b] = [...ptrs.values()], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, d = Math.hypot(a.x - b.x, a.y - b.y), an = Math.atan2(b.y - a.y, b.x - a.x);
+      drag = { mode: 'pinch', kind: '', moved: true, d, mx, my, an, pa: { ...a }, pb: { ...b }, d0: d, mx0: mx, my0: my, an0: an, pa0: { ...a }, pb0: { ...b } };
     }
-  });
-  cv.addEventListener('pointermove', (e) => {
+  };
+  cv.addEventListener('pointerdown', down);
+  addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse' && e.target !== cv && e.target.closest && e.target.closest(LAYERS)) down(e); }, true);
+  const turn = (an) => { let d = an; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; };
+  addEventListener('pointermove', (e) => {
     if (free) return;
     if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (!drag) { hoverAt = { x: e.clientX, y: e.clientY, fresh: true }; return; }
+    if (!drag) { if (e.target === cv) hoverAt = { x: e.clientX, y: e.clientY, fresh: true }; return; }
+    if (!ptrs.has(e.pointerId)) return;
     if (drag.mode === 'pinch') {
       if (ptrs.size < 2) return;
       const [a, b] = [...ptrs.values()];
-      const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-      zoomAt(mx, my, drag.d / d);
-      panBy(drag.mx, drag.my, mx, my);
-      Object.assign(drag, { d, mx, my });
+      const d = Math.hypot(a.x - b.x, a.y - b.y), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, an = Math.atan2(b.y - a.y, b.x - a.x);
+      // 2本指の動きは、はじめに少し動いた所で「傾ける」か「寄る・回す・動かす」かを決め、離すまで変えない
+      if (!drag.kind) {
+        const sx = mx - drag.mx0, sy = my - drag.my0, sr = Math.abs(Math.log(d / drag.d0)), sa = Math.abs(turn(an - drag.an0));
+        if (Math.hypot(sx, sy) > 14 || sr > 0.08 || sa > 0.12) {
+          drag.kind = Math.abs(sy) > 2 * Math.abs(sx) && sr < 0.08 && sa < 0.12 ? 'tilt' : 'zoom';
+          Object.assign(drag, { d: drag.d0, mx: drag.mx0, my: drag.my0, an: drag.an0, pa: drag.pa0, pb: drag.pb0 });     // 決めるまでに動いた分も、まとめて効かせる
+        }
+      }
+      if (drag.kind === 'tilt') goal.ph = clamp(goal.ph + (my - drag.my) * 0.004, PH[0], PH[1]);
+      else if (drag.kind === 'zoom') {
+        zoomAt(mx, my, drag.d / d);
+        // ひねった分だけ回す。回す角は地面の上で測る（斜めに見下ろす眺めでは、画面の上の角と地面の上の角が違い、指から地面が遅れた）。
+        // 指の真ん中の下の地面が、指の下に残るように回す
+        const g = [ground(drag.pa.x, drag.pa.y, cam.y), ground(drag.pb.x, drag.pb.y, cam.y), ground(a.x, a.y, cam.y), ground(b.x, b.y, cam.y)];
+        const da = g.every(Boolean) ? turn(Math.atan2(g[3].z - g[2].z, g[3].x - g[2].x) - Math.atan2(g[1].z - g[0].z, g[1].x - g[0].x)) : turn(an - drag.an);
+        const p0 = ground(mx, my, cam.y);
+        goal.th = cam.th = cam.th - da; camV.th = 0; place();
+        const p1 = p0 && ground(mx, my, cam.y);
+        if (p1) { cam.x += p0.x - p1.x; cam.z += p0.z - p1.z; keepIn(cam); goal.x = cam.x; goal.z = cam.z; camV.x = camV.z = 0; place(); }
+        panBy(drag.mx, drag.my, mx, my);
+      }
+      Object.assign(drag, { d, mx, my, an, pa: { ...a }, pb: { ...b } });
       return;
     }
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -1000,13 +1032,18 @@
   const up = (e) => {
     if (!ptrs.has(e.pointerId)) return;
     ptrs.delete(e.pointerId);
-    if (drag && !drag.moved && ptrs.size === 0 && e.type === 'pointerup') click(e.clientX, e.clientY);
+    if (drag && !drag.moved && ptrs.size === 0 && e.type === 'pointerup' && drag.cv) click(e.clientX, e.clientY);
+    if (drag && drag.moved) eatAt = performance.now();
     if (ptrs.size === 0) { drag = null; cv.classList.remove('drag'); }
   };
-  cv.addEventListener('pointerup', up);
-  cv.addEventListener('pointercancel', up);
+  addEventListener('pointerup', up);
+  addEventListener('pointercancel', up);
+  addEventListener('click', (e) => { if (performance.now() - eatAt < 400 && e.target.closest && e.target.closest(LAYERS)) { e.stopPropagation(); e.preventDefault(); } }, true);
   cv.addEventListener('pointerleave', () => { if (!drag) { hoverAt = null; setHover(-1); } });
   cv.addEventListener('wheel', (e) => { e.preventDefault(); if (free) return; zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * 0.0012)); }, { passive: false });
+  // 寄る・引くのボタン（指で触る端末だけ出す）：見ている所の真ん中を中心に
+  $('#zoom-in').addEventListener('click', () => { if (!free) zoomAt(VW / 2, VH * 0.45, 1 / 1.6); });
+  $('#zoom-out').addEventListener('click', () => { if (!free) zoomAt(VW / 2, VH * 0.45, 1.6); });
 
   function panBy(x0, y0, x1, y1) {
     const a = ground(x0, y0, cam.y), b = ground(x1, y1, cam.y);

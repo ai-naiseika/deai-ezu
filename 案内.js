@@ -68,9 +68,18 @@
   // 題を押すと開く・たたむ。大きさが変わったことを、札を並べる側（県の中.js の地名・吹き出し）に resize で知らせる
   const cardEl = $('#card');
   const mini = (on) => { if (cardEl.classList.contains('mini') !== on) { cardEl.classList.toggle('mini', on); dispatchEvent(new Event('resize')); } };
-  M.on('world', (w) => mini(!!w && M.phone()));
+  M.on('world', (w) => mini(!!w && (M.phone() || document.body.classList.contains('wide'))));
   M.on('deselect', () => mini(false));
   $('#c-name').addEventListener('click', () => { if (M.phone()) mini(!cardEl.classList.contains('mini')); });
+  // スマホ：下の並びの「たたむ」で、メニューをしまって地図を広く触れるように。右下の「メニュー」で戻す（しまう物は index.html の body.wide）。
+  // 県の中では札の窓もたたんでしまい、印を押した時に開く。部品の場所が変わったことを、札・吹き出しを並べる側に resize で知らせる
+  const wide = (on) => {
+    document.body.classList.toggle('wide', on);
+    if (on && M.inside) mini(true);
+    dispatchEvent(new Event('resize'));
+  };
+  $('#wide-open').addEventListener('click', () => wide(true));
+  $('#menu-open').addEventListener('click', () => wide(false));
 
   // ================================================================ 表記ゆれ（Skill search-yure の4段）
   function norm(s) {
@@ -432,6 +441,7 @@
   M.MARK = MARK; M.safeUrl = safeUrl;                            // 全国の遊覧の札も、同じ印と同じ確かめ方で
   function openItem(it) {
     dispatchEvent(new CustomEvent('deai', { detail: { id: 'item:' + it.pref + it.name, pref: it.pref } }));     // であい帖へ
+    if (!document.body.classList.contains('touring')) mini(false);   // スマホの県の中では札の窓をたたんでいるので、開いて説明を見せる（たたんだままだと、印を押しても何も出なかった）
     const box = $('#c-intro'); box.textContent = '';
     const back = el('button', null, '‹ 一覧へ'); back.addEventListener('click', () => renderList(cardK)); box.appendChild(back);
     const d = el('div', 'detail');
