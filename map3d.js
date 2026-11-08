@@ -1535,8 +1535,15 @@
     U.uPpk.value = VH / (2 * Math.tan(camera.fov * Math.PI / 360));   // 1km 先の1kmが何画素か（距離で割って使う）
     inkSize(Math.round(VW * dpr), Math.round(VH * dpr));
     PU.uR.value = 1.3 * dpr;
+    if (G) homeFit();
   }
   addEventListener('resize', resize);
+  // 「日本全体」の眺め：いつもは南南東から。スマホの縦長の画面では北東を向いて見下ろす（日本の長い向き＝南西から北東を、画面の縦に）。
+  // 南南東からのままだと、寄りの上限（9000）でも北海道が右の外へ切れ、日本が小さく横たわった（2026-11-09）。向きを変えたら測り直す
+  function homeFit() {
+    const port = PHONE() && VH > VW;
+    Object.assign(HOME, fitAll(port ? 0.6 : -0.35, port ? 0.6 : 0.52));
+  }
 
   let last = performance.now(), frames = 0;
   let tStop = null;   // 検査用：絵の具の時刻（雲の影・水面）を止める（MAP3D.stopTime）
@@ -1603,8 +1610,7 @@
       U.uTown.value = t; U.uTownBox.value.set(TOWN.x0, TOWN.z0, TOWN.w * TOWN.cell, TOWN.h * TOWN.cell);
     }
     resize();
-    Object.assign(HOME, fitAll(HOME.th, HOME.ph));
-    Object.assign(cam, HOME); Object.assign(goal, HOME);
+    Object.assign(cam, HOME); Object.assign(goal, HOME);         // HOME は直前の resize() が画面に合わせて測った（homeFit）
     setSeason(1, true);
     assemble();
     // 浮かせた時に使う絵の具も、最初に用意しておく（初めて押した時に止まらないように）

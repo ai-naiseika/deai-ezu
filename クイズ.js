@@ -36,6 +36,34 @@
   }
   let POOL = null;
   const all = () => POOL || (POOL = pool());
+  // かたち当て（ゲームの案.md の「空から見て県を当てる」の軽い形・2026-11-09）：県の形だけを見せて4択。形は全国の形のデータ（JAPAN.prefs の輪）から、
+  // いちばん大きな塊と、その近くの島だけを描く（東京の小笠原・沖縄の先島のような遠い島まで入れると、形が点のように小さくなる）
+  const tourOf = (no) => (IN.tour || []).find((t) => t.pref === no);
+  const shapeQ = (no) => ({ id: 'shape:' + no, cat: 'かたち', ans: no, shape: no, text: 'この形の都道府県は？', more: () => { const t = tourOf(no); return t ? t.catch : ''; } });
+  function shapeEl(no) {
+    const jp = ((window.JAPAN && JAPAN.prefs) || []).find((p) => p.n === no);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'shape'); svg.setAttribute('aria-label', '都道府県の形');
+    if (!jp) return svg;
+    const rings = jp.ring.map((r) => {
+      let x0 = 1e9, z0 = 1e9, x1 = -1e9, z1 = -1e9, a = 0;
+      for (let i = 0; i < r.length; i += 2) {
+        x0 = Math.min(x0, r[i]); x1 = Math.max(x1, r[i]); z0 = Math.min(z0, r[i + 1]); z1 = Math.max(z1, r[i + 1]);
+        const j = (i + 2) % r.length; a += r[i] * r[j + 1] - r[j] * r[i + 1];
+      }
+      return { r, b: [x0, z0, x1, z1], a: Math.abs(a) / 2 };
+    });
+    const big = rings.reduce((m, q) => (q.a > m.a ? q : m)), s = Math.max(big.b[2] - big.b[0], big.b[3] - big.b[1]);
+    const cx = (big.b[0] + big.b[2]) / 2, cz = (big.b[1] + big.b[3]) / 2;
+    const keep = rings.filter((q) => Math.hypot((q.b[0] + q.b[2]) / 2 - cx, (q.b[1] + q.b[3]) / 2 - cz) < s * 0.9);
+    const b = keep.reduce((m, q) => [Math.min(m[0], q.b[0]), Math.min(m[1], q.b[1]), Math.max(m[2], q.b[2]), Math.max(m[3], q.b[3])], [1e9, 1e9, -1e9, -1e9]);
+    const pad = Math.max(b[2] - b[0], b[3] - b[1]) * 0.06;
+    svg.setAttribute('viewBox', [b[0] - pad, b[1] - pad, b[2] - b[0] + pad * 2, b[3] - b[1] + pad * 2].map((v) => v.toFixed(1)).join(' '));
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', keep.map((q) => 'M' + q.r.join(' ').replace(/(\S+ \S+) /g, '$1L') + 'Z').join(''));
+    svg.appendChild(path);
+    return svg;
+  }
   // くじ：日付から決まる（今日の一問は、誰が開いても同じ日は同じ問題）
   const rng = (seed) => () => ((seed = Math.imul(seed ^ (seed >>> 15), 2246822507) + 0x9e3779b9 | 0) >>> 0) / 4294967296;
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -91,6 +119,8 @@
       list = [P[Math.floor(rng(seed)() * P.length)]];
     } else if (mode === 'wrong') {
       list = L.wrong.map((id) => P.find((q) => q.id === id)).filter(Boolean).slice(-ROUND).sort(() => r() - 0.5);
+    } else if (mode === 'shape') {
+      list = M.P.map((p) => p.n).sort(() => r() - 0.5).slice(0, ROUND).map(shapeQ);
     } else {
       // ジャンルを混ぜる：産地・旅・紹介・豆知識・名所と山湖から順に
       const groups = [['産地'], ['旅'], ['特産', '食', '歴史', '名所', '祭り'], ['豆知識'], ['名所', '山', '湖']];
@@ -112,13 +142,14 @@
     S.q = q; S.ch = choices(q, S.r); S.t0 = performance.now(); S.done = false;
     box.textContent = '';
     const head = el('div', 'head');
-    head.append(el('b', null, S.mode === 'day' ? `今日の一問（${today().slice(5).replace('-', '月')}日）` : S.mode === 'wrong' ? 'まちがえた問題' : 'クイズ'),
+    head.append(el('b', null, S.mode === 'day' ? `今日の一問（${today().slice(5).replace('-', '月')}日）` : S.mode === 'wrong' ? 'まちがえた問題' : S.mode === 'shape' ? 'かたち当て' : 'クイズ'),
       el('span', 'n', S.mode === 'day' ? '' : `${S.i + 1} / ${S.list.length}　${S.score}点`));
     const x = el('button', 'x', '×'); x.title = 'やめる'; x.addEventListener('click', stop);
     head.append(x);
     const bar = el('div', 'time'), fill = el('i');
     bar.append(fill);
     box.append(head, el('span', 'cat', q.cat), el('p', 'q', q.text), bar);
+    if (q.shape) box.append(shapeEl(q.shape));
     M.loadIntro(q.ans).catch(() => {});      // 答えの後に出す説明（県ごとのファイル）を、考えている間に読んでおく
     const g = el('div', 'ch');
     for (const no of S.ch) { const b = el('button', null, name(no)); b.dataset.no = no; b.addEventListener('click', () => answer(no)); g.append(b); }
@@ -163,15 +194,15 @@
     box.textContent = '';
     const head = el('div', 'head');
     const x = el('button', 'x', '×'); x.addEventListener('click', stop);
-    head.append(el('b', null, '結果'), x);
+    head.append(el('b', null, S.mode === 'shape' ? 'かたち当ての結果' : '結果'), x);
     box.append(head);
     if (S.mode === 'day') box.append(el('p', 'big', S.ok ? '今日の一問、正解！' : '今日の一問は、また明日。'), el('p', null, `今日の一問の連続：${streak()}日`));
     else box.append(el('p', 'big', `${S.score}点（${S.ok} / ${S.list.length}問）`), el('p', 'title', `称号：${titleOf(S.score)}`));
     const row = el('div', 'row');
-    const again = el('button', null, 'もう1クール'); again.addEventListener('click', () => startRound('round'));
+    const again = el('button', null, 'もう1クール'); again.addEventListener('click', () => startRound(S && S.mode === 'shape' ? 'shape' : 'round'));
     const share = el('button', null, '結果を写す');
     share.addEventListener('click', () => {
-      const t = S && S.mode === 'day' ? `全国3D鳥瞰図 今日の一問 ${S.ok ? '正解' : '不正解'}（連続${streak()}日）` : `全国3D鳥瞰図クイズ ${S.score}点（${S.ok}/${S.list.length}）${titleOf(S.score)}`;
+      const t = S && S.mode === 'day' ? `全国3D鳥瞰図 今日の一問 ${S.ok ? '正解' : '不正解'}（連続${streak()}日）` : `全国3D鳥瞰図${S && S.mode === 'shape' ? 'かたち当て' : 'クイズ'} ${S.score}点（${S.ok}/${S.list.length}）${titleOf(S.score)}`;
       (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { share.textContent = '写しました'; }, () => { share.textContent = t; });
     });
     row.append(again, share);
@@ -184,6 +215,8 @@
     const R = L.rounds.filter((x) => x.mode === 'round');
     const best = R.reduce((m, x) => Math.max(m, x.score), 0), avg = R.length ? Math.round(R.reduce((a, x) => a + x.score, 0) / R.length) : 0;
     d.append(el('p', null, `クイズ ${R.length}回・自己ベスト ${best}点・平均 ${avg}点・今日の一問の連続 ${streak()}日`));
+    const SH = L.rounds.filter((x) => x.mode === 'shape');
+    if (SH.length) d.append(el('p', null, `かたち当て ${SH.length}回・自己ベスト ${SH.reduce((m, x) => Math.max(m, x.score), 0)}点`));
     const ul = el('ul');
     for (const [c, [o, n]] of Object.entries(L.cats).sort((a, b) => b[1][1] - a[1][1])) ul.append(el('li', null, `${c}：${o} / ${n}（${Math.round(100 * o / n)}%）`));
     d.append(ul);
@@ -204,7 +237,9 @@
     b1.disabled = !!day; b1.addEventListener('click', () => startRound('day'));
     const b2 = el('button', 'big', `クイズに挑戦（${ROUND}問）`);
     b2.addEventListener('click', () => startRound('round'));
-    box.append(head, el('p', null, '答えは4つから選ぶか、地図の都道府県を押します。速く答えるほど点が増えます。'), b1, b2, logView(save(L)));
+    const b3 = el('button', 'big', `かたちで当てる（${ROUND}問）`);
+    b3.addEventListener('click', () => startRound('shape'));
+    box.append(head, el('p', null, '答えは4つから選ぶか、地図の都道府県を押します。速く答えるほど点が増えます。'), b1, b2, b3, logView(save(L)));
     box.classList.add('open'); open.classList.add('on');
   }
   function stop() { S = null; box.classList.remove('open'); open.classList.remove('on'); }
@@ -215,5 +250,5 @@
   // 今日の一問がまだなら、アイコンに小さな点
   const paintDot = () => open.classList.toggle('dot', !L.daily[today()]);
   paintDot();
-  window.QUIZ = { dayDone: () => !!L.daily[today()], get pool() { return all(); }, start: startRound, menu, stop, answer, get state() { return S && { mode: S.mode, i: S.i, n: S.list.length, score: S.score, ok: S.ok, q: S.q && S.q.id, ans: S.q && S.q.ans, ch: S.ch, done: S.done }; }, get log() { return L; } };
+  window.QUIZ = { dayDone: () => !!L.daily[today()], get pool() { return all(); }, start: startRound, menu, stop, answer, shape: shapeEl, get state() { return S && { mode: S.mode, i: S.i, n: S.list.length, score: S.score, ok: S.ok, q: S.q && S.q.id, ans: S.q && S.q.ans, ch: S.ch, done: S.done }; }, get log() { return L; } };
 })();
