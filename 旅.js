@@ -22,6 +22,8 @@
   let guard = true;                  // 検査用：false で地面の持ち上げを外す（判定者が、もぐったのを見つけられるかを確かめる）
   let relief = 1, reliefT = 1, lastT = performance.now();
   const box = $('#fly'), coarse = matchMedia('(pointer: coarse)').matches;
+  // スマホ：スティックと上へ／下へを札のすぐ上に置くため、札の高さを CSS へ（index.html の --fly-h）
+  if (window.ResizeObserver) new ResizeObserver(() => document.body.style.setProperty('--fly-h', box.offsetHeight + 'px')).observe(box);
 
   // 山の強め方を目標へなめらかに。木と家の絵も同じ倍率で縮め、近くの絵は大きく描けるように（上限 30→140 画素）
   // 飛んでいる間は、カメラの高さも地面と一緒に縮める（地面との間を保つ）

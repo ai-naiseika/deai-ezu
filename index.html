@@ -189,6 +189,11 @@
   #fly #f-near { font-size: 14px; margin: 4px 0 0; min-height: 1.4em; }
   #fly #f-near button { font-size: 14px; padding: 1px 8px; }
   #fly #f-keys { font-size: 12px; color: #6a6250; margin: 4px 0 0; }
+  /* 空の輪くぐり（輪くぐり.js） */
+  #fly #f-ring { font-size: 14px; padding: 2px 10px; border-color: #b8922e; color: #8a6a1c; }
+  #fly #f-ring-hud { font-size: 14px; font-weight: 700; margin: 4px 0 0; color: #8a6a1c; }
+  #fly #f-ring-hud:empty { display: none; }
+  #fly #f-ring-hud button { font: inherit; color: inherit; padding: 2px 8px; border-color: #b8922e; background: #fffdf5; text-align: left; }
   #fly-pad, #fly-ud { display: none; }
   #fly-pad { position: fixed; left: 24px; bottom: 140px; width: 128px; height: 128px; border-radius: 50%; background: rgba(250,244,226,.55);
     border: 1.6px solid var(--gold); touch-action: none; z-index: 6; }
@@ -196,6 +201,14 @@
   #fly-ud { position: fixed; right: 24px; bottom: 140px; flex-direction: column; gap: 10px; z-index: 6; }
   #fly-ud button { width: 72px; height: 56px; touch-action: none; }
   @media (pointer: coarse) { body.flying #fly-pad { display: block; } body.flying #fly-ud { display: flex; } }
+  /* スマホ：スティックと上へ／下へは、空を飛ぶの札のすぐ上に（札の高さ --fly-h は 旅.js が測る。輪くぐりの行を足したら、札がスティックに重なった）。
+     札の頭は折り返し、「いま：〜のあたり」は次の行へ（題が縦に崩れ、ボタンが2行に折れた） */
+  @media (pointer: coarse) {
+    #fly-pad, #fly-ud { bottom: calc(var(--fly-h, 124px) + 28px); }
+    #fly .head { flex-wrap: wrap; row-gap: 4px; }
+    #fly .head button { white-space: nowrap; }
+    #fly #f-where { flex-basis: 100%; order: 3; }
+  }
   #veil { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .34s ease;
     display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: #6a6250;
     background: radial-gradient(ellipse at 50% 55%, #f7f0de 0%, #efe2c4 100%); }
