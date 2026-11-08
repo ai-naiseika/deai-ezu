@@ -138,7 +138,8 @@
     const dist = Math.hypot(s.x - from.x, s.z - from.z), nat = T.mode === 'nat';
     T.fly = {
       from, t: 0,
-      dur: nat ? clamp(2.4 + dist / 250 + Math.abs(from.D - s.D) / 1500, 3, 7) : clamp(2.6 + dist / 14 + Math.abs(from.D - s.D) / 50, 3, 8),
+      // 飛脚の足（であい帖の道具）：移る時間だけ短く。着いてから読む時間（stay）は変えない
+      dur: (nat ? clamp(2.4 + dist / 250 + Math.abs(from.D - s.D) / 1500, 3, 7) : clamp(2.6 + dist / 14 + Math.abs(from.D - s.D) / 50, 3, 8)) * (window.DEAI_TOOL && DEAI_TOOL.hikyaku ? 0.6 : 1),
       lift: nat ? clamp(dist * 0.6, 100, 900) : clamp(dist * 0.9, 14, 90),
       th: s.th != null ? toward(from.th, s.th) : dist > 2 ? toward(from.th, Math.atan2(s.x - from.x, -(s.z - from.z))) : from.th,
     };
@@ -235,7 +236,7 @@
   window.YURAN = {
     start, startNat, end, go: (i) => T && go(i), pause,
     order: (n) => natOrder(n).map((p) => p.n),       // 検査用：基点を決めて順路を作る
-    get state() { return T && { mode: T.mode, i: T.i, n: T.stops.length, paused: T.paused, flying: !T.stay, names: T.stops.map((s) => s.name),
+    get state() { return T && { mode: T.mode, i: T.i, n: T.stops.length, paused: T.paused, flying: !T.stay, dur: T.fly ? T.fly.dur : null, names: T.stops.map((s) => s.name),
       prefs: T.stops.map((s) => (s.k >= 0 ? M.P.find((p) => p.k === s.k).n : 0)) }; },
   };
 })();

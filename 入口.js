@@ -51,11 +51,11 @@
     if (M.inside || (window.TABI && TABI.state)) return;     // 県の中・空を飛ぶ間は、まず出てから
     if (window.YURAN && YURAN.state) YURAN.end(false);
     open = true; setRegion(null);
-    document.body.classList.add('opening');
+    document.body.classList.add('opening', 'again');           // again＝開いた後に戻ってきた入口（端末の「戻る」で閉じる。最初の入口は閉じこめない）
     if (M.sel >= 0) M.back();
     M.view(VIEW());
   }
-  function close() { open = false; document.body.classList.remove('opening'); }
+  function close() { open = false; document.body.classList.remove('opening', 'again'); }
   function go(r) {
     close(); setRegion(r);
     M.fitRegion(M.P.filter((p) => p.n >= r[1] && p.n <= r[2]).map((p) => p.k), r[3]);

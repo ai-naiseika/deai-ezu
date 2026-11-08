@@ -12,7 +12,7 @@
     font-family: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", serif; }
   /* 地図をドラッグした時に、札や題の字まで選択されて青く反転した（本人 2026-10-30「各カードが選択時の反転みたいに」）。字を選べるのは読む窓と入力だけ */
   body { -webkit-user-select: none; user-select: none; }
-  #card, #tour, #mame-card, #eki-card, #quiz, input, textarea { -webkit-user-select: text; user-select: text; }
+  #card, #tour, #mame-card, #eki-card, #en-card, #quiz, input, textarea { -webkit-user-select: text; user-select: text; }
   #sky { position: fixed; inset: 0; background: linear-gradient(var(--sky, #a8d4f2) 0%, #f4ead2 34%, #efe2c4 100%); }
   /* 夜（map3d.js の setNight）：空を夜の紺へ、ふわっと。飾りの白い霞の帯はしまう */
   /* 朝焼け・夕焼け（map3d.js の時刻）：太陽が地平線の近くにある間、空の上を暖かい色に。外側は同じ色の透明 */
@@ -507,6 +507,49 @@
   @keyframes cheer-in { from { opacity: 0; } to { opacity: 1; } }
   @keyframes seal-press { 0% { transform: scale(2) rotate(var(--r)); opacity: 0; } 65% { transform: scale(.93) rotate(var(--r)); opacity: 1; } 100% { transform: scale(1) rotate(var(--r)); } }
   @media (prefers-reduced-motion: reduce) { #deai-cheer.on, #deai-cheer .seal, #deai-cheer .art { animation: none; } }
+  /* 旅の道具（であい帖.js）：窓の一覧・手に入れた時の知らせ・提灯の灯り・遠めがねの印。羅針盤の針は方位の絵の中（#rashin） */
+  .tool-ic { display: block; } .tool-ic svg { display: block; width: 100%; height: 100%; }
+  #deai .tgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 4px 22px; margin-bottom: 14px; }
+  #deai .tool { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px dotted #d9caa0; }
+  #deai .tool .tool-ic { flex: none; width: 40px; height: 40px; }
+  #deai .tool.locked .tool-ic { filter: grayscale(1) opacity(.4); }
+  #deai .ttx { flex: 1; min-width: 0; }
+  #deai .ttx b { display: block; font-size: 15px; color: var(--ink); }
+  #deai .ttx small { display: block; font-size: 12px; line-height: 1.5; color: #6a6250; }
+  #deai .tool button { flex: none; font-size: 13px; padding: 3px 12px; }
+  #deai-cheer .tool-ic { flex: none; width: 56px; height: 56px; animation: seal-press .36s cubic-bezier(.2,1.3,.4,1) both; --r: 0deg; }
+  body.tool-chochin #lamp { width: 493px; height: 493px; margin: -246px 0 0 -246px;
+    background: radial-gradient(circle, rgba(255,226,170,.3) 0%, rgba(255,226,170,.15) 42%, rgba(255,226,170,0) 70%); }
+  @media (pointer: coarse) { body.tool-chochin #lamp { width: 377px; height: 377px; margin: -188px 0 0 -188px; } }
+  .pin.unread u { background: #f4c84a; box-shadow: 0 0 0 1px var(--ink), 0 0 9px 3px rgba(255,196,60,.85); }
+  .pin.unread b { outline: 2px solid #f4c84a; outline-offset: 1px; }
+  body.inside .pin.unread img { filter: drop-shadow(0 0 5px rgba(255,196,60,.95)); }
+  @media (prefers-reduced-motion: reduce) { #deai-cheer .tool-ic { animation: none; } }
+  #deai .tool .tool-ic.dim { filter: grayscale(1) opacity(.4); }
+  #deai .ttx small.route { color: var(--ink); }
+  /* 縁（縁.js）：全国の地図に重ねる金の道・名所の輪・旅人／船と、物語の札 */
+  #en-layer { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; display: none; overflow: visible; }
+  #en-layer.on { display: block; }
+  body.inside #en-layer, body.opening #en-layer, body.flying #en-layer { display: none; }
+  #en-layer .halo { fill: none; stroke: rgba(255,214,90,.42); stroke-width: 11; stroke-linecap: round; stroke-linejoin: round; }
+  #en-layer .road { fill: none; stroke: #d9a520; stroke-width: 3.4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 3px rgba(255,200,60,.9)); }
+  #en-layer circle { fill: #fbf6e8; stroke: #b8922e; stroke-width: 2.4; }
+  #en-layer circle.lit { fill: #f4c84a; stroke: #c8402c; r: 9; filter: drop-shadow(0 0 6px rgba(255,200,60,.95)); }
+  #en-layer .names text { font-size: 13px; font-weight: 700; fill: var(--ink); stroke: #fbf6e8; stroke-width: 4px; paint-order: stroke; text-anchor: middle; }
+  #en-card { position: fixed; right: 16px; top: 84px; width: min(380px, calc(100vw - 32px)); box-sizing: border-box; z-index: 7; max-height: calc(100vh - 200px); overflow: auto;
+    background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 10px 14px; display: none; }
+  #en-card.open { display: block; }
+  body.inside #en-card { display: none; }
+  #en-card .close { position: absolute; right: 10px; top: 8px; font-size: 13px; padding: 2px 10px; }
+  #en-card .head { display: flex; gap: 8px; align-items: baseline; }
+  #en-card .head b { font-size: 13px; color: var(--shu); }
+  #en-card .head .date { font-size: 12px; color: #6a6250; }
+  #en-card h3 { margin: 4px 0 2px; font-size: 21px; }
+  #en-card .route { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: #6a6250; }
+  #en-card .text { margin: 4px 0; font-size: 15px; line-height: 1.75; }
+  #en-card details.src { font-size: 12px; color: #6a6250; }
+  #en-card details.src summary { cursor: pointer; }
+  #en-card details.src ul { margin: 4px 0 0; padding-left: 18px; }
   /* 全国の眺めの県名の札に、その県の段の小さな印 */
   #labels div[data-s]::after { content: ''; position: absolute; right: -5px; top: -5px; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; background: #fffaf0; border: 1px solid var(--ink); }
   #labels div[data-s="2"]::after { background: #f2c94a; }
@@ -698,6 +741,8 @@
     #pop { left: 6px; right: 6px; width: auto; bottom: calc(var(--bar-h) + 10px); box-sizing: border-box; }
     #tour { bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); }
     #mame-card { bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); max-height: 50vh; overflow-y: auto; }
+    #en-card { left: 6px; right: auto; top: auto; bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); max-height: 40vh; }
+    body:has(#en-card.open) #note { display: none; }
     #mame-book { inset: 10px 10px 10px; padding: 14px 14px; }
     #mame-toast { top: 106px; font-size: 13px; }
     #bgm-cap { bottom: calc(var(--bar-h) + 8px); }

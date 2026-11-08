@@ -17,7 +17,7 @@
   // ---------------------------------------------------------------- 灯り：マウスの周り（スマホは最後に触れた所）。地図の上にいる時だけ
   const lamp = { x: 0, y: 0, on: false };
   const coarse = matchMedia('(pointer: coarse)');      // 毎回作ると、札の数×毎コマで重かった（2026-10-30）
-  const R = () => (coarse.matches ? 130 : 170);
+  const R = () => (coarse.matches ? 130 : 170) * (window.DEAI_TOOL && DEAI_TOOL.chochin ? 1.45 : 1);     // 提灯（であい帖の道具）で広く。光の輪は index.html の body.tool-chochin
   const glow = $('#lamp');
   const MAPS = '#gl, #pins, #inlabels, #mame, #ranks';
   function put(e, v) {

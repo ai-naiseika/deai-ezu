@@ -504,7 +504,15 @@
       q.wTag = 12;
       q.named = true;
     }
+    unread();
   }
+  // 遠めがね（であい帖の道具）：まだ読んでいない紹介の印を金色に。読んだ時（'deai' の知らせ）と、道具を出し入れした時に塗り直す
+  function unread() {
+    const on = !!(window.DEAI_TOOL && DEAI_TOOL.megane && window.DEAI);
+    for (const q of pins) q.el.classList.toggle('unread', on && !DEAI.knows('item:' + q.it.pref + q.it.name));
+  }
+  addEventListener('deai-tool', unread);
+  addEventListener('deai', () => setTimeout(unread, 0));
 
   // ================================================================ 毎コマ：印・順位の札・地名の印を、地図に合わせて動かす
   M.on('frame', () => {

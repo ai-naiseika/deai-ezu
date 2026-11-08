@@ -26,6 +26,25 @@
     新潟: '越後', 富山: '越中', 石川: '加賀', 福井: '越前', 山梨: '甲斐', 長野: '信州', 岐阜: '美濃', 静岡: '駿河', 愛知: '尾張', 三重: '伊勢', 滋賀: '近江', 京都: '京', 大阪: '浪速',
     奈良: '大和', 和歌山: '紀州', 鳥取: '因幡', 島根: '出雲', 岡山: '備前', 広島: '安芸', 山口: '長州', 徳島: '阿波', 香川: '讃岐', 愛媛: '伊予', 高知: '土佐', 福岡: '筑前', 佐賀: '肥前',
     熊本: '肥後', 大分: '豊後', 宮崎: '日向', 鹿児島: '薩摩', 沖縄: '琉球' };
+  // 旅の道具（段2。本人 2026-11-09「どんどん進めて」）：位が上がると手に入り、地図で本当に効く。窓の「旅の道具」で、しまう・使うを選べる。
+  // 効かせる側は window.DEAI_TOOL を毎コマ読む（札.js の灯り・であい帖の羅針盤・案内.js の紹介の印・遊覧.js・旅.js）
+  const TOOLS = [
+    ['chochin', 1, '提灯', '灯り（マウスの周り・スマホは触れた所）が広くなり、札と豆知識の「？」が見つけやすくなります。'],
+    ['rashin', 2, '羅針盤', '方位に金の針が出て、いちばん近い「まだ知らない豆知識」の方を指します（県を浮かせている時と県の中では、その県の中で）。'],
+    ['megane', 3, '遠めがね', '県を浮かせた時と県の中で、まだ読んでいない紹介の印が金色に光ります。'],
+    ['hikyaku', 4, '飛脚の足', '遊覧で次の所へ移る速さと、空を飛ぶ速さが上がります（説明を読む時間は変わりません）。'],
+  ];
+  const TOOL_ICON = {
+    chochin: '<svg viewBox="0 0 40 40"><rect x="15" y="4" width="10" height="4" rx="1" fill="#2a3146"/><ellipse cx="20" cy="20" rx="11" ry="12" fill="#c8402c"/><path d="M10 16h20M9.5 20h21M10 24h20" stroke="#8e2a1c" stroke-width="1.2"/><ellipse cx="20" cy="20" rx="5" ry="9" fill="#f6c25a" opacity=".55"/><rect x="15" y="32" width="10" height="4" rx="1" fill="#2a3146"/></svg>',
+    rashin: '<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="#fbf6e8" stroke="#2a3146" stroke-width="2"/><circle cx="20" cy="20" r="12" fill="none" stroke="#b8922e" stroke-width="1"/><path d="M20 6l3 14h-6z" fill="#d9a520" stroke="#2a3146" stroke-width="1"/><path d="M20 34l3-14h-6z" fill="#fbf6e8" stroke="#2a3146" stroke-width="1"/></svg>',
+    megane: '<svg viewBox="0 0 40 40"><g transform="rotate(-32 20 20)" stroke="#2a3146" stroke-width="1.3"><rect x="2" y="17.5" width="8" height="5" fill="#b8922e"/><rect x="10" y="16" width="10" height="8" fill="#8a5a2c"/><rect x="20" y="14" width="15" height="12" fill="#6e4424"/><rect x="31" y="13.5" width="3" height="13" fill="#d9a520"/><ellipse cx="35.5" cy="20" rx="1.6" ry="5.6" fill="#bfe3f0"/></g></svg>',
+    hikyaku: '<svg viewBox="0 0 40 40"><g fill="#d9b46a" stroke="#6a4a24" stroke-width="1.3"><rect x="5" y="6" width="13" height="30" rx="6"/><rect x="22" y="3" width="13" height="30" rx="6"/></g><path d="M7 24h9M7 28h9M7 32h9M24 21h9M24 25h9M24 29h9" stroke="#a07a3c" stroke-width="1"/><path d="M11.5 9L7 20M11.5 9L16 20M28.5 6L24 17M28.5 6L33 17" stroke="#c8402c" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg>',
+  };
+  // 縁（段2）：道の県をみな知人まで知ると結ばれる。中身は 縁の台帳.js（この前に読む）、地図に描くのは 縁.js（この後に読む）
+  const ENS = window.EN_DATA || [], EN_IDS = new Set(ENS.map((e) => e.id));
+  // 縁の絵：2つの土地（地図のピン）を赤い糸で結び、まん中に金の結び目。前の「赤と金の輪が2つ重なる」はカード会社の印に似ていて、
+  // 端を丸い輪にすると自転車・眼鏡に見えた
+  const EN_ICON = '<svg viewBox="0 0 40 40"><path d="M7 28C12 15 17 32 20 22S28 12 33 22" fill="none" stroke="#c8402c" stroke-width="2.6" stroke-linecap="round"/><path d="M20 22l-4-4.5 4 1.5 4-1.5z" fill="#d9a520" stroke="#8e2a1c" stroke-width="1"/><circle cx="20" cy="22" r="2.6" fill="#d9a520" stroke="#8e2a1c" stroke-width="1"/><path d="M7 28C4 24 2.5 22 2.5 20a4.5 4.5 0 0 1 9 0c0 2-1.5 4-4.5 8z" fill="#2a3146"/><circle cx="7" cy="20" r="1.7" fill="#fbf6e8"/><path d="M33 22C30 18 28.5 16 28.5 14a4.5 4.5 0 0 1 9 0c0 2-1.5 4-4.5 8z" fill="#2a3146"/><circle cx="33" cy="14" r="1.7" fill="#fbf6e8"/></svg>';
   const prefOf = (n) => M.P.find((p) => p.n === n);
   const meiyo = (p) => `名誉${M.FULL(p.name).slice(-1)}民`;      // 名誉県民・名誉都民・名誉道民・名誉府民
   const stageName = (p, s) => [ '', '知人', '常連', (OLD[p.name] || p.name) + '通', meiyo(p)][s];
@@ -60,7 +79,13 @@
     const L = o.letter;
     const letter = L && isDate(L.d) && typeof L.id === 'string' && LEDGER.has(L.id) && Array.isArray(L.done) ? { d: L.d, id: L.id, done: [!!L.done[0], !!L.done[1], !!L.done[2]], full: !!L.full } : null;
     return { name: typeof o.name === 'string' ? o.name.slice(0, 16) : '', known: Array.isArray(o.known) ? o.known.filter((s) => typeof s === 'string' && LEDGER.has(s)) : [],
-      stage, rank: Math.min(num(o.rank), RANKS.length - 1), days: Array.isArray(o.days) ? [...new Set(o.days.filter(isDate))].slice(-3000) : [], letters: num(o.letters), passAt: num(o.passAt), letter };
+      stage, rank: Math.min(num(o.rank), RANKS.length - 1), days: Array.isArray(o.days) ? [...new Set(o.days.filter(isDate))].slice(-3000) : [], letters: num(o.letters), passAt: num(o.passAt), letter,
+      off: Array.isArray(o.off) ? o.off.filter((k) => TOOLS.some((t) => t[0] === k)) : [], en: cleanEn(o.en) };
+  }
+  function cleanEn(v) {
+    const en = {};
+    if (v && typeof v === 'object' && !Array.isArray(v)) for (const id of EN_IDS) if (isDate(v[id])) en[id] = v[id];
+    return en;
   }
   let canKeep = true;
   const readJson = (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { if (!(e instanceof SyntaxError)) canKeep = false; return null; } };
@@ -72,6 +97,14 @@
   }
   const total = () => known.size + (window.MAME ? MAME.count()[0] : 0);
   const stageNow = (n) => { const st = S.stage[n]; return st ? Math.max(...Object.keys(st).map(Number)) : 0; };
+  const T = window.DEAI_TOOL = {};
+  function paintTools() {
+    for (const [k, r] of TOOLS) {
+      T[k] = S.rank >= r && !S.off.includes(k);
+      document.body.classList.toggle('tool-' + k, T[k]);
+    }
+    dispatchEvent(new Event('deai-tool'));
+  }
 
   // ---------------------------------------------------------------- 県ごとの朱印（朱印の絵.js。骨/朱印を作る.py が作る。自前のファイルなので innerHTML で入れる）。
   // 最初に何かを知った時か、窓を開いた時に読む（読むのは圧縮 150KB。であい帖を使わない人には読ませない）
@@ -141,8 +174,22 @@
   function settleRank(quiet) {
     const r = rankOf(total());
     if (r <= S.rank) return;
+    const was = S.rank;
     S.rank = r;
-    if (!quiet) cheer(seal(RANKS[r][1], 4, r), `位が上がりました　${RANKS[r][1]}`, RANKS[r][2]);
+    paintTools();
+    if (quiet) return;
+    cheer(seal(RANKS[r][1], 4, r), `位が上がりました　${RANKS[r][1]}`, RANKS[r][2]);
+    for (const [k, at, name, what] of TOOLS) if (at > was && at <= r) cheer(() => toolIcon(k), `旅の道具を手に入れました　${name}`, what);
+  }
+  function toolIcon(k) { const d = el('span', 'tool-ic'); d.innerHTML = TOOL_ICON[k]; return d; }
+  function enIcon(dim) { const d = el('span', 'tool-ic' + (dim ? ' dim' : '')); d.innerHTML = EN_ICON; return d; }
+  // 縁：道の県がみな知人（段1）以上になったら結ぶ。知らせの後、であい帖の「縁」から地図に出せる
+  function settleEn(quiet) {
+    for (const e of ENS) {
+      if (S.en[e.id] || !e.prefs.every((n) => stageNow(n) >= 1)) continue;
+      S.en[e.id] = today();
+      if (!quiet) cheer(() => enIcon(), `縁が結ばれました　${e.name}`, `${e.teaser}。であい帖の「縁」から、地図に道を出せます`);
+    }
   }
   const openBtn = $('#deai-open');
   function paintBtn() {
@@ -185,6 +232,7 @@
     const d = today();
     if (S.days[S.days.length - 1] !== d) S.days.push(d);
     if (pref) settle(pref);
+    settleEn();
     settleRank();
     checkLetter();
     save();
@@ -232,7 +280,56 @@
     box.append(x, el('h2', null, 'であい帖'), el('p', 'lead', '紹介や豆知識を知るほど、位が上がり、県の朱印が変わっていきます。'));
     const cols = el('div', 'cols');
     cols.append(renderMe(), renderLetter(L), renderMine());
-    box.append(cols, renderSeals(), renderPass());
+    box.append(cols, renderTools(), renderEn(), renderSeals(), renderPass());
+  }
+  function renderEn() {
+    const sec = el('section', 'en');
+    if (!ENS.length) return sec;
+    sec.appendChild(el('h3', null, '縁'));
+    sec.appendChild(el('p', 'lead', `道の県をみな「知人」まで知ると、その県どうしを結ぶ本物の歴史の道が、地図に現れます（${Object.keys(S.en).length} / ${ENS.length}）。`));
+    const grid = el('div', 'tgrid');
+    for (const e of ENS) {
+      const date = S.en[e.id], row = el('div', 'tool' + (date ? '' : ' locked')), tx = el('div', 'ttx');
+      row.dataset.en = e.id;
+      const k = e.prefs.filter((n) => stageNow(n) >= 1).length;
+      const route = e.prefs.map((n) => (stageNow(n) >= 1 ? prefOf(n).name : '？')).join(e.kind === '巡り' ? '・' : ' → ');
+      tx.append(el('b', null, date ? e.name : '？？の道'), el('small', null, e.teaser), el('small', 'route', date ? route : `${route}（${k} / ${e.prefs.length}）`));
+      row.append(enIcon(!date), tx);
+      if (date && window.EN) {
+        const b = el('button', null, '地図で見る');
+        b.addEventListener('click', () => { close(); window.EN.show(e.id, date); });
+        row.appendChild(b);
+      }
+      grid.appendChild(row);
+    }
+    sec.appendChild(grid);
+    return sec;
+  }
+  function renderTools() {
+    const sec = el('section', 'tools');
+    sec.appendChild(el('h3', null, '旅の道具'));
+    sec.appendChild(el('p', 'lead', '位が上がると、地図で本当に効く道具が手に入ります。使わない道具は、しまっておけます。'));
+    const grid = el('div', 'tgrid');
+    for (const [k, at, name, what] of TOOLS) {
+      const own = S.rank >= at, row = el('div', 'tool' + (own ? '' : ' locked'));
+      row.dataset.k = k;
+      const tx = el('div', 'ttx');
+      tx.append(el('b', null, own ? name : '？？？'), el('small', null, own ? what : `位「${RANKS[at][1]}」で手に入ります`));
+      row.append(toolIcon(k), tx);
+      if (own) {
+        const b = el('button', null, T[k] ? 'しまう' : '使う');
+        b.setAttribute('aria-pressed', String(!!T[k]));
+        b.addEventListener('click', () => {
+          S.off = T[k] ? S.off.concat(k) : S.off.filter((x) => x !== k);
+          save(); paintTools();
+          b.textContent = T[k] ? 'しまう' : '使う'; b.setAttribute('aria-pressed', String(!!T[k]));
+        });
+        row.appendChild(b);
+      }
+      grid.appendChild(row);
+    }
+    sec.appendChild(grid);
+    return sec;
   }
   function renderMe() {
     const t = total(), r = S.rank, next = RANKS[r + 1], sec = el('section', 'me');
@@ -447,6 +544,7 @@
       const mine = S.stage[n] = S.stage[n] || {};
       for (const [s, date] of Object.entries(st)) if (!mine[s] || date < mine[s]) mine[s] = date;
     }
+    for (const [id, date] of Object.entries(d.en)) if (!S.en[id] || date < S.en[id]) S.en[id] = date;
     S.days = [...new Set(S.days.concat(d.days))].sort();
     S.letters = Math.max(S.letters, d.letters);
     S.rank = Math.max(S.rank, d.rank);
@@ -536,15 +634,47 @@
   // 開いた時：前からの記録（豆知識帳）を数え直す。ここでは知らせない
   M.on('ready', () => {
     for (const p of M.P) { settle(p.n, true); paintLabel(p.n); }
+    settleEn(true);
     settleRank(true);
     letter();
     save();
     paintBtn();
+    paintTools();
+  });
+
+  // ---------------------------------------------------------------- 羅針盤（旅の道具）：方位に金の針。いちばん近い「まだ知らない豆知識」の方を指す。
+  // 向きは方角（見る向き th と同じ決まり：北が 0・東が +）で、方位の赤い針と同じく画面の上が見ている向き
+  const SVGNS = 'http://www.w3.org/2000/svg', compassSvg = document.querySelector('#compass svg');
+  const rashin = compassSvg && document.createElementNS(SVGNS, 'g');
+  if (rashin) {
+    rashin.id = 'rashin'; rashin.style.display = 'none';
+    rashin.innerHTML = '<path d="M0-41 L4.5-7 L0-3 L-4.5-7Z" fill="#e8b828" stroke="#2a3146" stroke-width="1.2"/><circle cy="-40" r="3.4" fill="#ffd95a" stroke="#2a3146" stroke-width="1"/>';
+    compassSvg.appendChild(rashin);
+  }
+  let aim = null, aimAt = 0;
+  M.on('frame', () => {
+    if (!rashin) return;
+    const cl = document.body.classList;
+    if (!T.rashin || cl.contains('opening') || cl.contains('flying')) { if (aim) { rashin.style.display = 'none'; aim = null; } return; }
+    const c = M.cam, now = performance.now();
+    if (now - aimAt > 250) {               // 探すのは1秒に4回（豆は 1700 余り）
+      aimAt = now;
+      const k = M.sel, p = k >= 0 ? M.P[k] : null, inside = !!M.inside;
+      let bd = Infinity;
+      aim = null;
+      for (const d of IN.mame || []) {
+        if ((d.eki && !inside) || (p && d.pref !== p.n) || hasMame(d.id)) continue;
+        const dd = (d.x - c.x) ** 2 + (d.z - c.z) ** 2;
+        if (dd < bd) { bd = dd; aim = d; }
+      }
+      rashin.style.display = aim ? '' : 'none';
+    }
+    if (aim) rashin.setAttribute('transform', `rotate(${((Math.atan2(aim.x - c.x, -(aim.z - c.z)) - c.th) * 180 / Math.PI).toFixed(1)})`);
   });
   // 検査用
   window.DEAI = {
-    open, close, pass: passText, read: apply0,
-    get state() { return { name: S.name, known: known.size, total: total(), rank: S.rank, rankName: RANKS[S.rank][1], days: S.days.length, letters: S.letters, letter: letter(), stage: S.stage, canKeep }; },
+    open, close, pass: passText, read: apply0, knows: (id) => known.has(id), get aim() { return aim && aim.id; },
+    get state() { return { name: S.name, known: known.size, total: total(), rank: S.rank, rankName: RANKS[S.rank][1], days: S.days.length, letters: S.letters, letter: letter(), stage: S.stage, canKeep, tools: { ...T }, off: S.off, en: { ...S.en } }; },
     stageNow, countOf, art: artOf, load: loadShuin,
     pics: { mine: () => drawMine([0, 0, 0, 0, 0]), cert: (n) => drawCert(prefOf(n), countOf(n)[1], today()) },
   };

@@ -207,7 +207,7 @@
       // 山の強め方と地面の模様の細かさは、自分で上がる・下がる間だけ高さに合わせる。足もとの起伏で毎コマ変えると、
       // 水平に飛ぶだけで山が伸び縮みし、山肌の模様もうねうね動いて見えた（本人 2026-10-30「飛行する時にやはり模様がうねって動きます」）
       if (rise || F.wheel > 0 || F.patH == null) { reliefT = exAt(hR) / w.exag; F.patH = hR; }
-      const sp = speedAt(hR) * fast;
+      const sp = speedAt(hR) * fast * (window.DEAI_TOOL && DEAI_TOOL.hikyaku ? 1.6 : 1);     // 飛脚の足（であい帖の道具）
       // 名所を押した時は、そちらへ向き直る（自分で曲がったら、やめる）
       if (turn) F.aim = null;
       if (F.aim != null) {

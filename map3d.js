@@ -854,8 +854,7 @@
       const D = clamp(size * 1.9 + 240, 420, 2200);
       Object.assign(goal, { x: (f[0] + f[2]) / 2 + Math.cos(goal.th) * D * 0.1, z: (f[1] + f[3]) / 2 + Math.sin(goal.th) * D * 0.1, y: LIFT * 0.55, D, ph: 0.6 });
     }
-    if (how === 'push') history.pushState({ sel: k }, '');
-    else if (how === 'replace') history.replaceState({ sel: k }, '');
+    if (how) writeHist({ sel: k }, how);
     $('#c-name').textContent = FULL(p.name);
     emit('select', k);
     $('#card').classList.add('open');
@@ -873,17 +872,54 @@
   // （知らせは遅れて届くので、その間に押した次の県を下ろしてしまわないように）
   let popping = false;
   function back() {
+    const st = history.state, g = st && st.layer ? 1 : 0;      // 上に窓の段があれば、それごと戻る
     if (inside) {
       leave();
-      if (history.state && history.state.inside) { popping = true; history.back(); }
+      if (st && st.inside) { popping = true; layered = false; history.go(-1 - g); }
       return;
     }
     deselect();
-    if (history.state && history.state.sel != null) { popping = true; history.back(); }
+    if (st && st.sel != null) { popping = true; layered = false; history.go(-1 - g); }
   }
+
+  // ---------------------------------------------------------------- 端末の「戻る」で窓を閉じる（本人のスマホ 2026-11-09。前は窓が開いたまま県を下ろす・ページを出た）
+  // 窓・遊覧・空を飛ぶ・入り直したはじめの画面が開いている間だけ、履歴のいちばん上に「窓の段」を1つ積む。
+  // 「戻る」でその段を戻ると、Esc と同じ手順で1つ閉じ（地図は動かさない）、まだ開いていればまた積む。ボタンで閉じ切った時は、積んだ段を自分で戻す
+  const WINS = ['body.touring', 'body.flying', 'body.again', '#deai.open', '#deai .pic', '#quiz.open', '#mame-book.open', '#mame-card.open', '#eki-card.open',
+    '#credits.open', '#cal.open', '#legend.open', '#natdata.open', '#fuda.open', '#hito.open', '#bar .dock.open', '#en-card.open'];
+  const layerSig = () => WINS.filter((q) => document.querySelector(q)).join();
+  let layered = false, stuck = '', under = '';
+  const where = (o) => (o && o.sel != null ? o.sel : -1) + '|' + (o && o.inside ? o.inside : '');    // 段の中身（浮かせた県・入った県）
+  // 履歴に書く。窓の段が上にある時は、その下に書いてから窓の段を積み直す（窓の段は、いつもいちばん上）
+  function writeHist(st, how) {
+    if (history.state && history.state.layer) { history.replaceState(st, ''); history.pushState(Object.assign({}, st, { layer: 1 }), ''); under = where(st); }
+    else if (how === 'push') history.pushState(st, '');
+    else history.replaceState(st, '');
+  }
+  function layerSync() {
+    if (popping) return;                                       // 自分で戻した知らせを待つ間は積まない（知らせは遅れて届く）
+    const sig = layerSig();
+    if (sig !== stuck) stuck = '';
+    if (sig && !layered && !stuck) { under = where(history.state); history.pushState(Object.assign({}, history.state, { layer: 1 }), ''); layered = true; }
+    else if (!sig && layered) { layered = false; if (history.state && history.state.layer) { popping = true; history.back(); } }
+  }
+  setInterval(layerSync, 300);
+  for (const t of ['click', 'keyup']) addEventListener(t, () => setTimeout(layerSync, 0), true);
+
   addEventListener('popstate', (e) => {
     if (popping) { popping = false; return; }
-    const s = e.state;
+    let s = e.state;
+    if (layered && !(s && s.layer)) {
+      layered = false;
+      const sig = layerSig(), k = new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true });
+      k.fromBack = true;
+      document.body.dispatchEvent(k);
+      // 何も閉じなかった時（閉じるのに時間のかかる物も）は、同じ物が開いている間は積み直さない（「戻る」で閉じこめない）
+      if (layerSig() === sig) stuck = sig;
+      // 2段以上をまとめて戻った時（履歴の一覧から選んだ時）は、窓を閉じた上で、地図も着いた段へ戻す（下へ続ける）
+      if (where(s) === under) { layerSync(); return; }
+    }
+    if (s && s.layer) { s = Object.assign({}, s); delete s.layer; history.replaceState(s, ''); }    // 進むで窓の段へ来た時は、ただの段として
     if (inside && !(s && s.inside)) { leave(() => { if (s && s.sel != null) select(s.sel, null); else deselect(); }); return; }
     if (!inside && s && s.inside && lastWorld) { if (s.sel !== sel) select(s.sel, null); enter(lastWorld, null); return; }
     if (s && s.sel != null) select(s.sel, null); else deselect();
@@ -904,7 +940,7 @@
   function enter(w, how = 'push') {
     if (inside || sel < 0) return;
     lastWorld = w; outView = Object.assign({}, goal);
-    if (how === 'push') history.pushState({ sel, inside: w.name }, '');
+    if (how === 'push') writeHist({ sel, inside: w.name }, 'push');
     veil(true, () => {
       inside = w;
       nat.visible = false; w.group.visible = true;
@@ -923,7 +959,7 @@
   function leave(then) {
     if (!inside) { if (then) then(); return; }
     const w = inside;
-    if (history.state && history.state.inside) history.replaceState({ sel }, '');
+    if (history.state && history.state.inside) writeHist({ sel }, 'replace');
     veil(true, () => {
       inside = null;
       nat.visible = true; w.group.visible = false;
@@ -936,7 +972,7 @@
       veil(false);
     });
   }
-  if (history.state && history.state.sel != null) history.replaceState(null, '');
+  if (history.state && (history.state.sel != null || history.state.layer)) history.replaceState(null, '');
 
   // 地図を押した時、開いている窓（豆知識・駅の案内）があれば、しまうだけにする（本人 2026-10-29「もう一度クリックやタップで、窓をしまった方がいい。いちいち閉じるは大変」）
   const dismissers = [];
@@ -960,7 +996,7 @@
   const unselect = () => { const s = getSelection && getSelection(); if (s && s.rangeCount) s.removeAllRanges(); };
   addEventListener('keydown', (e) => { if (e.code === 'Escape') unselect(); }, true);
   // 字を選べるのは読む窓と入力だけ（index.html の user-select と同じ並び）。地図の印をトリプルクリックすると、ブラウザが右の札の「群馬県」まで選択を広げた
-  const READ = '#card, #tour, #mame-card, #eki-card, #quiz, input, textarea';
+  const READ = '#card, #tour, #mame-card, #eki-card, #en-card, #quiz, input, textarea';
   const inRead = (t) => { t = t && t.nodeType === 3 ? t.parentElement : t; return !!(t && t.closest && t.closest(READ)); };
   document.addEventListener('selectstart', (e) => { if (!inRead(e.target)) e.preventDefault(); });
   document.addEventListener('mousedown', (e) => { if (e.detail > 1 && !inRead(e.target)) e.preventDefault(); });
@@ -1070,7 +1106,7 @@
 
   addEventListener('keydown', (e) => {
     if (free || (e.target.closest && e.target.closest('input, textarea'))) return;   // 検索の窓に打っている字で、地図を回さない
-    if (e.code === 'Escape') { for (const I of ISLES) I.pinned = false; back(); }
+    if (e.code === 'Escape') { if (!e.fromBack) { for (const I of ISLES) I.pinned = false; back(); } }
     else if (e.code === 'ArrowLeft') goal.th += 0.26;
     else if (e.code === 'ArrowRight') goal.th -= 0.26;
     else if (e.code === 'ArrowUp') goal.ph = clamp(goal.ph + 0.1, PH[0], PH[1]);
