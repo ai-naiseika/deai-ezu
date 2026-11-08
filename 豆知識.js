@@ -151,10 +151,79 @@
     bBook.addEventListener('click', () => { closeCard(); openBook(); });
     bNext.addEventListener('click', nextUnknown);
     bClose.addEventListener('click', closeCard);
+    if (d.text != null) { const bPic = el('button', null, '絵にして送る'); bPic.addEventListener('click', () => showPic(B)); row.append(bPic); }
     row.append(bBook, bNext, bClose); card.appendChild(row);
     card.classList.add('open'); cur = B;
   }
   function closeCard() { card.classList.remove('open'); cur = null; }
+
+  // ---------------------------------------------------------------- 絵にして送る（ゲームの案.md「人に言いたくなる：豆知識を1枚の札にして送る」・2026-11-09）：
+  // 縦長の1枚（1080×1350）に題・県・本文・場所・出どころ。字は見る人の端末の字で描く。地図の住所は入れない（試しの公開の間）。
+  // 先に絵とファイルを作って見せ、「送る」の押した時にそのまま渡す（作るのを待ってから送ると、スマホが押した操作と見なさず送れないことがある）
+  const pic = el('div');
+  pic.id = 'mame-pic'; pic.setAttribute('role', 'dialog'); pic.setAttribute('aria-label', '豆知識の絵の札');
+  document.body.appendChild(pic);
+  const FONT = '"Yu Mincho", "YuMincho", "Hiragino Mincho ProN", serif';
+  // 行で折る（禁則：閉じかっこ・句読点・小さい字は行の頭に置かず前の行に残す・開きかっこは行の終わりに置かず次の行へ）。max 行を超えたら「…」で終える
+  const NO_HEAD = '、。，．・：；？！ー－」』）〕］｝〉》】ぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ々', NO_TAIL = '「『（〔［｛〈《【';
+  function wrap(g, text, maxW, max) {
+    const lines = [];
+    let line = '';
+    for (const ch of text) {
+      if (line && g.measureText(line + ch).width > maxW && !NO_HEAD.includes(ch)) {
+        let carry = '';
+        while (line.length > 1 && NO_TAIL.includes(line[line.length - 1])) { carry = line[line.length - 1] + carry; line = line.slice(0, -1); }
+        lines.push(line); line = carry + ch;
+      } else line += ch;
+    }
+    if (line) lines.push(line);
+    if (lines.length <= max) return lines;
+    const out = lines.slice(0, max);
+    out[max - 1] = out[max - 1].slice(0, -1) + '…';
+    return out;
+  }
+  function drawCard(B) {
+    const d = B.d, W = 1080, H = 1350, c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const g = c.getContext('2d'), font = (s, w = 700) => { g.font = `${w} ${s}px ${FONT}`; }, X = 100, MW = W - 200;
+    g.fillStyle = '#f7f0dc'; g.fillRect(0, 0, W, H);
+    g.strokeStyle = '#b8922e'; g.lineWidth = 8; g.strokeRect(36, 36, W - 72, H - 72);
+    g.strokeStyle = '#c8402c'; g.lineWidth = 2; g.strokeRect(54, 54, W - 108, H - 108);
+    font(40); g.fillStyle = '#c8402c'; g.fillText('豆知識', X, 150);
+    font(36, 400); g.fillStyle = '#6a6250'; g.fillText(`${d.cat}・${P ? M.FULL(P[B.k].name) : ''}`, X + 150, 150);
+    font(72); g.fillStyle = '#2a3146';
+    let y = 262;
+    for (const l of wrap(g, d.title, MW, 2)) { g.fillText(l, X, y); y += 92; }
+    g.strokeStyle = '#c9b88a'; g.lineWidth = 2; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(X, y - 34); g.lineTo(W - X, y - 34); g.stroke(); g.setLineDash([]);
+    font(46, 400); y += 44;
+    for (const l of wrap(g, d.text || '', MW, 9)) { g.fillText(l, X, y); y += 76; }
+    font(32, 400); g.fillStyle = '#6a6250';
+    if (d.where) { y += 18; for (const l of wrap(g, '場所：' + d.where, MW, 2)) { g.fillText(l, X, y); y += 46; } }
+    font(28, 400);
+    let ys = H - 214;
+    for (const l of wrap(g, '出どころ：' + (d.sources || []).map((s) => s.title).join('／'), MW, 2)) { g.fillText(l, X, ys); ys += 40; }
+    font(34); g.textAlign = 'center'; g.fillText('にっぽん であい絵図（AI内製化工房）', W / 2, H - 94);
+    return c;
+  }
+  function showPic(B) {
+    const c = drawCard(B), name = `豆知識_${B.d.title.replace(/[\\/:*?"<>|]/g, '')}.png`;
+    let file = null;
+    c.toBlob((b) => { file = b && new File([b], name, { type: 'image/png' }); }, 'image/png');
+    pic.textContent = '';
+    const row = el('div', 'row'), keep = el('button', null, '送る・保存する'), no = el('button', null, 'もどる');
+    keep.addEventListener('click', () => {
+      if (!file) return;
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file] }).catch(() => {}); return; }
+      const a = document.createElement('a'), u = URL.createObjectURL(file);
+      a.href = u; a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(u), 2000);
+    });
+    no.addEventListener('click', closePic);
+    row.append(keep, no);
+    pic.append(c, row);
+    pic.classList.add('open');
+  }
+  function closePic() { pic.classList.remove('open'); pic.textContent = ''; }
   M.onDismiss(() => { if (!card.classList.contains('open')) return false; closeCard(); return true; });
   // 札の外のどこを押してもしまう（地図の空いた所は M.onDismiss・押した豆は豆の側でしまう）。画面の向きや大きさが変わった時も（本人 2026-10-30）
   addEventListener('pointerdown', (e) => { if (card.classList.contains('open') && !card.contains(e.target) && !(cur && cur.el.contains(e.target)) && e.target.id !== 'gl') closeCard(); }, true);
@@ -270,7 +339,8 @@
 
   addEventListener('keydown', (e) => {
     if (e.code !== 'Escape' || e.target.closest('input')) return;
-    if (book.classList.contains('open')) { closeBook(); e.stopImmediatePropagation(); }
+    if (pic.classList.contains('open')) { closePic(); e.stopImmediatePropagation(); }
+    else if (book.classList.contains('open')) { closeBook(); e.stopImmediatePropagation(); }
     else if (card.classList.contains('open')) { closeCard(); e.stopImmediatePropagation(); }
   }, true);
 
@@ -287,5 +357,7 @@
     record: (id) => { const B = beans.find((q) => q.d.id === id); return B ? record(B) : false; },
     count: () => [count(), ALL.length],
     goTo: (id) => { const B = beans.find((q) => q.d.id === id); if (B) goTo(B, got.has(id)); },
+    // 検査用：絵の札の本文と同じ字の大きさ・幅で折った行
+    lines: (text) => { const g = document.createElement('canvas').getContext('2d'); g.font = `400 46px ${FONT}`; return wrap(g, text, 880, 99); },
   };
 })();

@@ -886,7 +886,7 @@
   // 窓・遊覧・空を飛ぶ・入り直したはじめの画面が開いている間だけ、履歴のいちばん上に「窓の段」を1つ積む。
   // 「戻る」でその段を戻ると、Esc と同じ手順で1つ閉じ（地図は動かさない）、まだ開いていればまた積む。ボタンで閉じ切った時は、積んだ段を自分で戻す
   const WINS = ['body.touring', 'body.flying', 'body.again', '#deai.open', '#deai .pic', '#quiz.open', '#mame-book.open', '#mame-card.open', '#eki-card.open',
-    '#credits.open', '#cal.open', '#legend.open', '#natdata.open', '#fuda.open', '#hito.open', '#bar .dock.open', '#en-card.open'];
+    '#credits.open', '#cal.open', '#legend.open', '#natdata.open', '#fuda.open', '#hito.open', '#bar .dock.open', '#en-card.open', '#mame-pic.open'];
   const layerSig = () => WINS.filter((q) => document.querySelector(q)).join();
   let layered = false, stuck = '', under = '';
   const where = (o) => (o && o.sel != null ? o.sel : -1) + '|' + (o && o.inside ? o.inside : '');    // 段の中身（浮かせた県・入った県）

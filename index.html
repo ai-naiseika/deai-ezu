@@ -528,6 +528,8 @@
   @media (prefers-reduced-motion: reduce) { #deai-cheer .tool-ic { animation: none; } }
   #deai .tool .tool-ic.dim { filter: grayscale(1) opacity(.4); }
   #deai .ttx small.route { color: var(--ink); }
+  #deai .toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+  #deai .toc button { font-size: 13px; padding: 3px 12px; border-radius: 14px; }
   /* 旬の札（であい帖.js）：今月まだの札は名前の札（押すと紹介へ）、集めた札は札の形 */
   #deai .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   #deai .chips button { font-size: 13px; padding: 3px 10px; }
@@ -573,6 +575,13 @@
   #mame-card { position: fixed; left: 50%; bottom: 78px; transform: translateX(-50%); width: min(480px, calc(100vw - 32px)); box-sizing: border-box; z-index: 7;
     background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 10px 14px 10px; display: none; }
   #mame-card.open { display: block; }
+  /* 豆知識を絵の札にして送る（豆知識.js）：作った絵を見せて、送る・もどる */
+  #mame-pic { position: fixed; inset: 40px 40px 90px; z-index: 9; background: #faf4e2; border: 1.6px solid var(--gold); padding: 14px; box-sizing: border-box;
+    display: none; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  #mame-pic.open { display: flex; }
+  #mame-pic canvas { display: block; max-width: 100%; min-height: 0; flex: 0 1 auto; max-height: calc(100% - 52px); box-shadow: 0 4px 14px rgba(60,40,10,.25); }
+  #mame-pic .row { display: flex; gap: 8px; }
+  #mame-pic .row button { font-size: 15px; padding: 6px 14px; }
   body.flying #mame-card { bottom: 130px; }
   #mame-card .head { display: flex; gap: 8px; align-items: baseline; }
   #mame-card .head b { font-size: 13px; color: var(--shu); }
@@ -762,6 +771,7 @@
     #en-card { left: 6px; right: auto; top: auto; bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); max-height: 40vh; }
     body:has(#en-card.open) #note { display: none; }
     #mame-book { inset: 10px 10px 10px; padding: 14px 14px; }
+    #mame-pic { inset: 10px; }
     #mame-toast { top: 106px; font-size: 13px; }
     #bgm-cap { bottom: calc(var(--bar-h) + 8px); }
     #cal { inset: 6px; padding: 12px; }

@@ -306,6 +306,15 @@
     box.textContent = '';
     const x = el('button', 'close', '閉じる'); x.addEventListener('click', close);
     box.append(x, el('h2', null, 'であい帖'), el('p', 'lead', '紹介や豆知識を知るほど、位が上がり、県の朱印が変わっていきます。'));
+    // 目次：段が増えて、スマホでは窓が縦にとても長くなった（2026-11-09）。押すとその段へ
+    const toc = el('nav', 'toc'), smooth = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+    toc.setAttribute('aria-label', 'であい帖の目次');
+    for (const [t, q] of [['位と便り', '.cols'], ['旅の道具', '.tools'], ['縁', '.en'], ['旬の札', '.shunsec'], ['朱印帳', '.book'], ['旅の手形', '.pass']]) {
+      const b = el('button', null, t);
+      b.addEventListener('click', () => { const s = box.querySelector(q); if (s) s.scrollIntoView({ block: 'start', behavior: smooth }); });
+      toc.appendChild(b);
+    }
+    box.appendChild(toc);
     const cols = el('div', 'cols');
     cols.append(renderMe(), renderLetter(L), renderMine());
     box.append(cols, renderTools(), renderEn(), renderShun(), renderSeals(), renderPass());
