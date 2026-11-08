@@ -230,6 +230,7 @@
   #c-intro .detail h3 { margin: 6px 0 4px; font-size: 22px; }
   #c-intro .detail p { font-size: 14px; font-weight: 400; line-height: 1.75; margin: 6px 0; }
   #c-intro .detail .when { font-size: 13px; font-weight: 700; }
+  #c-intro .detail .shun-hint { color: #8a6a1c; }
   #c-intro .detail ol { margin: 6px 0 0; padding-left: 1.4em; font-size: 12px; line-height: 1.55; }
   #c-intro .detail a { color: #2a5a8a; word-break: break-all; }
   #c-intro .how { font-size: 11px; line-height: 1.55; color: #6a6250; margin-top: 10px; }
@@ -527,6 +528,20 @@
   @media (prefers-reduced-motion: reduce) { #deai-cheer .tool-ic { animation: none; } }
   #deai .tool .tool-ic.dim { filter: grayscale(1) opacity(.4); }
   #deai .ttx small.route { color: var(--ink); }
+  /* 旬の札（であい帖.js）：今月まだの札は名前の札（押すと紹介へ）、集めた札は札の形 */
+  #deai .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  #deai .chips button { font-size: 13px; padding: 3px 10px; }
+  #deai .chips button[hidden] { display: none; }
+  #deai .chips button.more { border-style: dashed; }
+  #deai .shuns { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; margin-bottom: 14px; }
+  .shun { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px 6px; background: #fffdf5; border: 1.4px solid #b8922e; border-radius: 6px;
+    box-shadow: 0 2px 5px rgba(60,40,10,.12); text-align: center; box-sizing: border-box; }
+  .shun .tool-ic { width: 40px; height: 40px; }
+  .shun b { font-size: 13px; line-height: 1.3; color: var(--ink); }
+  .shun small { font-size: 11px; line-height: 1.3; color: #6a6250; }
+  #deai-cheer .shun { flex: none; width: 96px; animation: seal-press .36s cubic-bezier(.2,1.3,.4,1) both; --r: 0deg; }
+  #deai-cheer .shun b { font-size: 13px; color: var(--ink); } #deai-cheer .shun small { font-size: 11px; color: #6a6250; }
+  @media (prefers-reduced-motion: reduce) { #deai-cheer .shun { animation: none; } }
   /* 縁（縁.js）：全国の地図に重ねる金の道・名所の輪・旅人／船と、物語の札 */
   #en-layer { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; display: none; overflow: visible; }
   #en-layer.on { display: block; }

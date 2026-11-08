@@ -45,6 +45,24 @@
   // 縁の絵：2つの土地（地図のピン）を赤い糸で結び、まん中に金の結び目。前の「赤と金の輪が2つ重なる」はカード会社の印に似ていて、
   // 端を丸い輪にすると自転車・眼鏡に見えた
   const EN_ICON = '<svg viewBox="0 0 40 40"><path d="M7 28C12 15 17 32 20 22S28 12 33 22" fill="none" stroke="#c8402c" stroke-width="2.6" stroke-linecap="round"/><path d="M20 22l-4-4.5 4 1.5 4-1.5z" fill="#d9a520" stroke="#8e2a1c" stroke-width="1"/><circle cx="20" cy="22" r="2.6" fill="#d9a520" stroke="#8e2a1c" stroke-width="1"/><path d="M7 28C4 24 2.5 22 2.5 20a4.5 4.5 0 0 1 9 0c0 2-1.5 4-4.5 8z" fill="#2a3146"/><circle cx="7" cy="20" r="1.7" fill="#fbf6e8"/><path d="M33 22C30 18 28.5 16 28.5 14a4.5 4.5 0 0 1 9 0c0 2-1.5 4-4.5 8z" fill="#2a3146"/><circle cx="33" cy="14" r="1.7" fill="#fbf6e8"/></svg>';
+  // 旬の札（段3の一部・ゲームの案.md「旬の札は、本当にその季節にしか手に入らない」・2026-11-09）：旬の月がある紹介を、その月に読むと1枚。
+  // 逃しても責めない（来年の同じ月にまた取れる）。品目ごとの絵はまだ無いので、札の絵は種類ごとの印
+  const SHUN = IN.items.filter((it) => (it.months || []).length), SHUN_BY = new Map(SHUN.map((it) => [itemId(it), it]));
+  const SHUN_ICON = {
+    祭り: '<svg viewBox="0 0 40 40"><path d="M8 13v13c0 2.5 5.4 4.5 12 4.5s12-2 12-4.5V13" fill="#c8402c" stroke="#2a3146" stroke-width="1.4"/><ellipse cx="20" cy="13" rx="12" ry="4.5" fill="#f3e6c8" stroke="#2a3146" stroke-width="1.4"/><path d="M11 21c3 1.4 15 1.4 18 0M11 25.5c3 1.4 15 1.4 18 0" stroke="#e8b828" stroke-width="1.3" fill="none"/><path d="M26 2l-5 9M33 4l-7 7" stroke="#6a4a24" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    // 特産は牛肉・カニ・野菜・果物とさまざまなので、中身を描かない名産の木箱（果物の籠＝松阪牛が果物に見えた・風呂敷包み＝結び目が耳で熊の顔に見えた）
+    特産: '<svg viewBox="0 0 40 40"><rect x="6" y="16" width="28" height="18" fill="#d9b46a" stroke="#6a4a24" stroke-width="1.4"/><rect x="5" y="12" width="30" height="6" fill="#e6c88a" stroke="#6a4a24" stroke-width="1.4"/><rect x="17.5" y="12" width="5" height="22" fill="#fbf6e8" stroke="#6a4a24" stroke-width="1"/><path d="M20 12c-3-5-9-5-8-1.5 1 2 5 1.5 8 1.5zM20 12c3-5 9-5 8-1.5-1 2-5 1.5-8 1.5z" fill="#c8402c" stroke="#8e2a1c" stroke-width="1"/></svg>',
+    名所: '<svg viewBox="0 0 40 40"><circle cx="29" cy="11" r="5" fill="#e8b828"/><path d="M3 33l12-19 7 10 4-5 11 14z" fill="#6a9a4a" stroke="#2a3146" stroke-width="1.4" stroke-linejoin="round"/><path d="M15 14l-3.5 5.5 3.5-1.5 3 2z" fill="#fbf6e8"/></svg>',
+    食: '<svg viewBox="0 0 40 40"><path d="M10 17c2-4 6-6 10-6s8 2 10 6" fill="#fbf6e8" stroke="#2a3146" stroke-width="1.2"/><path d="M6 19h28c0 8-6 13-14 13S6 27 6 19z" fill="#c8402c" stroke="#2a3146" stroke-width="1.4"/><path d="M14 32h12v3H14z" fill="#8e2a1c"/><path d="M22 4l12 13M18 5l13 13" stroke="#6a4a24" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    歴史: '<svg viewBox="0 0 40 40"><rect x="9" y="8" width="22" height="24" fill="#f3e6c8" stroke="#2a3146" stroke-width="1.4"/><rect x="6" y="5" width="28" height="4" rx="2" fill="#8a5a2c" stroke="#2a3146" stroke-width="1.2"/><rect x="6" y="31" width="28" height="4" rx="2" fill="#8a5a2c" stroke="#2a3146" stroke-width="1.2"/><path d="M14 14h12M14 19h12M14 24h8" stroke="#6a6250" stroke-width="1.4"/></svg>',
+  };
+  // 旬の月の書き方：続いた月はまとめる（12月から1月もつなぐ）。6・7・8 → 6〜8月、12・1・2 → 12〜2月
+  function monthsText(ms) {
+    const s = new Set(ms), nx = (m) => (m % 12) + 1, pv = (m) => ((m + 10) % 12) + 1;
+    if (s.size >= 12) return '一年じゅう';
+    return [...s].filter((m) => !s.has(pv(m))).sort((a, b) => a - b)
+      .map((a) => { let b = a; while (s.has(nx(b))) b = nx(b); return a === b ? `${a}月` : `${a}〜${b}月`; }).join('・');
+  }
   const prefOf = (n) => M.P.find((p) => p.n === n);
   const meiyo = (p) => `名誉${M.FULL(p.name).slice(-1)}民`;      // 名誉県民・名誉都民・名誉道民・名誉府民
   const stageName = (p, s) => [ '', '知人', '常連', (OLD[p.name] || p.name) + '通', meiyo(p)][s];
@@ -80,7 +98,12 @@
     const letter = L && isDate(L.d) && typeof L.id === 'string' && LEDGER.has(L.id) && Array.isArray(L.done) ? { d: L.d, id: L.id, done: [!!L.done[0], !!L.done[1], !!L.done[2]], full: !!L.full } : null;
     return { name: typeof o.name === 'string' ? o.name.slice(0, 16) : '', known: Array.isArray(o.known) ? o.known.filter((s) => typeof s === 'string' && LEDGER.has(s)) : [],
       stage, rank: Math.min(num(o.rank), RANKS.length - 1), days: Array.isArray(o.days) ? [...new Set(o.days.filter(isDate))].slice(-3000) : [], letters: num(o.letters), passAt: num(o.passAt), letter,
-      off: Array.isArray(o.off) ? o.off.filter((k) => TOOLS.some((t) => t[0] === k)) : [], en: cleanEn(o.en) };
+      off: Array.isArray(o.off) ? o.off.filter((k) => TOOLS.some((t) => t[0] === k)) : [], en: cleanEn(o.en), shun: cleanShun(o.shun) };
+  }
+  function cleanShun(v) {
+    const sh = {};
+    if (v && typeof v === 'object' && !Array.isArray(v)) for (const id of SHUN_BY.keys()) if (isDate(v[id])) sh[id] = v[id];
+    return sh;
   }
   function cleanEn(v) {
     const en = {};
@@ -228,12 +251,17 @@
     const task = (id === L.id && !L.done[0]) || (mameNew && !L.done[1]);
     if (id === L.id) L.done[0] = true;
     if (mameNew) L.done[1] = true;
-    if (!fresh && !day && !task) return;
+    // 旬の札：旬の月に読んだら1枚（前に読んだ紹介でも、旬の月に読み直せば取れる）
+    const sh = SHUN_BY.get(id), shunNew = !!(sh && !S.shun[id] && sh.months.includes(new Date().getMonth() + 1));
+    if (shunNew) S.shun[id] = today();
+    if (!fresh && !day && !task && !shunNew) return;
     const d = today();
     if (S.days[S.days.length - 1] !== d) S.days.push(d);
     if (pref) settle(pref);
     settleEn();
     settleRank();
+    // 旬の札の知らせは、県の朱印・縁・位の後に（知人になる節目の知らせを先に）
+    if (shunNew) cheer(() => shunCard(sh), `旬の札を手に入れました　${sh.name}`, `${M.FULL(prefOf(sh.pref).name)}・旬は${monthsText(sh.months)}`);
     checkLetter();
     save();
     paintBtn();
@@ -280,7 +308,42 @@
     box.append(x, el('h2', null, 'であい帖'), el('p', 'lead', '紹介や豆知識を知るほど、位が上がり、県の朱印が変わっていきます。'));
     const cols = el('div', 'cols');
     cols.append(renderMe(), renderLetter(L), renderMine());
-    box.append(cols, renderTools(), renderEn(), renderSeals(), renderPass());
+    box.append(cols, renderTools(), renderEn(), renderShun(), renderSeals(), renderPass());
+  }
+  function shunCard(it) {
+    const c = el('div', 'shun'), ic = el('span', 'tool-ic');
+    ic.innerHTML = SHUN_ICON[it.cat] || SHUN_ICON.特産;
+    c.append(ic, el('b', null, it.name), el('small', null, `${prefOf(it.pref).name}・${monthsText(it.months)}`));
+    return c;
+  }
+  function renderShun() {
+    const sec = el('section', 'shunsec'), m = new Date().getMonth() + 1;
+    const now = SHUN.filter((it) => it.months.includes(m)), left = now.filter((it) => !S.shun[itemId(it)]), got = SHUN.filter((it) => S.shun[itemId(it)]);
+    sec.appendChild(el('h3', null, '旬の札'));
+    sec.appendChild(el('p', 'lead', `旬のある紹介を、その月に読むと札が手に入ります。手に入れそびれても、来年の同じ月にまた取れます（${m}月 ${now.length - left.length} / ${now.length}・集めた札 ${got.length} / ${SHUN.length}）。`));
+    if (left.length) {
+      sec.appendChild(el('h4', null, `${m}月に取れる札（押すと、その紹介へ）`));
+      const chips = el('div', 'chips');
+      left.forEach((it, i) => {
+        const b = el('button', null, `${it.name}（${prefOf(it.pref).name}）`);
+        b.addEventListener('click', () => goItem(it));
+        if (i >= 12) b.hidden = true;
+        chips.appendChild(b);
+      });
+      if (left.length > 12) {
+        const more = el('button', 'more', `ほかに ${left.length - 12} 枚`);
+        more.addEventListener('click', () => { for (const b of chips.children) b.hidden = false; more.remove(); });
+        chips.appendChild(more);
+      }
+      sec.appendChild(chips);
+    }
+    if (got.length) {
+      sec.appendChild(el('h4', null, '集めた札'));
+      const grid = el('div', 'shuns');
+      for (const it of got.sort((a, b) => S.shun[itemId(b)].localeCompare(S.shun[itemId(a)]))) grid.appendChild(shunCard(it));
+      sec.appendChild(grid);
+    }
+    return sec;
   }
   function renderEn() {
     const sec = el('section', 'en');
@@ -545,6 +608,7 @@
       for (const [s, date] of Object.entries(st)) if (!mine[s] || date < mine[s]) mine[s] = date;
     }
     for (const [id, date] of Object.entries(d.en)) if (!S.en[id] || date < S.en[id]) S.en[id] = date;
+    for (const [id, date] of Object.entries(d.shun)) if (!S.shun[id] || date < S.shun[id]) S.shun[id] = date;
     S.days = [...new Set(S.days.concat(d.days))].sort();
     S.letters = Math.max(S.letters, d.letters);
     S.rank = Math.max(S.rank, d.rank);
@@ -673,8 +737,13 @@
   });
   // 検査用
   window.DEAI = {
-    open, close, pass: passText, read: apply0, knows: (id) => known.has(id), get aim() { return aim && aim.id; },
-    get state() { return { name: S.name, known: known.size, total: total(), rank: S.rank, rankName: RANKS[S.rank][1], days: S.days.length, letters: S.letters, letter: letter(), stage: S.stage, canKeep, tools: { ...T }, off: S.off, en: { ...S.en } }; },
+    open, close, pass: passText, read: apply0, knows: (id) => known.has(id), get aim() { return aim && aim.id; }, monthsText, get busy() { return cheering || cheers.length > 0; },
+    shunHint(it) {
+      const id = itemId(it), sh = SHUN_BY.get(id), d = sh && S.shun[id];
+      if (!sh) return '';
+      return d ? `旬の札：手に入れました（${jpDate(d).replace(/^\d+年/, '')}）` : `旬の札：${monthsText(sh.months)}に読むと手に入ります`;
+    },
+    get state() { return { name: S.name, known: known.size, total: total(), rank: S.rank, rankName: RANKS[S.rank][1], days: S.days.length, letters: S.letters, letter: letter(), stage: S.stage, canKeep, tools: { ...T }, off: S.off, en: { ...S.en }, shun: { ...S.shun } }; },
     stageNow, countOf, art: artOf, load: loadShuin,
     pics: { mine: () => drawMine([0, 0, 0, 0, 0]), cert: (n) => drawCert(prefOf(n), countOf(n)[1], today()) },
   };

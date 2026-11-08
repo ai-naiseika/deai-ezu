@@ -452,6 +452,9 @@
       M.loadIntro(it.pref).then(() => { if (d.isConnected) openItem(it); }, () => { w.textContent = '説明を読めませんでした（通信を確かめてください）'; });
     }
     if (it.when) d.appendChild(el('p', 'when', it.when));
+    // 旬の札（であい帖）：旬の月がある紹介に、いつ読むと札になるか・もう手に入れたか（読んだ知らせは上で先に届いている）
+    const sh = window.DEAI && DEAI.shunHint ? DEAI.shunHint(it) : '';
+    if (sh) d.appendChild(el('p', 'when shun-hint', sh));
     if (it.mark) d.appendChild(el('p', 'when', `${it.mark} ${MARK[it.mark] || ''}`));
     const ol = el('ol');
     for (const s of it.sources || []) {
