@@ -237,12 +237,15 @@
     if (/^名無しさん/.test(s)) return '「名無しさん」は、名前をのせない人の呼び名です。';
     return '';
   }
+  // 端末の番号：番付の受け口が「同じ人の点」をまとめ、番付で自分の段に印を付けるためのくじ（人を表す物ではない）
+  const rid = () => [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, '0')).join('');
   function load() {
     const o = { prof: null, best: [] };
     try {
       const s = JSON.parse(localStorage.getItem(KEY));
       if (s && typeof s === 'object') {
-        if (s.prof && /^\d{4}$/.test(s.prof.anon || '')) o.prof = { anon: s.prof.anon, name: typeof s.prof.name === 'string' && !nameErr(s.prof.name) ? s.prof.name.trim() : null };
+        if (s.prof && /^\d{4}$/.test(s.prof.anon || '')) o.prof = { anon: s.prof.anon, name: typeof s.prof.name === 'string' && !nameErr(s.prof.name) ? s.prof.name.trim() : null,
+          device: /^[0-9a-f]{32}$/.test(s.prof.device || '') ? s.prof.device : rid() };
         if (Array.isArray(s.best)) o.best = s.best.filter((r) => r && Number.isFinite(r.score) && Number.isFinite(r.t) && typeof r.name === 'string' && typeof r.title === 'string').slice(0, 10);
       }
     } catch (e) { /* 読めない時は始め直す */ }
@@ -251,6 +254,41 @@
   const L = load();
   function save() { try { localStorage.setItem(KEY, JSON.stringify(L)); return true; } catch (e) { return false; } }
   const shown = () => (L.prof && L.prof.name) || `名無しさん${L.prof ? L.prof.anon : ''}`;
+
+  // ---------------------------------------------------------------- みんなの番付の受け口（番付/受け口.js を Cloudflare に置いた住所）
+  // 住所が空の間は練習だけ（この端末の記録）。検査だけは ?sugoapi= で手元の受け口（127.0.0.1）に向けられる
+  const API_URL = 'https://deai-banzuke.ai-naiseika.workers.dev';
+  const API = (() => {
+    const t = /[?&]sugoapi=([^&]+)/.exec(location.search), u = t ? decodeURIComponent(t[1]) : '';
+    return /^http:\/\/127\.0\.0\.1:\d+$/.test(u) ? u : API_URL;
+  })();
+  // 字だけで送る（Content-Type が text/plain なら、ブラウザは前もっての問い合わせ〔preflight〕をしない）
+  async function call(path, body) {
+    const ac = new AbortController(), t = setTimeout(() => ac.abort(), 12000);
+    try {
+      const r = await fetch(API + path, body ? { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'text/plain' }, signal: ac.signal } : { signal: ac.signal });
+      const j = await r.json();
+      return j && typeof j === 'object' ? j : { err: 'server' };
+    } catch (e) { return { err: 'net' }; } finally { clearTimeout(t); }
+  }
+  const ERR = {
+    limit: (r) => `今日の番付への挑戦は${r.limit || 5}回までです。練習なら何度でも遊べます。`,
+    old: () => '番付の問いを新しくしているところです。少しあとで開き直してください。練習なら今すぐ遊べます。',
+    name: () => 'その名前は番付にのせられません。名前を変えてください。',
+    ng: () => 'その名前は番付にのせられません。名前を変えてください。',
+    game: () => 'この回の記録が受け口で見つかりませんでした。はじめからどうぞ。',
+    net: () => '番付の受け口につながりませんでした。電波を確かめて、もう一度どうぞ。',
+  };
+  const errText = (r) => (ERR[r.err] || (() => '番付の受け口で問題が起きました。もう一度どうぞ。'))(r);
+  function errView(r, retry) {
+    head(false);
+    box.appendChild(el('p', 'q', errText(r)));
+    if (retry && !['limit', 'old', 'name', 'ng', 'game'].includes(r.err)) { const b = el('button', 'big', 'もう一度'); b.addEventListener('click', retry); box.appendChild(b); }
+    if (r.err === 'name' || r.err === 'ng') { const b = el('button', 'big', '名前を変える'); b.addEventListener('click', nameView); box.appendChild(b); }
+    const p = el('button', 'big sub', '練習する（番付にはのりません）');
+    p.addEventListener('click', () => begin(false));
+    box.appendChild(p);
+  }
 
   // ---------------------------------------------------------------- 画面
   const box = el('div');
@@ -284,12 +322,22 @@
     const nm = el('div', 'namerow'), ch = el('button', 'small', '変える');
     ch.addEventListener('click', nameView);
     nm.append(el('span', null, '番付の名前：'), el('b', null, shown()), ch);
-    const go = el('button', 'big', 'はじめる'), rk = el('button', 'big sub', '番付を見る');
-    go.addEventListener('click', begin); rk.addEventListener('click', rankView);
-    box.append(lead, nm, go, rk);
+    box.append(lead, nm);
+    if (API) {
+      const go = el('button', 'big', '番付に挑戦する（1日5回まで）'), pr = el('button', 'big sub', '練習する（番付にはのりません）');
+      go.addEventListener('click', () => begin(true)); pr.addEventListener('click', () => begin(false));
+      box.append(go, pr);
+    } else {
+      const go = el('button', 'big', 'はじめる');
+      go.addEventListener('click', () => begin(false));
+      box.append(go);
+    }
+    const rk = el('button', 'big sub', '番付を見る');
+    rk.addEventListener('click', rankView);
+    box.append(rk);
   }
   function nameView() {
-    if (!L.prof) { L.prof = { anon: String(1 + Math.floor(Math.random() * 9999)).padStart(4, '0'), name: null }; save(); }
+    if (!L.prof) { L.prof = { anon: String(1 + Math.floor(Math.random() * 9999)).padStart(4, '0'), name: null, device: rid() }; save(); }
     head(false);
     const inp = el('input');
     inp.type = 'text'; inp.maxLength = 20; inp.value = L.prof.name || ''; inp.placeholder = '例：まつぼっくり'; inp.setAttribute('aria-label', '番付の名前'); inp.autocomplete = 'off';
@@ -298,12 +346,41 @@
     no.addEventListener('click', () => { L.prof.name = null; save(); menu(); });
     box.append(el('p', 'q', '番付に名前をのせますか？'),
       el('p', 'lead', `のせない時は「名無しさん${L.prof.anon}」として並びます。本名・学校名・SNSのIDは入れないでください（10字まで）。`),
-      inp, msg, yes, no, el('p', 'note', 'みんなの番付は準備中です。いまは、この端末の中にだけ残ります。'));
+      inp, msg, yes, no, el('p', 'note', API ? 'みんなの番付には、名前・点・称号・日付がのり、誰でも見られます。' : 'みんなの番付は準備中です。いまは、この端末の中にだけ残ります。'));
   }
+  // 番付：みんなの番付（上位10人・押すと100位まで。自分の段に印）と、この端末の記録
   function rankView() {
     head(false);
-    box.append(el('p', 'q', '番付'), el('b', 'sec', 'みんなの番付'), el('p', 'note', '準備中です。点数を受け取る場所ができたら、ここに上位10人と、称号ごとの上位が並びます。'),
-      el('b', 'sec', 'あなたの記録（この端末）'));
+    box.append(el('p', 'q', '番付'), el('b', 'sec', 'みんなの番付'));
+    const all = el('div', 'board');
+    box.appendChild(all);
+    if (!API) all.appendChild(el('p', 'note', '準備中です。点数を受け取る場所ができたら、ここに上位の人が並びます。'));
+    else {
+      all.appendChild(el('p', 'note', '読み込んでいます…'));
+      const me = G;
+      call('/board?d=' + (L.prof ? L.prof.device : ''), null).then((r) => {
+        if (G !== me || !all.isConnected) return;
+        all.textContent = '';
+        if (r.err) { all.appendChild(el('p', 'note', errText(r))); return; }
+        all.appendChild(el('p', 'note', r.me ? `あなたは ${r.players}人中 ${r.me.rank}位（ベスト ${r.me.score}点）` : `${r.players}人がのっています。番付に挑戦すると、あなたの位置が出ます。`));
+        const ol = el('ol', 'best top');
+        r.top.forEach((x, i) => {
+          const li = el('li', x.me ? 'me' : (i >= 10 ? 'more' : ''));
+          if (x.me && i >= 10) li.classList.add('more');
+          const d = new Date(x.t);
+          li.append(el('b', null, `${x.score}点`), el('span', null, ` ${x.title}・${x.name}・${d.getMonth() + 1}/${d.getDate()}`));
+          if (x.me) li.appendChild(el('span', 'tagme', ' あなた'));
+          ol.appendChild(li);
+        });
+        all.appendChild(ol);
+        if (r.top.length > 10) {
+          const mo = el('button', 'small', `${r.top.length}位まで見る`);
+          mo.addEventListener('click', () => { ol.classList.add('open'); mo.remove(); });
+          all.appendChild(mo);
+        }
+      });
+    }
+    box.appendChild(el('b', 'sec', 'あなたの記録（この端末）'));
     if (!L.best.length) box.appendChild(el('p', 'note', 'まだありません。'));
     else {
       const ol = el('ol', 'best');
@@ -320,10 +397,20 @@
   }
 
   // ---------------------------------------------------------------- 遊ぶ
-  function begin() {
-    const go = () => {
+  // remote＝番付に挑戦（県・問い・採点は受け口が決める）。練習はこの端末の中だけで決める
+  function begin(remote) {
+    const go = async () => {
       if (M.sel >= 0) M.back();
-      G = { route: [], round: 0, pref: 0, step: 0, used: new Set(), kc: {}, know: 0, okN: 0, qn: 0, km: 0, bonusLeft: BONUS };
+      G = { route: [], round: 0, pref: 0, step: 0, used: new Set(), kc: {}, know: 0, okN: 0, qn: 0, km: 0, bonusLeft: BONUS, remote: !!(remote && API) };
+      if (G.remote) {
+        const me = G;
+        head(false);
+        box.appendChild(el('p', 'note', '番付の受け口につないでいます…'));
+        const r = await call('/start', { device: L.prof.device, name: L.prof.name, anon: L.prof.anon, ver: IN.ver });
+        if (G !== me) return;
+        if (r.err) { G = null; errView(r, () => begin(true)); return; }
+        G.game = r.game;
+      }
       layer.classList.add('on');
       spinView(false);
     };
@@ -340,21 +427,40 @@
   function spin(wheel, btn) {
     if (!G || G.spinning) return;
     G.spinning = true; btn.disabled = true;
-    const left = M.P.map((p) => p.n).filter((n) => !G.route.some((r) => r.n === n)), n = one(left), me = G;
-    M.loadIntro(n).catch(() => {});        // 答えの後に出す説明（県ごとのファイル）を、回っている間に読んでおく
+    const left = M.P.map((p) => p.n).filter((n) => !G.route.some((r) => r.n === n)), me = G;
+    // 番付の挑戦では、止まる県を受け口が決める（回っている間に聞く）。練習はここでくじを引く
+    let got = G.remote ? null : { pref: one(left) };
+    if (G.remote) call('/spin', { game: G.game }).then((r) => { got = r; });
+    else M.loadIntro(got.pref).catch(() => {});        // 答えの後に出す説明（県ごとのファイル）を、回っている間に読んでおく
     const calm = matchMedia('(prefers-reduced-motion: reduce)').matches, t0 = performance.now(), T = calm ? 0 : 1500;
     const tick = () => {
       if (G !== me) return;
       const t = performance.now() - t0;
-      if (t >= T) { wheel.textContent = FULL(n); wheel.classList.add('hit'); setTimeout(() => { if (G === me) arrive(n); }, calm ? 150 : 600); return; }
+      if (t >= T && got) {
+        if (got.err) { G.spinning = false; errView(got, () => spinView(true)); return; }
+        const n = got.pref;
+        if (G.remote) { G.rq = got; M.loadIntro(n).catch(() => {}); }
+        wheel.textContent = FULL(n); wheel.classList.add('hit');
+        setTimeout(() => { if (G === me) arrive(n); }, calm ? 150 : 600);
+        return;
+      }
       wheel.textContent = FULL(one(left));
-      setTimeout(tick, 50 + 260 * (t / T) ** 2);
+      setTimeout(tick, 50 + 260 * Math.min(1, t / Math.max(T, 1)) ** 2);
     };
     tick();
   }
   function arrive(n) {
     G.spinning = false; G.pref = n; G.step = 0; G.B = bank(n); G.kinds = new Set(); G.next = null;
     ask();
+  }
+  // 受け口が選んだ問いを、この県の問いから名前で探す（まちがいの選択肢はくじなので、見つからない回は作り直す）
+  function byId(id) {
+    for (let k = 0; k < 4; k++) {
+      const q = G.B.find((x) => x.id === id);
+      if (q) return q;
+      G.B = bank(G.pref);
+    }
+    return null;
   }
   // 段ごとの難しさ（1問目はやさしい・ふつう、2問目はふつう、3問目はむずかしい）。無ければ近い段から。
   // 種類は、この10県でまだ少ない物から（同じ種類の問いが続かないように）
@@ -372,12 +478,19 @@
     return null;
   }
   function ask() {
-    const q = G.next || pickQ(G.step);
+    let q;
+    if (G.remote) {
+      q = byId(G.rq.q);
+      if (!q) { errView({ err: 'old' }); return; }
+      G.bonus = !!G.rq.bonus;
+    } else {
+      q = G.next || pickQ(G.step);
+      if (q) { G.bonus = G.bonusLeft > 0 && Math.random() < 0.18; if (G.bonus) G.bonusLeft--; }
+    }
     G.next = null;
     if (!q) { endPref(); return; }
     G.used.add(q.id); G.kinds.add(q.kind); G.kc[q.kind] = (G.kc[q.kind] || 0) + 1;
-    G.q = q; G.done = false; G.bonus = G.bonusLeft > 0 && Math.random() < 0.18;
-    if (G.bonus) G.bonusLeft--;
+    G.q = q; G.done = false;
     head(true);
     const tag = el('div', 'tag');
     tag.append(el('b', 'pref', FULL(G.pref)), el('span', 'lv ' + q.lv, LV[q.lv]), el('span', 'kind', q.kind));
@@ -397,21 +510,54 @@
     box.scrollTop = 0;
     visit(G.pref);
   }
+  // 答える：練習はこの端末で採点、番付の挑戦は選んだ答えの字を受け口へ送り、採点と次の問いを受け取る
   function answer(i) {
     if (!G || G.done || !G.q) return;
     G.done = true;
-    const q = G.q, ok = i === q.ans;
-    let pts = 0;
-    if (ok) { pts = (10 + (q.lv === 'hard' ? 10 : 0)) * (G.bonus ? 2 : 1); G.know += pts; G.okN++; }
+    const q = G.q;
+    for (const b of box.querySelectorAll('.ch button')) b.disabled = true;
+    if (!G.remote) {
+      const ok = i === q.ans, pts = ok ? (10 + (q.lv === 'hard' ? 10 : 0)) * (G.bonus ? 2 : 1) : 0;
+      G.know += pts;
+      if (G.step === 0) { G.route.push({ n: G.pref, ok }); G.km = routeKm(); }
+      settle(i, ok, pts, q.ans, ok && G.step < CHAIN - 1 ? pickQ(G.step + 1) : null);
+      return;
+    }
+    const me = G, sent = { game: G.game, q: q.id, a: q.opts[i].t };
+    const send = () => {
+      const old = box.querySelector('.res.wait');
+      if (old) old.remove();
+      call('/answer', sent).then((r) => {
+        if (G !== me) return;
+        if (r.err) {
+          if (r.err !== 'net' && r.err !== 'server') { errView(r); return; }
+          const w = el('div', 'res wait'), b = el('button', 'big', 'もう一度送る');
+          b.addEventListener('click', send);
+          w.append(el('p', 'note', errText(r)), b);
+          box.appendChild(w);
+          return;
+        }
+        G.know = r.know; G.km = r.km;
+        if (G.step === 0) G.route.push({ n: G.pref, ok: r.ok });
+        const ri = q.opts.findIndex((o) => o.t === r.right);
+        let nq = null;
+        if (r.next) { G.rq = r.next; nq = byId(r.next.q); if (!nq) { errView({ err: 'old' }); return; } }
+        settle(i, r.ok, r.pts, ri >= 0 ? ri : q.ans, nq);
+      });
+    };
+    send();
+  }
+  function settle(i, ok, pts, ri, next) {
+    const q = G.q;
     G.qn++;
-    if (G.step === 0) { G.route.push({ n: G.pref, ok }); G.km = routeKm(); }
+    if (ok) G.okN++;
     for (const b of box.querySelectorAll('.ch button')) {
       const k = +b.dataset.i;
-      b.disabled = true; b.classList.toggle('good', k === q.ans); b.classList.toggle('bad', k === i && !ok);
+      b.classList.toggle('good', k === ri); b.classList.toggle('bad', k === i && !ok);
     }
     const st = box.querySelector('.stat');
     if (st) { st.children[1].textContent = `知識 ${G.know}点`; st.children[2].textContent = `旅 ${fmt(Math.round(G.km))}km`; }
-    const res = el('div', 'res ' + (ok ? 'ok' : 'ng')), right = q.opts[q.ans];
+    const res = el('div', 'res ' + (ok ? 'ok' : 'ng')), right = q.opts[ri];
     res.appendChild(el('b', null, ok ? `正解！ +${pts}点` + (q.lv === 'hard' ? '（むずかしい問いの＋10点つき）' : '') : `ざんねん。正解は「${right.t}」`));
     const more = el('p', 'more', q.more() || '説明を読み込んでいます…');
     if (!q.more()) M.loadIntro(G.pref).then(() => { more.textContent = q.more() || ''; }, () => { more.textContent = '説明を読めませんでした（通信を確かめてください）'; });
@@ -419,7 +565,7 @@
     if (G.step === 0 && !ok) res.appendChild(el('p', 'cut', '1問目をまちがえたので、旅の線はこの県で切れます。'));
     if (q.mame && window.MAME) MAME.record(q.mame);
     if (q.lid) dispatchEvent(new CustomEvent('deai', { detail: { id: q.lid, pref: G.pref } }));     // であい帖へ（答えの説明を読むので、知った物に数える）
-    G.next = ok && G.step < CHAIN - 1 ? pickQ(G.step + 1) : null;
+    G.next = next;
     const nx = el('button', 'big next', G.next ? `つづけて${prefOf(G.pref).name}の問い（${LV[G.next.lv]}）›` : G.round + 1 >= ROUNDS ? '結果を見る ›' : 'ルーレットをまわす ›');
     nx.addEventListener('click', () => { if (G.next) { G.step++; ask(); } else endPref(); });
     res.appendChild(nx);
@@ -458,8 +604,20 @@
     box.appendChild(p);
   }
   function finish() {
-    const dist = Math.floor(G.km / KM_PT), total = G.know + dist, title = titleOf(total);
-    const rec = { score: total, know: G.know, km: Math.round(G.km), ok: G.okN, n: G.qn, title, name: shown(), t: Date.now() };
+    if (G.remote && !G.fin) {
+      const me = G;
+      head(false);
+      box.appendChild(el('p', 'note', '番付に記録しています…'));
+      const send = () => call('/finish', { game: G.game }).then((r) => {
+        if (G !== me) return;
+        if (r.err) { errView(r, send); return; }
+        G.fin = r; finish();
+      });
+      send();
+      return;
+    }
+    const f = G.fin, dist = f ? f.dist : Math.floor(G.km / KM_PT), total = f ? f.score : G.know + dist, title = f ? f.title : titleOf(total);
+    const rec = { score: total, know: G.know, km: f ? f.km : Math.round(G.km), ok: G.okN, n: G.qn, title, name: shown(), t: Date.now() };
     L.best.push(rec);
     L.best.sort((a, b) => b.score - a.score || a.t - b.t);
     L.best = L.best.slice(0, 10);
@@ -470,11 +628,13 @@
     ul.append(el('li', null, `知識：${G.know}点（${G.qn}問のうち${G.okN}問正解）`), el('li', null, `旅の距離：${fmt(rec.km)}km → ${dist}点（50kmごとに1点）`));
     box.append(el('p', 'big', `${total}点`), el('p', 'title', `称号：${title}`), ul);
     routeList();
-    if (rank >= 0) box.appendChild(el('p', 'note', `あなたの記録の${rank + 1}位に入りました（名前：${rec.name}）`));
-    const row = el('div', 'row'), again = el('button', 'big', 'もう一度'), rk = el('button', 'big sub', '番付を見る');
-    again.addEventListener('click', begin); rk.addEventListener('click', rankView);
+    if (f) box.appendChild(el('p', 'note', f.better ? `みんなの番付に記録しました：${f.players}人中 ${f.rank}位（名前：${rec.name}）`
+      : `みんなの番付のあなたのベストは ${f.best}点（${f.players}人中 ${f.rank}位）。今回はベストを超えませんでした。`));
+    else if (rank >= 0) box.appendChild(el('p', 'note', `あなたの記録の${rank + 1}位に入りました（練習は、みんなの番付にはのりません）`));
+    const row = el('div', 'row'), again = el('button', 'big', 'もう一度'), rk = el('button', 'big sub', '番付を見る'), was = G.remote;
+    again.addEventListener('click', () => begin(was)); rk.addEventListener('click', rankView);
     row.append(again, rk);
-    box.append(row, el('p', 'note', kept ? '記録はこの端末の中だけに残します（みんなの番付は準備中）' : 'この画面では記録を残せません（プライベートモードなど）'));
+    box.append(row, el('p', 'note', !kept ? 'この画面では記録を残せません（プライベートモードなど）' : f ? 'この端末にも記録を残します。' : API ? '記録はこの端末の中だけに残します。' : '記録はこの端末の中だけに残します（みんなの番付は準備中）'));
     M.tourLift(-1);
     M.view(Object.assign({}, M.HOME));
   }
@@ -536,5 +696,5 @@
 
   // 検査用：問いの台帳（県ごと）・遊びの状態
   window.SUGO = { open, stop, bank, titleOf, nameErr, answer, get prof() { return L.prof && Object.assign({ shown: shown() }, L.prof); }, get best() { return L.best; },
-    get state() { return G && { round: G.round, pref: G.pref, step: G.step, know: G.know, km: G.km, route: G.route.map((r) => Object.assign({}, r)), q: G.q && { id: G.q.id, lv: G.q.lv, kind: G.q.kind, ans: G.q.ans, n: G.q.opts.length }, done: G.done, next: !!G.next, over: !!G.over, spinning: !!G.spinning }; } };
+    get state() { return G && { round: G.round, pref: G.pref, step: G.step, know: G.know, km: G.km, route: G.route.map((r) => Object.assign({}, r)), q: G.q && { id: G.q.id, lv: G.q.lv, kind: G.q.kind, ans: G.q.ans, n: G.q.opts.length }, done: G.done, next: !!G.next, over: !!G.over, spinning: !!G.spinning, remote: !!G.remote, fin: G.fin || null }; }, get api() { return API; } };
 })();

@@ -2,7 +2,7 @@
 <html lang="ja"><head>
 <meta charset="utf-8">
 <meta name="robots" content="noindex">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://deai-banzuke.ai-naiseika.workers.dev; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>にっぽん であい絵図｜土地の魅力に出会う、四季の鳥瞰図</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f4ead2'/%3E%3Ccircle cx='23' cy='9.5' r='5' fill='%23c8402c'/%3E%3Cpath d='M1.5 27.5 11 12.5l3.6 5.4L19 11.5l11.5 16z' fill='%232a3146'/%3E%3Cpath d='M11 12.5l2.3 3.5-2-.6-2.3 1.3zM19 11.5l2.6 3.8-2.2-.7-2.3 1.2z' fill='%23f4ead2'/%3E%3Cpath d='M3 29.5q3.5-1.6 7 0t7 0 7 0 6 0' stroke='%23c9a24a' stroke-width='1.2' fill='none'/%3E%3C/svg%3E">
@@ -664,6 +664,11 @@
   #sugo .note { font-size: 12px; line-height: 1.6; color: #6a6250; margin: 6px 0; }
   #sugo .sec { display: block; font-size: 14px; margin: 10px 0 0; }
   #sugo ol.best { margin: 4px 0; padding-left: 1.6em; font-size: 13px; line-height: 1.7; }
+  #sugo ol.top li.more { display: none; } #sugo ol.top.open li.more { display: list-item; }
+  #sugo ol.top li.me { font-weight: 700; background: #fbe9c6; }
+  #sugo ol.top .tagme { color: var(--shu); font-size: 12px; }
+  #sugo .board button.small { font-size: 12px; padding: 3px 10px; border: 1px solid var(--ink); background: #fffdf6; cursor: pointer; }
+  #sugo .res.wait { margin-top: 8px; }
   #sugo p.big { font-size: 28px; font-weight: 700; margin: 6px 0 0; color: var(--shu); }
   #sugo p.title { font-size: 16px; font-weight: 700; margin: 2px 0 4px; }
   #sugo ul.sum { margin: 4px 0; padding-left: 1.2em; font-size: 13px; line-height: 1.7; }
@@ -982,6 +987,7 @@
   <p>地図の画面の写しは、地図を紹介するためなら、自由にお使いください。その時は「にっぽん であい絵図（AI内製化工房）」と書き添えてください。</p>
   <h4>記録と通信</h4>
   <p>豆知識帳・クイズの記録・選んだ表示は、この端末のブラウザの中だけに残し、どこにも送りません（ブラウザの設定で消せます）。アクセス解析・広告・クッキーは使っていません。地図を置いている GitHub は、安全のため、訪れた方の IP アドレスを記録します。</p>
+  <p>ただし、すごろく10回チャレンジで「番付に挑戦する」を選んだ時だけ、番付の名前（のせない時は「名無しさん」と番号）・選んだ答え・端末ごとのくじの番号（人を表す物ではありません）を、工房の番付の受け口（Cloudflare）へ送ります。<b>番付には、名前・点・称号・日付がのり、誰でも見られます。</b>本名・学校名・SNS の ID は入れないでください。遊んでいる途中の記録は2日で消します。Cloudflare も、安全のため、通信の IP アドレスを記録します。練習は送りません。</p>
   <h4>描き方について</h4>
   <p>山の高さは、全国の眺めで10倍・県の中で5倍に強めています（空を飛ぶ間は高い所で3倍、低く飛ぶほど本物の高さに近づけます）。県の中の家の絵1つはおよそ100世帯、ビルの絵1つはおよそ300世帯です（もっと寄ると、町並みの絵として家を足します）。本土から遠い島（東京の八丈島・青ヶ島・小笠原、石川の舳倉島）は、県の中の地図では間の海を縮めて本土の近くに描き、点線の枠と札で本当の向きと距離を示しています。東京タワーと東京スカイツリーは、目印として大きく描いています。</p>
   <h4>出典</h4>
