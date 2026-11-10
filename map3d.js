@@ -1428,10 +1428,14 @@
   // 墨の線を引いた後に描き、地図より奥の所は地図の奥行き（tDepth）と比べて描かない（地図と同じ段で描くと、山の墨の線が雲に透けた）。
   // 寄って雲が画面の短い辺の3分の1を超える時は薄く消す（県を浮かせた眺めで、1つの雲が画面を覆った）。動きを減らす設定では流さない
   const NC = 14, CL = 3200, CW = 3000, CC = [-260, 160];   // 雲の数・風下へ流れる長さと幅（km）・その真ん中（日本の真ん中あたり）
-  const wa = (Math.random() * 2 - 1) * 25 * Math.PI / 180, wd = [Math.cos(wa), -Math.sin(wa)], wp = [-wd[1], wd[0]];
+  // 雲の並びは開くたびのくじ。検査（触る.py）だけは ?cloudseed= で種を決め、寄った眺めに大きい雲と遠い小さな雲が両方ある並びを名指しで試す
+  // （くじ任せでは、寄った眺めに遠い雲が1つも無い回があり、検査がときどき落ちた。2026-11-10）。種の乱数は クイズ.js と同じ式
+  const cloudSeed = /[?&]cloudseed=(\d+)/.exec(location.search);
+  const cloudRnd = cloudSeed ? ((s) => () => ((s = Math.imul(s ^ (s >>> 15), 2246822507) + 0x9e3779b9 | 0) >>> 0) / 4294967296)(+cloudSeed[1]) : Math.random;
+  const wa = (cloudRnd() * 2 - 1) * 25 * Math.PI / 180, wd = [Math.cos(wa), -Math.sin(wa)], wp = [-wd[1], wd[0]];
   U.uWind.value.set(wd[0], wd[1]);
-  const clouds = Array.from({ length: NC }, (_, i) => ({ s: (i + Math.random() * 0.8) / NC * CL, t: (Math.random() - 0.5) * CW,
-    y: 85 + Math.random() * 35, w: 260 + Math.random() * 200, v: 9 + Math.random() * 5, vi: i % 2, a: 0.62 + Math.random() * 0.25 }));
+  const clouds = Array.from({ length: NC }, (_, i) => ({ s: (i + cloudRnd() * 0.8) / NC * CL, t: (cloudRnd() - 0.5) * CW,
+    y: 85 + cloudRnd() * 35, w: 260 + cloudRnd() * 200, v: 9 + cloudRnd() * 5, vi: i % 2, a: 0.62 + cloudRnd() * 0.25 }));
   const cPos = new Float32Array(NC * 4), cInf = new Float32Array(NC * 2);
   const cg = new T.InstancedBufferGeometry().copy(new T.PlaneGeometry(1, 1));
   cg.instanceCount = NC;
@@ -1500,7 +1504,7 @@
     for (let i = 0; i < NC; i++) {
       const c = clouds[i];
       c.s += c.v * go;
-      if (c.s > CL) { c.s -= CL; c.t = (Math.random() - 0.5) * CW; }
+      if (c.s > CL) { c.s -= CL; c.t = (cloudRnd() - 0.5) * CW; }
       const u = c.s / CL, o = c.s - CL / 2, x = CC[0] + wd[0] * o + wp[0] * c.t, z = CC[1] + wd[1] * o + wp[1] * c.t;
       const px = c.w * U.uPpk.value / Math.max(1, Math.hypot(x - cp.x, c.y - cp.y, z - cp.z));     // 画面での幅（CSS の画素）
       cPos[i * 4] = x; cPos[i * 4 + 1] = c.y; cPos[i * 4 + 2] = z; cPos[i * 4 + 3] = c.w;

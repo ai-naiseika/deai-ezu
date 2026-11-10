@@ -72,6 +72,8 @@
   $('#o-all').addEventListener('click', wholeView);
   // 遊覧で旅する：出発の県はくじで（全国から）
   $('#o-tour').addEventListener('click', () => { close(); setRegion(null); if (window.YURAN) YURAN.startNat(); });
+  // すごろく（本人 2026-11-11「スマホで見ても双六の入り口がわからない」）：クイズの窓の奥だけでなく、最初の画面からも入れる
+  $('#o-sugo').addEventListener('click', () => { wholeView(); if (window.SUGO) SUGO.open(); });
   // 「全体」は入口へ（本人 2026-10-29「全体の俯瞰にもどった時に、初期のエリア選択ができない」）：真上の俯瞰と「どこから旅を始めますか」。
   // 県の中にいる時は、全国へ出てから（出る前に開くと、県の中の眺めの上に入口が重なる）
   let pending = false;

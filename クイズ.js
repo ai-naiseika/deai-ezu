@@ -247,7 +247,12 @@
   function stop() { S = null; box.classList.remove('open'); open.classList.remove('on'); }
   // 地図の県を押して答える（答えの県を浮かせる時の「選ぶ」は数えない）
   M.on('select', (k) => { if (S && !S.done && !S.selfSelect && M.P[k]) answer(M.P[k].n); });
-  open.addEventListener('click', () => (box.classList.contains('open') ? stop() : menu()));
+  // すごろくの窓と同じ所に開くので、すごろくは閉じてから。遊んでいる途中は開かない（閉じると番付の挑戦が1回むだになる）
+  open.addEventListener('click', () => {
+    if (box.classList.contains('open')) { stop(); return; }
+    if (window.SUGO) { if (SUGO.playing) return; SUGO.stop(true); }
+    menu();
+  });
   addEventListener('keydown', (e) => { if (e.code === 'Escape' && box.classList.contains('open') && !e.target.closest('input')) { stop(); e.stopImmediatePropagation(); } }, true);
   // 今日の一問がまだなら、アイコンに小さな点
   const paintDot = () => open.classList.toggle('dot', !L.daily[today()]);

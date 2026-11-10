@@ -61,7 +61,13 @@
   body.opening #search, body.opening #bar, body.opening #title, body.opening .kasumi { display: none !important; }
   /* 最初の画面は地図の名前だけを大きく。県名などの札は出さない（本人 2026-10-31） */
   body.opening #labels, body.opening #pins, body.opening #ranks, body.opening #compass { display: none !important; }   /* 方位は選ぶ欄の角と北海道に重なった */
-  #o-title { position: fixed; left: 34px; top: 26px; margin: 0; font-weight: 400; pointer-events: none; }
+  #o-head { position: fixed; left: 34px; top: 26px; }
+  #o-title { margin: 0; font-weight: 400; pointer-events: none; }
+  /* すごろくの入口（2026-11-11 本人「スマホで見ても双六の入り口がわからない」）：選ぶ欄の中は巻かないと見えない画面があるので、題の下のいつも見える所に */
+  #o-sugo { display: inline-flex; align-items: center; gap: 6px; margin: 14px 0 0 4px; font-size: 15px; padding: 5px 12px; color: var(--shu); border-color: var(--shu); background: rgba(251,246,232,.94); }
+  #o-sugo svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+  #o-sugo svg .f { fill: currentColor; stroke: none; }
+  #o-sugo[inert] { opacity: .45; }
   #o-title b { display: inline-block; font-size: 50px; line-height: 1.18; color: var(--shu); border: 2.5px solid var(--shu); padding: 8px 18px 12px;
     background: rgba(250,244,226,.6); letter-spacing: .04em; }
   #o-title span { display: block; font-size: 18px; color: #3a3428; margin: 12px 0 0 4px; }
@@ -85,12 +91,16 @@
   #o-all { margin-top: 12px; width: 100%; font-size: 14px; }
   #o-tour { margin-top: 6px; width: 100%; font-size: 14px; }
   @media (max-width: 700px) and (orientation: portrait), (max-width: 700px) and (min-height: 521px) {
-    #o-title b { font-size: 30px; padding: 4px 10px 6px; } #o-title span { font-size: 13px; margin-top: 6px; } #o-title { left: 16px; top: 16px; }
+    #o-title b { font-size: 30px; padding: 4px 10px 6px; } #o-title span { font-size: 13px; margin-top: 6px; } #o-head { left: 16px; top: 16px; }
+    #o-sugo { margin: 6px 0 0; font-size: 13px; padding: 3px 9px; } #o-sugo .m { display: none; }
     #o-regions { left: 16px; right: 16px; top: auto; bottom: 28px; transform: none; width: auto; padding: 10px; max-height: 60vh; }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips { margin-bottom: 7px; } #o-regions .chips button { font-size: 12px; padding: 3px 7px; }
     #o-regions .list { grid-template-columns: 1fr 1fr 1fr; } #o-regions .list button { font-size: 15px; padding: 6px 4px; text-align: center; }
     #o-regions .list button span { display: none; }
   }
+  /* 縦のスマホは列島が題のすぐ横まで来るので短く（「すごろく10回チャレンジ！」は 360×740 で東北の岸に触れた）。
+     背の低い縦のスマホ（iPhone SE・アドレスバーの出た Safari）は「すごろく」だけ（長いと能登と竹島の印を隠した） */
+  @media (max-width: 700px) and (orientation: portrait) and (max-height: 739px) { #o-sugo .t { display: none; } }
   #title b { display: inline-block; font-size: 56px; color: var(--shu); border: 2.5px solid var(--shu); padding: 0 14px 4px; line-height: 1.2; }
   #title span { display: block; font-size: 24px; font-weight: 700; margin: 8px 0 0 16px; }
   #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -153,6 +163,7 @@
      人口のボタンはどこでも出す（全国では日本のデータ・県の中では世帯数の塗り分け） */
   #bar #tour-open, #bar #fly-open { display: none; }
   body.inside #bar #tour-open, body.inside #bar #fly-open { display: inline-flex; }
+  body.inside #bar #sugo-open { display: none; }   /* すごろくは全国の遊び。県の中は県の道具で並びが混み、横向きのスマホで2段になって出典の注にかかった */
   /* 日本のデータ（全国の眺めで人口のボタンを押した時。案内.js） */
   #natdata { position: fixed; left: 16px; bottom: 236px; width: 300px; max-width: calc(100vw - 32px); background: rgba(250,244,226,.97); border: 1.6px solid var(--gold);
     box-shadow: 0 6px 16px rgba(60,40,10,.15); padding: 10px 12px; display: none; font-size: 13px; line-height: 1.6; z-index: 6; }
@@ -878,8 +889,9 @@
     #fuda { left: 12px; top: 156px; max-height: calc(100vh - 170px); overflow-y: auto; }
     #search { top: 8px; left: 150px; transform: none; width: min(320px, calc(100vw - 430px)); }   /* 題の右から、右の札の窓（約 270px）の手前まで */
     #q { font-size: 15px; padding: 6px 8px; }
-    #o-title { left: 12px; top: 8px; }
+    #o-head { left: 12px; top: 8px; }
     #o-title b { font-size: 28px; padding: 4px 10px 6px; } #o-title span { font-size: 12px; margin-top: 4px; }
+    #o-sugo { margin: 6px 0 0; font-size: 12px; padding: 3px 8px; } #o-sugo .t { display: none; }
     #o-regions { right: 8px; width: 280px; padding: 8px 10px; max-height: calc(100vh - 16px); }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips button { font-size: 12px; padding: 2px 7px; }
     #o-regions .list { grid-template-columns: 1fr 1fr; } #o-regions .list button { font-size: 13px; padding: 4px 8px; }
@@ -955,6 +967,7 @@
     <button class="ico" data-v="all" data-tip="全体（日本全体と、どこから旅を始めるか）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/><path d="M9 14c1.5-1 2-2.5 4-3 1.5-.4 2.2-1.6 2.6-2.6"/></svg><span class="lab">全体</span></button>
   </div>
   <button class="ico" id="quiz-open" data-tip="クイズ（今日の一問・10問で点数）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10H10l-4 3.5v-3.5H4Z"/><path d="M10 8.6a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.3"/><circle class="f" cx="12" cy="13.6" r=".9"/></svg><span class="lab">クイズ</span></button>
+  <button class="ico" id="sugo-open" data-tip="すごろく10回チャレンジ！（みんなの番付）"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.2"/><circle class="f" cx="8.6" cy="8.6" r="1.5"/><circle class="f" cx="12" cy="12" r="1.5"/><circle class="f" cx="15.4" cy="15.4" r="1.5"/></svg><span class="lab">すごろく</span></button>
   <button class="ico" id="cal-open" data-tip="旬のカレンダー"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path class="f" d="M7 12.5h3v3H7z"/></svg><span class="lab">旬のカレンダー</span></button>
   <button class="ico" id="tour-nat" data-tip="全国を遊覧（見ている所から）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c2.5-4 5-1 7-5s4-6 9-7" stroke-dasharray="2.2 2.2"/><circle cx="4" cy="18" r="1.6"/><path class="f" d="M20 3.5c-1.7 0-3 1.3-3 3 0 2.2 3 5 3 5s3-2.8 3-5c0-1.7-1.3-3-3-3Z"/></svg><span class="lab">全国を遊覧</span></button>
   <button class="ico" id="tour-open" data-tip="空から遊覧"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14c3-2 5-2 8 0s5 2 8 0"/><path d="M12 4 21 9l-9 1-3 4V9.5L3 8Z"/></svg><span class="lab">空から遊覧</span></button>
@@ -1037,7 +1050,8 @@
 <div id="fly-pad" aria-label="進む・曲がる"><i></i></div>
 <div id="fly-ud"><button id="fly-up">上へ</button><button id="fly-dn">下へ</button></div>
 <div id="opening">
-  <h1 id="o-title"><b>にっぽん<br>であい絵図</b><span>土地の魅力に出会う、四季の鳥瞰図</span></h1>
+  <div id="o-head"><h1 id="o-title"><b>にっぽん<br>であい絵図</b><span>土地の魅力に出会う、四季の鳥瞰図</span></h1>
+    <button id="o-sugo" type="button" inert><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.2"/><circle class="f" cx="8.6" cy="8.6" r="1.5"/><circle class="f" cx="12" cy="12" r="1.5"/><circle class="f" cx="15.4" cy="15.4" r="1.5"/></svg><span>すごろく<span class="m">10回チャレンジ！</span><span class="t">で遊ぶ</span></span></button></div>
   <div id="o-regions">
     <p>見たい情報（いくつでも）</p><div class="chips" id="o-miru"></div>
     <p>季節と時刻</p>

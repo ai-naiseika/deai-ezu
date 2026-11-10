@@ -294,7 +294,10 @@
   const box = el('div');
   box.id = 'sugo'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'すごろく10回チャレンジ');
   document.body.appendChild(box);
-  let G = null;     // { route: [{ n, ok }], round, pref, step, B, used, kinds, kc, q, next, done, bonus, bonusLeft, know, okN, qn, km, spinning, over }
+  // 下の並びの「すごろく」（2026-11-11）：遊んでいる途中に押しても閉じない（番付の挑戦は始めた時に1日5回のうち1回と数える）
+  const ico = document.getElementById('sugo-open');
+  if (ico) ico.addEventListener('click', () => { if (!box.classList.contains('open')) open(); else if (!G || G.over) stop(); });
+  let G = null;    // { route: [{ n, ok }], round, pref, step, B, used, kinds, kc, q, next, done, bonus, bonusLeft, know, okN, qn, km, spinning, over }
 
   function head(stat) {
     box.textContent = '';
@@ -312,6 +315,7 @@
     if (window.QUIZ) QUIZ.stop();
     stop(true);
     box.classList.add('open');
+    if (ico) ico.classList.add('on');
     if (L.prof) menu(); else nameView();
   }
   function menu() {
@@ -643,6 +647,7 @@
     G = null;
     layer.classList.remove('on');
     box.classList.remove('open');
+    if (ico) ico.classList.remove('on');
   }
 
   // ---------------------------------------------------------------- 県へ寄る：浮かせた県が、札を除いた空いた所に収まる眺めへ（スマホは札が下・パソコンは左）
@@ -695,6 +700,6 @@
   addEventListener('keydown', (e) => { if (e.code === 'Escape' && box.classList.contains('open') && !e.target.closest('input')) { stop(); e.stopImmediatePropagation(); } }, true);
 
   // 検査用：問いの台帳（県ごと）・遊びの状態
-  window.SUGO = { open, stop, bank, titleOf, nameErr, answer, get prof() { return L.prof && Object.assign({ shown: shown() }, L.prof); }, get best() { return L.best; },
+  window.SUGO = { open, stop, bank, titleOf, nameErr, answer, get playing() { return !!(G && !G.over); },get prof() { return L.prof && Object.assign({ shown: shown() }, L.prof); }, get best() { return L.best; },
     get state() { return G && { round: G.round, pref: G.pref, step: G.step, know: G.know, km: G.km, route: G.route.map((r) => Object.assign({}, r)), q: G.q && { id: G.q.id, lv: G.q.lv, kind: G.q.kind, ans: G.q.ans, n: G.q.opts.length }, done: G.done, next: !!G.next, over: !!G.over, spinning: !!G.spinning, remote: !!G.remote, fin: G.fin || null }; }, get api() { return API; } };
 })();
