@@ -1,168 +1,540 @@
-// 日本一周すごろく（本人 2026-10-30 の遊びの6つ目・2026-11-09「すごろくも進めてください」）：家族で囲んで遊ぶ。1〜4人、こまは赤・青・黄・緑。
-// みんな北海道から出発し、全国の遊覧と同じ順（遊覧.js の YURAN.order）に進んで、沖縄に着いたらゴール。着いた県は浮き上がり、その県の豆知識が1つ開く
-// （豆知識帳に記録される）。着いた県に今月のお祭り（紹介の「祭り」で旬の月が今月）があれば、もう1回ふれる。記録は残さない（その場の遊び）。
-// 入口はクイズの窓。字は全部 textContent
+// すごろく10回チャレンジ（本人 2026-11-10 の設計。前の「日本一周すごろく」は、さいころで進むだけで選ぶことが無かったので置きかえた）：
+// ルーレットで重ならない10の都道府県を選び、県ごとに3〜4択の問い。正解すると同じ県の次の問いへ（1県3問まで・やさしい→ふつう→むずかしい）。
+// 点は1問10点・むずかしい問いは＋10・ときどき出るボーナス問題は2倍。1問目に正解した県を、解いた順に県庁どうしの直線（大円）で結び、
+// 50kmごとに1点（1問目を外した県で線が切れる）。合計で称号。問いは確かめ済みの台帳（紹介・豆知識・駅の豆知識・目印・山と湖・品目・
+// 県のデータ・縁）から作る。番付の名前は端末に覚える（みんなの番付は、点数を受け取る場所ができてから）。字は全部 textContent
 (function () {
   'use strict';
-  const M = window.MAP3D, IN = window.INTRO;
-  if (!M || !IN || !window.YURAN) return;
+  const M = window.MAP3D, IN = window.INTRO, D = window.SUGO_DATA;
+  if (!M || !IN || !D) return;
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  const KOMA = [['あか', '#c8402c'], ['あお', '#2f6db0'], ['きいろ', '#e0a810'], ['みどり', '#3f8a4a']];
-
-  const box = el('div');
-  box.id = 'sugo'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', '日本一周すごろく');
-  document.body.appendChild(box);
-  const komaBox = el('div');
-  komaBox.id = 'sugo-koma'; komaBox.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(komaBox);
-
-  let G = null;     // { order: [県の番号], players: [{ name, color, pos, done }], turn, rolling, place, el: [こまの要素] }
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs || {}) e.setAttribute(k, attrs[k]); return e; };
+  const KEY = 'zenkoku3d-sugo-v1', ROUNDS = 10, CHAIN = 3, KM_PT = 50, BONUS = 2;
+  const LV = { easy: 'やさしい', mid: 'ふつう', hard: 'むずかしい' };
+  const TITLES = [[600, '絵図の主'], [500, '日本の達人'], [400, '物知り名人'], [300, '日本通'], [200, '諸国めぐり'], [100, '見習い旅人'], [0, '旅のはじまり']];
+  const titleOf = (s) => TITLES.find(([v]) => s >= v)[1];
   const prefOf = (n) => M.P.find((p) => p.n === n);
+  const FULL = (n) => M.FULL(prefOf(n).name);
+  const REG = [[1, 7], [8, 14], [15, 23], [24, 30], [31, 35], [36, 39], [40, 47]];
+  const regOf = (n) => REG.findIndex(([a, b]) => n >= a && n <= b);
+  const fmt = (v) => Number(v).toLocaleString();
+  const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const one = (a) => a[Math.floor(Math.random() * a.length)];
 
-  // ---- さいころの目（点の並び）
-  const PIPS = { 1: [[50, 50]], 2: [[28, 28], [72, 72]], 3: [[26, 26], [50, 50], [74, 74]], 4: [[28, 28], [72, 28], [28, 72], [72, 72]],
-    5: [[26, 26], [74, 26], [50, 50], [26, 74], [74, 74]], 6: [[28, 24], [72, 24], [28, 50], [72, 50], [28, 76], [72, 76]] };
-  function dieSvg(n) {
-    return '<svg viewBox="0 0 100 100"><rect x="4" y="4" width="92" height="92" rx="16" fill="#fffdf5" stroke="#2a3146" stroke-width="5"/>'
-      + PIPS[n].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${n === 1 ? 13 : 9}" fill="${n === 1 ? '#c8402c' : '#2a3146'}"/>`).join('') + '</svg>';
+  // ---------------------------------------------------------------- 問いを作る
+  // まちがいの選択肢は、ほかの県の同じ種類から。答えの県の物と取り違えない物だけを使う：名前が答えの県の台帳に無い・紹介の言葉（keys）と
+  // 答えの県が上位に入る品目の名前が重ならない・県の名前を含まない（含むと答えが分かる）・答えの県の境から25km以上離れている（県境の山や湖）
+  const PN = M.P.map((p) => p.name);
+  const hasPref = (s) => PN.some((nm) => s.includes(nm));
+  let TOK = null;
+  function tok() {
+    if (TOK) return TOK;
+    TOK = new Map(M.P.map((p) => [p.n, { names: new Set(), keys: new Set() }]));
+    const add = (n, s) => { const t = TOK.get(n); if (t && s && s.length >= 2) t.names.add(s); };
+    for (const it of IN.items) { add(it.pref, it.name); const t = TOK.get(it.pref); if (t) for (const k of it.keys || []) t.keys.add(k); }
+    for (const s of IN.spots || []) add(s.pref, s.name);
+    for (const y of IN.yama || []) add(y.pref, y.name);
+    for (const d of IN.mame || []) if (d.eki) add(d.pref, d.eki);
+    for (const c of (IN.spec && IN.spec.prefs) || []) add(c.pref, (c.capital || '').replace(/[市区]$/, ''));
+    for (const c of IN.crops || []) for (const t of c.top) { const T = TOK.get(t.pref); if (T) for (const k of [c.name, ...(c.aliases || [])]) T.keys.add(k); }
+    return TOK;
   }
+  // 県の輪郭は荒い（広島で28点）。頂点だけでなく辺までの距離で測る（3点おきの頂点で測った時、県境から5kmの寂地山を通した）
+  function nearBorder(n, x, z, km) {
+    const jp = ((window.JAPAN && JAPAN.prefs) || []).find((p) => p.n === n);
+    if (!jp) return false;
+    for (const r of jp.ring) {
+      for (let i = 0; i < r.length; i += 2) {
+        const ax = r[i], az = r[i + 1], bx = r[(i + 2) % r.length], bz = r[(i + 3) % r.length], dx = bx - ax, dz = bz - az;
+        const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz || 1)));
+        if (Math.hypot(ax + dx * t - x, az + dz * t - z) < km) return true;
+      }
+    }
+    return false;
+  }
+  // まちがいを3つ（2つは同じ地方から。似た物の方が考えがいがある）。紹介の言葉が重なる物どうしは並べない（マンゴーが2つ並んだ）
+  function wrongs(pool, n, key, skip) {
+    const seen = new Set(skip), words = new Set(), out = [];
+    const near = shuffle(pool.filter((x) => regOf(x.pref) === regOf(n))), far = shuffle(pool.filter((x) => regOf(x.pref) !== regOf(n)));
+    for (const x of [...near.slice(0, 2), ...far, ...near.slice(2)]) {
+      const v = key(x);
+      if (!v || seen.has(v) || (x.keys || []).some((k) => words.has(k))) continue;
+      seen.add(v); out.push(x);
+      for (const k of x.keys || []) words.add(k);
+      if (out.length >= 3) break;
+    }
+    return out;
+  }
+  function four(right, ws, order) {
+    const o = [right, ...ws];
+    if (order) o.sort(order); else shuffle(o);
+    return { opts: o, ans: o.indexOf(right) };
+  }
+  const T_ = (t) => ({ t });
 
-  // ---- はじめ：人数を選ぶ
+  const capOf = (n) => ((IN.spec && IN.spec.prefs) || []).find((x) => x.pref === n);
+  const office = (n) => ({ 都: '都庁', 道: '道庁', 府: '府庁' })[FULL(n).slice(-1)] || '県庁';
+  function qCapital(n) {
+    const c = capOf(n);
+    if (!c || !c.capital) return [];
+    const w = wrongs(IN.spec.prefs.filter((x) => x.pref !== n && /市$/.test(x.capital || '')), n, (x) => x.capital, [c.capital]);     // 東京の「新宿区」は、ほかの県の問いに出すと浮く
+    if (w.length < 3) return [];
+    const ken = (IN.spots || []).find((s) => s.pref === n && s.icon === 'kencho');
+    return [Object.assign({ id: 'cap:' + n, lid: ken ? 'spot:' + ken.name : null, lv: 'easy', kind: office(n) + 'の所在地', text: `${FULL(n)}の${office(n)}所在地は？`,
+      more: () => `${office(n)}所在地は${c.capital}。` + (ken && ken.note ? ken.note : '') }, four(T_(c.capital), w.map((x) => T_(x.capital))))];
+  }
+  const CATQ = { 特産: '特産', 食: '名物の食べ物', 名所: '名所', 歴史: 'ゆかりの歴史', 祭り: 'お祭り' };
+  function qItems(n) {
+    const mine = tok().get(n), out = [];
+    for (const cat of Object.keys(CATQ)) {
+      const pool = IN.items.filter((it) => it.cat === cat && it.pref !== n && !hasPref(it.name) && !mine.names.has(it.name)
+        && !(it.keys || []).some((k) => mine.keys.has(k)) && !nearBorder(n, it.x, it.z, 25));
+      for (const it of IN.items.filter((x) => x.pref === n && x.cat === cat && !hasPref(x.name))) {
+        const w = wrongs(pool, n, (x) => x.name, [it.name]);
+        if (w.length < 3) continue;
+        out.push(Object.assign({ id: 'item:' + n + it.name, lid: 'item:' + n + it.name, lv: 'mid', kind: CATQ[cat], text: `${FULL(n)}の${CATQ[cat]}はどれ？`,
+          more: () => (it.text ? it.text.slice(0, 2).join('') : '') }, four(T_(it.name), w.map((x) => T_(x.name)))));
+      }
+    }
+    return out;
+  }
+  function qMonths(n) {
+    const out = [];
+    for (const it of IN.items.filter((x) => x.pref === n && x.cat === '祭り' && (x.months || []).length === 1 && !x.name.includes('月'))) {
+      const m = it.months[0], far = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter((k) => Math.min(Math.abs(k - m), 12 - Math.abs(k - m)) >= 2));
+      out.push(Object.assign({ id: 'month:' + n + it.name, lid: 'item:' + n + it.name, lv: 'mid', kind: 'お祭りの月', text: `${FULL(n)}の「${it.name}」が行われるのは何月？`,
+        more: () => [it.when, it.text && it.text[0]].filter(Boolean).join('　') }, four({ t: m + '月', m }, far.slice(0, 3).map((k) => ({ t: k + '月', m: k })), (a, b) => a.m - b.m)));
+    }
+    return out;
+  }
+  function qYama(n) {
+    const cnt = new Map();
+    for (const y of IN.yama || []) cnt.set(y.name, (cnt.get(y.name) || 0) + 1);
+    const mine = tok().get(n), out = [];
+    for (const kind of ['山', '湖']) {
+      const pool = (IN.yama || []).filter((y) => y.kind === kind && y.pref !== n && cnt.get(y.name) === 1 && !mine.names.has(y.name) && !hasPref(y.name) && !nearBorder(n, y.x, y.z, 25));
+      for (const y of (IN.yama || []).filter((x) => x.pref === n && x.kind === kind && cnt.get(x.name) === 1 && !hasPref(x.name))) {
+        const w = wrongs(pool, n, (x) => x.name, [y.name]);
+        if (w.length < 3) continue;
+        out.push(Object.assign({ id: 'yama:' + n + y.name, lid: 'yama:' + n + y.name, lv: 'mid', kind, text: `${FULL(n)}にある${kind}は？`, more: () => y.note || '' },
+          four(T_(y.name), w.map((x) => T_(x.name)))));
+      }
+    }
+    return out;
+  }
+  function qSpots(n) {
+    const mine = tok().get(n), out = [];
+    const ok = (s) => s.mark && s.icon !== 'kencho' && !hasPref(s.name);
+    const pool = (IN.spots || []).filter((s) => ok(s) && s.pref !== n && !mine.names.has(s.name) && !nearBorder(n, s.x, s.z, 25));
+    for (const s of (IN.spots || []).filter((x) => x.pref === n && ok(x))) {
+      const same = pool.filter((x) => x.icon === s.icon);
+      let w = wrongs(same, n, (x) => x.name, [s.name]);
+      if (w.length < 3) w = wrongs(pool, n, (x) => x.name, [s.name]);
+      if (w.length < 3) continue;
+      out.push(Object.assign({ id: 'spot:' + n + s.name, lid: 'spot:' + s.name, lv: 'mid', kind: '名所', text: `${FULL(n)}にあるのはどれ？`, more: () => s.note || '' },
+        four(T_(s.name), w.map((x) => T_(x.name)))));
+    }
+    return out;
+  }
+  function qEn(n) {
+    const E = (window.EN_DATA || []).filter((e) => !hasPref(e.name)), out = [];
+    const others = E.filter((e) => !e.prefs.includes(n));
+    for (const e of E.filter((x) => x.prefs.includes(n))) {
+      const w = shuffle(others.slice()).slice(0, 3);
+      if (w.length < 3) continue;
+      out.push(Object.assign({ id: 'en:' + n + e.id, lv: 'mid', kind: '縁', text: `${FULL(n)}が入っている「縁」（昔の道や、日本三大〇〇など）はどれ？`,
+        more: () => `${e.name}：${e.teaser}。${(e.lines || [])[0] || ''}` }, four(T_(e.name), w.map((x) => T_(x.name)))));
+    }
+    return out;
+  }
+  function qCrops(n) {
+    const C = IN.crops || [], out = [];
+    const notIn = C.filter((c) => !c.top.some((t) => t.pref === n));
+    for (const c of C) {
+      const r = c.top.findIndex((t) => t.pref === n);
+      if (r < 0 || notIn.length < 3) continue;
+      const w = shuffle(notIn.slice()).slice(0, 3), top = r === 0;
+      out.push(Object.assign({ id: 'crop:' + n + c.name, lid: 'crop:' + c.name, lv: top ? 'hard' : 'mid', kind: '産地',
+        text: top ? `${FULL(n)}が全国1位の品目は？` : `${FULL(n)}が全国${c.top.length}位までに入っている品目は？`,
+        more: () => `${c.name}（${c.measure}・${c.year}）：` + c.top.map((t, i) => `${i + 1}位 ${FULL(t.pref)} ${fmt(t.value)}${t.unit}`).join('　') + `。出どころ：${c.survey}` },
+      four(T_(c.name), w.map((x) => T_(x.name)))));
+    }
+    return out;
+  }
+  // 数の問い：ほかの県の値から、答えと（互いにも）はっきり離れた物を3つ。小さい順に並べる
+  function qNums(n) {
+    const S = (IN.spec && IN.spec.prefs) || [], me = S.find((x) => x.pref === n);
+    if (!me) return [];
+    const src = Object.values(IN.spec.sources || {}).map((s) => s && s.title).filter(Boolean).join('・');
+    const all = () => `人口 ${fmt(me.population)}人・面積 ${fmt(me.area)}km²・市 ${me.cities}・町 ${me.towns}・村 ${me.villages}。` + (me.note ? me.note + '。' : '') + (src ? `出どころ：${src}` : '');
+    const pop = (v) => (v >= 1e6 ? `約${fmt(Math.round(v / 1e5) * 10)}万人` : `約${Math.round(v / 1e4)}万人`);
+    const area = (v) => `約${fmt(Math.round(v / 100) * 100)}km²`;
+    const out = [];
+    const make = (key, label, apart, text, kind) => {
+      const v = me[key];
+      if (typeof v !== 'number') return;
+      const far = (a, b) => apart(a, b);
+      const ws = [];
+      for (const x of shuffle(S.filter((q) => q.pref !== n && typeof q[key] === 'number'))) {
+        if (!far(x[key], v) || ws.some((y) => !far(y[key], x[key])) || label(x[key]) === label(v)) continue;
+        ws.push(x);
+        if (ws.length >= 3) break;
+      }
+      if (ws.length < 3) return;
+      out.push(Object.assign({ id: kind + ':' + n, lv: 'hard', kind, text, more: all },
+        four({ t: label(v), v }, ws.map((x) => ({ t: label(x[key]), v: x[key] })), (a, b) => a.v - b.v)));
+    };
+    const ratio = (r) => (a, b) => Math.max(a, b) / Math.min(a, b) >= r;
+    make('population', pop, ratio(1.3), `${FULL(n)}の人口にいちばん近いのは？`, '人口');
+    make('area', area, ratio(1.3), `${FULL(n)}の面積にいちばん近いのは？`, '面積');
+    make('cities', (v) => `${v}市`, (a, b) => Math.abs(a - b) >= 3, `${FULL(n)}にある市の数は？`, '市の数');
+    return out;
+  }
+  // 豆知識：まちがいは、ほかの県の豆知識のうち、その県の名前（紹介・目印・山と湖・駅・県庁所在地）を題に含む物だけ（よその話だと決まる）
+  let ANCH = null;
+  function qMame(n) {
+    const T = tok(), mine = T.get(n), out = [];
+    if (!ANCH) {
+      ANCH = new Set();
+      for (const d of IN.mame) { const t = T.get(d.pref); if (!d.eki && t) for (const s of t.names) if (d.title.includes(s)) { ANCH.add(d.id); break; } }
+    }
+    const touches = (title) => { for (const s of mine.names) if (title.includes(s)) return true; return false; };
+    const pool = IN.mame.filter((d) => ANCH.has(d.id) && d.pref !== n && !hasPref(d.title) && !touches(d.title));
+    for (const d of IN.mame.filter((x) => !x.eki && x.pref === n && !hasPref(x.title))) {
+      const same = pool.filter((x) => x.cat === d.cat);
+      let w = wrongs(same, n, (x) => x.title, [d.title]);
+      if (w.length < 3) w = wrongs(pool, n, (x) => x.title, [d.title]);
+      if (w.length < 3) continue;
+      out.push(Object.assign({ id: 'mame:' + d.id, lid: 'mame:' + d.id, mame: d.id, lv: 'hard', kind: '豆知識', text: `${FULL(n)}の豆知識はどれ？`, more: () => d.text || '' },
+        four(T_(d.title), w.map((x) => T_(x.title)))));
+    }
+    return out;
+  }
+  function qEki(n) {
+    const mine = IN.mame.filter((d) => d.eki && d.pref === n), names = [...new Set(mine.map((d) => d.eki))], out = [];
+    for (const d of mine) {
+      if (d.title.includes(d.eki)) continue;
+      const others = shuffle(names.filter((s) => s !== d.eki && !d.title.includes(s))).slice(0, 3);
+      if (others.length < 3) continue;
+      out.push(Object.assign({ id: 'eki:' + d.id, lid: 'mame:' + d.id, mame: d.id, lv: 'hard', kind: '駅の豆知識', text: `駅の豆知識「${d.title}」。この話の駅は？`, more: () => d.text || '' },
+        four(T_(d.eki + '駅'), others.map((s) => T_(s + '駅')))));
+    }
+    return out;
+  }
+  // 県の形の問いは入れない（問いの県が地図の上に浮いていて、答えが見えた）
+  const bank = (n) => [qCapital, qItems, qMonths, qYama, qSpots, qEn, qCrops, qNums, qMame, qEki].flatMap((f) => f(n));
+
+  // ---------------------------------------------------------------- 記録（端末の中だけ）
+  // 番付の名前：のせない人は「名無しさん」と4けたの番号（端末に覚える）。名前は1〜10字・制御文字なし・リンクや連絡先に見える物は不可
+  const BAD = [[0, 0x1f], [0x7f, 0x9f], [0x200b, 0x200f], [0x202a, 0x202e], [0x2066, 0x2069], [0xfeff, 0xfeff]];     // 制御文字・幅0・向きを変える字
+  function nameErr(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '名前を入れてください。';
+    if ([...s].length > 10) return '10字までにしてください。';
+    if ([...s].some((ch) => { const c = ch.codePointAt(0); return BAD.some(([a, b]) => c >= a && c <= b); })) return '使えない文字が入っています。';
+    if (/https?:|www\.|@|\.(com|jp|net)/i.test(s) || /\d{6,}/.test(s.replace(/[\s-]/g, ''))) return 'リンクや連絡先に見える名前は使えません。';
+    if (/^名無しさん/.test(s)) return '「名無しさん」は、名前をのせない人の呼び名です。';
+    return '';
+  }
+  function load() {
+    const o = { prof: null, best: [] };
+    try {
+      const s = JSON.parse(localStorage.getItem(KEY));
+      if (s && typeof s === 'object') {
+        if (s.prof && /^\d{4}$/.test(s.prof.anon || '')) o.prof = { anon: s.prof.anon, name: typeof s.prof.name === 'string' && !nameErr(s.prof.name) ? s.prof.name.trim() : null };
+        if (Array.isArray(s.best)) o.best = s.best.filter((r) => r && Number.isFinite(r.score) && Number.isFinite(r.t) && typeof r.name === 'string' && typeof r.title === 'string').slice(0, 10);
+      }
+    } catch (e) { /* 読めない時は始め直す */ }
+    return o;
+  }
+  const L = load();
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(L)); return true; } catch (e) { return false; } }
+  const shown = () => (L.prof && L.prof.name) || `名無しさん${L.prof ? L.prof.anon : ''}`;
+
+  // ---------------------------------------------------------------- 画面
+  const box = el('div');
+  box.id = 'sugo'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'すごろく10回チャレンジ');
+  document.body.appendChild(box);
+  let G = null;     // { route: [{ n, ok }], round, pref, step, B, used, kinds, kc, q, next, done, bonus, bonusLeft, know, okN, qn, km, spinning, over }
+
+  function head(stat) {
+    box.textContent = '';
+    const h = el('div', 'head'), x = el('button', 'x', '×');
+    x.setAttribute('aria-label', 'やめる'); x.addEventListener('click', () => stop());
+    h.append(el('b', null, 'すごろく10回チャレンジ！'), x);
+    box.appendChild(h);
+    if (stat && G) {
+      const st = el('div', 'stat');
+      st.append(el('span', null, `${Math.min(G.round + 1, ROUNDS)} / ${ROUNDS}県目`), el('span', null, `知識 ${G.know}点`), el('span', null, `旅 ${fmt(Math.round(G.km))}km`));
+      box.appendChild(st);
+    }
+  }
   function open() {
     if (window.QUIZ) QUIZ.stop();
     stop(true);
-    box.textContent = '';
-    const head = el('div', 'head'), x = el('button', 'x', '×');
-    x.setAttribute('aria-label', 'やめる'); x.addEventListener('click', () => stop());
-    head.append(el('b', null, '日本一周すごろく'), x);
-    box.append(head, el('p', 'lead', 'みんな北海道から出発して、沖縄をめざします。止まった県の豆知識が1つ開きます。お祭りの月の県に止まったら、もう1回ふれます。'));
-    const row = el('div', 'row');
-    for (let n = 1; n <= 4; n++) { const b = el('button', 'big', `${n}人で`); b.addEventListener('click', () => begin(n)); row.appendChild(b); }
-    box.append(el('p', 'q', '何人で遊びますか？'), row);
     box.classList.add('open');
+    if (L.prof) menu(); else nameView();
   }
-  function begin(n) {
+  function menu() {
+    head(false);
+    const lead = el('div', 'lead');
+    for (const t of ['ルーレットで選ばれた10の都道府県を旅します。', '県ごとに3〜4択の問い。正解すると、同じ県でつづけて次の問い（3問まで）。1問10点・むずかしい問いは＋10点・ボーナス問題は2倍。',
+      '1問目に正解した県を、県庁どうしの直線で結んだ「旅の距離」も、50kmごとに1点。1問目をまちがえると、そこで線が切れます。']) lead.appendChild(el('p', null, t));
+    const nm = el('div', 'namerow'), ch = el('button', 'small', '変える');
+    ch.addEventListener('click', nameView);
+    nm.append(el('span', null, '番付の名前：'), el('b', null, shown()), ch);
+    const go = el('button', 'big', 'はじめる'), rk = el('button', 'big sub', '番付を見る');
+    go.addEventListener('click', begin); rk.addEventListener('click', rankView);
+    box.append(lead, nm, go, rk);
+  }
+  function nameView() {
+    if (!L.prof) { L.prof = { anon: String(1 + Math.floor(Math.random() * 9999)).padStart(4, '0'), name: null }; save(); }
+    head(false);
+    const inp = el('input');
+    inp.type = 'text'; inp.maxLength = 20; inp.value = L.prof.name || ''; inp.placeholder = '例：まつぼっくり'; inp.setAttribute('aria-label', '番付の名前'); inp.autocomplete = 'off';
+    const msg = el('p', 'err'), yes = el('button', 'big', 'この名前でのせる'), no = el('button', 'big sub', `名前をのせない（名無しさん${L.prof.anon}）`);
+    yes.addEventListener('click', () => { const e = nameErr(inp.value); if (e) { msg.textContent = e; return; } L.prof.name = inp.value.trim(); save(); menu(); });
+    no.addEventListener('click', () => { L.prof.name = null; save(); menu(); });
+    box.append(el('p', 'q', '番付に名前をのせますか？'),
+      el('p', 'lead', `のせない時は「名無しさん${L.prof.anon}」として並びます。本名・学校名・SNSのIDは入れないでください（10字まで）。`),
+      inp, msg, yes, no, el('p', 'note', 'みんなの番付は準備中です。いまは、この端末の中にだけ残ります。'));
+  }
+  function rankView() {
+    head(false);
+    box.append(el('p', 'q', '番付'), el('b', 'sec', 'みんなの番付'), el('p', 'note', '準備中です。点数を受け取る場所ができたら、ここに上位10人と、称号ごとの上位が並びます。'),
+      el('b', 'sec', 'あなたの記録（この端末）'));
+    if (!L.best.length) box.appendChild(el('p', 'note', 'まだありません。'));
+    else {
+      const ol = el('ol', 'best');
+      for (const r of L.best) {
+        const d = new Date(r.t), li = el('li');
+        li.append(el('b', null, `${r.score}点`), el('span', null, ` ${r.title}・${r.name}・${d.getMonth() + 1}/${d.getDate()}`));
+        ol.appendChild(li);
+      }
+      box.appendChild(ol);
+    }
+    const back = el('button', 'big sub', '‹ もどる');
+    back.addEventListener('click', menu);
+    box.appendChild(back);
+  }
+
+  // ---------------------------------------------------------------- 遊ぶ
+  function begin() {
     const go = () => {
       if (M.sel >= 0) M.back();
-      G = { order: YURAN.order(1), players: KOMA.slice(0, n).map(([name, color]) => ({ name, color, pos: 0, done: 0 })), turn: 0, rolling: false, rank: 0 };
-      komaBox.textContent = '';
-      G.el = G.players.map((p) => { const d = el('i'); d.style.background = p.color; komaBox.appendChild(d); return d; });
-      komaBox.classList.add('on');
-      turnView('');
-      visit(G.order[0]);
+      G = { route: [], round: 0, pref: 0, step: 0, used: new Set(), kc: {}, know: 0, okN: 0, qn: 0, km: 0, bonusLeft: BONUS };
+      layer.classList.add('on');
+      spinView(false);
     };
     if (M.inside) M.leave(go); else go();
   }
+  function spinView(auto) {
+    head(true);
+    const wheel = el('div', 'wheel', '？'), btn = el('button', 'big go', 'ルーレットをまわす');
+    btn.addEventListener('click', () => spin(wheel, btn));
+    box.append(el('p', 'q', G.round ? `${G.round + 1}県目へ` : 'どこへ旅するかは、ルーレットしだい'), wheel, btn);
+    routeList();
+    if (auto) spin(wheel, btn);
+  }
+  function spin(wheel, btn) {
+    if (!G || G.spinning) return;
+    G.spinning = true; btn.disabled = true;
+    const left = M.P.map((p) => p.n).filter((n) => !G.route.some((r) => r.n === n)), n = one(left), me = G;
+    M.loadIntro(n).catch(() => {});        // 答えの後に出す説明（県ごとのファイル）を、回っている間に読んでおく
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches, t0 = performance.now(), T = calm ? 0 : 1500;
+    const tick = () => {
+      if (G !== me) return;
+      const t = performance.now() - t0;
+      if (t >= T) { wheel.textContent = FULL(n); wheel.classList.add('hit'); setTimeout(() => { if (G === me) arrive(n); }, calm ? 150 : 600); return; }
+      wheel.textContent = FULL(one(left));
+      setTimeout(tick, 50 + 260 * (t / T) ** 2);
+    };
+    tick();
+  }
+  function arrive(n) {
+    G.spinning = false; G.pref = n; G.step = 0; G.B = bank(n); G.kinds = new Set(); G.next = null;
+    ask();
+  }
+  // 段ごとの難しさ（1問目はやさしい・ふつう、2問目はふつう、3問目はむずかしい）。無ければ近い段から。
+  // 種類は、この10県でまだ少ない物から（同じ種類の問いが続かないように）
+  const WANT = [['easy', 'mid'], ['mid'], ['hard']], ALT = [['hard'], ['hard', 'easy'], ['mid', 'easy']];
+  function pickQ(step) {
+    const fresh = G.B.filter((q) => !G.used.has(q.id));
+    for (const lvs of [WANT[step], ALT[step]]) {
+      let c = fresh.filter((q) => lvs.includes(q.lv) && !G.kinds.has(q.kind));
+      if (!c.length) c = fresh.filter((q) => lvs.includes(q.lv));
+      if (!c.length) continue;
+      const kinds = [...new Set(c.map((q) => q.kind))], low = Math.min(...kinds.map((k) => G.kc[k] || 0));
+      const k = one(kinds.filter((x) => (G.kc[x] || 0) === low));
+      return one(c.filter((q) => q.kind === k));
+    }
+    return null;
+  }
+  function ask() {
+    const q = G.next || pickQ(G.step);
+    G.next = null;
+    if (!q) { endPref(); return; }
+    G.used.add(q.id); G.kinds.add(q.kind); G.kc[q.kind] = (G.kc[q.kind] || 0) + 1;
+    G.q = q; G.done = false; G.bonus = G.bonusLeft > 0 && Math.random() < 0.18;
+    if (G.bonus) G.bonusLeft--;
+    head(true);
+    const tag = el('div', 'tag');
+    tag.append(el('b', 'pref', FULL(G.pref)), el('span', 'lv ' + q.lv, LV[q.lv]), el('span', 'kind', q.kind));
+    if (G.step) tag.appendChild(el('span', 'chain', `つづけて${G.step + 1}問目`));
+    box.appendChild(tag);
+    if (G.bonus) box.appendChild(el('p', 'bonus', 'ボーナス問題！ 正解で点が2倍'));
+    box.appendChild(el('p', 'q', q.text));
+    const g = el('div', 'ch');
+    q.opts.forEach((o, i) => {
+      const b = el('button', null, o.t);
+      b.dataset.i = i;
+      b.addEventListener('click', () => answer(i));
+      g.appendChild(b);
+    });
+    box.appendChild(g);
+    routeList();
+    box.scrollTop = 0;
+    visit(G.pref);
+  }
+  function answer(i) {
+    if (!G || G.done || !G.q) return;
+    G.done = true;
+    const q = G.q, ok = i === q.ans;
+    let pts = 0;
+    if (ok) { pts = (10 + (q.lv === 'hard' ? 10 : 0)) * (G.bonus ? 2 : 1); G.know += pts; G.okN++; }
+    G.qn++;
+    if (G.step === 0) { G.route.push({ n: G.pref, ok }); G.km = routeKm(); }
+    for (const b of box.querySelectorAll('.ch button')) {
+      const k = +b.dataset.i;
+      b.disabled = true; b.classList.toggle('good', k === q.ans); b.classList.toggle('bad', k === i && !ok);
+    }
+    const st = box.querySelector('.stat');
+    if (st) { st.children[1].textContent = `知識 ${G.know}点`; st.children[2].textContent = `旅 ${fmt(Math.round(G.km))}km`; }
+    const res = el('div', 'res ' + (ok ? 'ok' : 'ng')), right = q.opts[q.ans];
+    res.appendChild(el('b', null, ok ? `正解！ +${pts}点` + (q.lv === 'hard' ? '（むずかしい問いの＋10点つき）' : '') : `ざんねん。正解は「${right.t}」`));
+    const more = el('p', 'more', q.more() || '説明を読み込んでいます…');
+    if (!q.more()) M.loadIntro(G.pref).then(() => { more.textContent = q.more() || ''; }, () => { more.textContent = '説明を読めませんでした（通信を確かめてください）'; });
+    res.appendChild(more);
+    if (G.step === 0 && !ok) res.appendChild(el('p', 'cut', '1問目をまちがえたので、旅の線はこの県で切れます。'));
+    if (q.mame && window.MAME) MAME.record(q.mame);
+    if (q.lid) dispatchEvent(new CustomEvent('deai', { detail: { id: q.lid, pref: G.pref } }));     // であい帖へ（答えの説明を読むので、知った物に数える）
+    G.next = ok && G.step < CHAIN - 1 ? pickQ(G.step + 1) : null;
+    const nx = el('button', 'big next', G.next ? `つづけて${prefOf(G.pref).name}の問い（${LV[G.next.lv]}）›` : G.round + 1 >= ROUNDS ? '結果を見る ›' : 'ルーレットをまわす ›');
+    nx.addEventListener('click', () => { if (G.next) { G.step++; ask(); } else endPref(); });
+    res.appendChild(nx);
+    box.appendChild(res);
+    routeList();
+    visit(G.pref);
+    res.scrollIntoView({ block: 'nearest' });
+  }
+  function endPref() {
+    G.round++; G.step = 0; G.next = null;
+    if (G.round >= ROUNDS) finish(); else spinView(true);
+  }
+  // 旅の距離：1問目に正解した県が続く所だけ、県庁どうしの大円の距離を足す（外した県で線が切れる）
+  function hav(a, b) {
+    const r = Math.PI / 180, h = Math.sin((b[0] - a[0]) * r / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin((b[1] - a[1]) * r / 2) ** 2;
+    return 2 * 6371 * Math.asin(Math.sqrt(h));
+  }
+  function routeKm() {
+    let km = 0;
+    for (let i = 1; i < G.route.length; i++) {
+      const a = G.route[i - 1], b = G.route[i];
+      if (a.ok && b.ok) km += hav(D.kencho[a.n], D.kencho[b.n]);
+    }
+    return km;
+  }
+  function routeList() {
+    const old = box.querySelector('.route');
+    if (old) old.remove();
+    if (!G || !G.route.length) return;
+    const p = el('p', 'route');
+    p.appendChild(el('span', null, '旅：'));
+    G.route.forEach((r, i) => {
+      if (i) p.appendChild(el('span', 'sep', G.route[i - 1].ok && r.ok ? ' ─ ' : ' ／ '));
+      p.appendChild(el('span', r.ok ? 'ok' : 'ng', prefOf(r.n).name));
+    });
+    box.appendChild(p);
+  }
+  function finish() {
+    const dist = Math.floor(G.km / KM_PT), total = G.know + dist, title = titleOf(total);
+    const rec = { score: total, know: G.know, km: Math.round(G.km), ok: G.okN, n: G.qn, title, name: shown(), t: Date.now() };
+    L.best.push(rec);
+    L.best.sort((a, b) => b.score - a.score || a.t - b.t);
+    L.best = L.best.slice(0, 10);
+    const kept = save(), rank = L.best.indexOf(rec);
+    G.over = true; G.pref = 0;
+    head(false);
+    const ul = el('ul', 'sum');
+    ul.append(el('li', null, `知識：${G.know}点（${G.qn}問のうち${G.okN}問正解）`), el('li', null, `旅の距離：${fmt(rec.km)}km → ${dist}点（50kmごとに1点）`));
+    box.append(el('p', 'big', `${total}点`), el('p', 'title', `称号：${title}`), ul);
+    routeList();
+    if (rank >= 0) box.appendChild(el('p', 'note', `あなたの記録の${rank + 1}位に入りました（名前：${rec.name}）`));
+    const row = el('div', 'row'), again = el('button', 'big', 'もう一度'), rk = el('button', 'big sub', '番付を見る');
+    again.addEventListener('click', begin); rk.addEventListener('click', rankView);
+    row.append(again, rk);
+    box.append(row, el('p', 'note', kept ? '記録はこの端末の中だけに残します（みんなの番付は準備中）' : 'この画面では記録を残せません（プライベートモードなど）'));
+    M.tourLift(-1);
+    M.view(Object.assign({}, M.HOME));
+  }
+  function stop(quiet) {
+    if (G) { M.tourLift(-1); if (!quiet) M.view(Object.assign({}, M.HOME)); }
+    G = null;
+    layer.classList.remove('on');
+    box.classList.remove('open');
+  }
 
-  // ---- 県へ寄る：浮かせた県が、すごろくの札を除いた空いた所に収まる眺めへ（スマホは札が下・パソコンは左。
-  // 全国の遊覧と同じ真ん中の眺めにすると、スマホでこまと県が下の札に隠れた）
+  // ---------------------------------------------------------------- 県へ寄る：浮かせた県が、札を除いた空いた所に収まる眺めへ（スマホは札が下・パソコンは左）
   function visit(n) {
-    const p = prefOf(n), f = p.frame, W = M.vw, H = M.vh, c = box.getBoundingClientRect(), L = M.LIFT;
-    const pts = [[f[0], f[1], L], [f[2], f[1], L], [f[0], f[3], L], [f[2], f[3], L]];
+    const p = prefOf(n), f = p.frame, W = M.vw, H = M.vh, c = box.getBoundingClientRect(), Lf = M.LIFT;
+    const pts = [[f[0], f[1], Lf], [f[2], f[1], Lf], [f[0], f[3], Lf], [f[2], f[3], Lf]];
     const side = c.width > 0 && c.right < W * 0.5;
     const area = side ? [(c.right + 16) / W * 2 - 1, 0.92, -0.75, 0.72] : [-0.9, 0.9, c.width > 0 ? 1 - (c.top - 16) / H * 2 : -0.6, 0.72];
     M.tourLift(p.k);
     M.view(M.fit(M.HOME.th, 0.62, pts, area));
   }
 
-  // ---- 番の画面：こまの並び・さいころ・止まった県の豆知識
-  function turnView(news, mame) {
-    box.textContent = '';
-    const head = el('div', 'head'), x = el('button', 'x', '×');
-    x.setAttribute('aria-label', 'やめる'); x.addEventListener('click', () => stop());
-    head.append(el('b', null, '日本一周すごろく'), x);
-    box.appendChild(head);
-    // 押す物（さいころとボタン）をいつも上に。下に置くと、豆知識の文が長い時にスマホで札の外へはみ出して押せなかった
-    const left = G.players.filter((p) => !p.done);
-    if (!left.length) {
-      const again = el('button', 'big', 'もう一度遊ぶ'); again.addEventListener('click', open);
-      box.append(el('p', 'q', 'みんな沖縄に着きました。おつかれさまでした！'), again);
-    } else {
-      const cur = G.players[G.turn], die = el('div', 'die'), act = el('div', 'act');
-      die.innerHTML = dieSvg(G.last || 1);
-      const roll = el('button', 'big roll', `${cur.name}の番　さいころをふる`);
-      roll.style.borderColor = cur.color;
-      roll.addEventListener('click', () => doRoll(die, roll));
-      act.append(die, roll);
-      box.appendChild(act);
-    }
-    if (news) box.appendChild(el('p', 'news', news));
-    if (mame) {
-      const m = el('div', 'sg-mame');     // 「mame」は地図の豆の名前（豆の位置と大きさがかかって見えなくなった）
-      m.append(el('b', null, mame.title), el('p', null, mame.text || '読み込んでいます…'));
-      box.appendChild(m);
-    }
-    const list = el('ol', 'who');
-    G.players.forEach((p, i) => {
-      const li = el('li', i === G.turn && !p.done ? 'now' : '');
-      const dot = el('i'); dot.style.background = p.color;
-      li.append(dot, el('b', null, p.name), el('span', null, p.done ? `${p.done}着（沖縄）` : `${prefOf(G.order[p.pos]).name}（${p.pos + 1}/47）`));
-      list.appendChild(li);
-    });
-    box.appendChild(list);
+  // ---------------------------------------------------------------- 地図に重ねる旅の線（1問目に正解した県の県庁を結ぶ）とこま
+  const layer = svg('svg', { id: 'sugo-line', 'aria-hidden': 'true' });
+  const halo = svg('path', { class: 'halo' }), road = svg('path', { class: 'road' }), dots = svg('g'), koma = svg('g', { class: 'koma' });
+  koma.innerHTML = '<path d="M0 0C-6-8-9-13-9-18a9 9 0 0 1 18 0c0 5-3 10-9 18z" fill="#c8402c" stroke="#fffaf0" stroke-width="2"/><circle cy="-18" r="3.4" fill="#fffaf0"/>';
+  layer.append(halo, road, dots, koma);
+  // 地図の札と下の並びより下に（上に重ねると、線が県名の札やボタンの字を横切った）
+  const under = document.getElementById('labels');
+  if (under) under.before(layer); else document.body.appendChild(layer);
+  const CAP = new Map((IN.spots || []).filter((s) => s.icon === 'kencho').map((s) => [s.pref, s]));
+  const GY = new Map();
+  function capPt(n) {
+    const s = CAP.get(n), p = prefOf(n);
+    if (!s || !p) return null;
+    if (!GY.has(n)) GY.set(n, M.groundY(p.k, s.x, s.z));
+    return M.project(s.x, GY.get(n) + M.liftY(p.k), s.z);
   }
-  function doRoll(die, btn) {
-    if (!G || G.rolling) return;
-    G.rolling = true; btn.disabled = true;
-    const r = 1 + Math.floor(Math.random() * 6), t0 = performance.now(), calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const spin = () => {
-      if (!G) return;
-      if (!calm && performance.now() - t0 < 700) { die.innerHTML = dieSvg(1 + Math.floor(Math.random() * 6)); setTimeout(spin, 80); return; }
-      die.innerHTML = dieSvg(r); G.last = r;
-      setTimeout(() => move(r), calm ? 200 : 400);
-    };
-    spin();
-  }
-  function move(r) {
-    if (!G) return;
-    const p = G.players[G.turn], goal = G.order.length - 1;
-    p.pos = Math.min(goal, p.pos + r);
-    const n = G.order[p.pos], pref = prefOf(n);
-    let news = `${p.name}は ${r} すすんで、${M.FULL(pref.name)}へ。`, again = false;
-    if (p.pos === goal) { p.done = ++G.rank; news += `ゴール！ ${p.done}着です。`; }
-    else {
-      const m = new Date().getMonth() + 1, fes = IN.items.find((it) => it.pref === n && it.cat === '祭り' && (it.months || []).includes(m));
-      if (fes) { again = true; news += `今月は「${fes.name}」の季節。お祭りに出会ったので、もう1回ふれます！`; }
-    }
-    // 止まった県の豆知識（まだ知らない物を先に）。文は県ごとのファイルから
-    const pool = (IN.mame || []).filter((d) => d.pref === n && !d.eki), fresh = pool.filter((d) => !(window.MAME && MAME.has(d.id)));
-    const d = (fresh.length ? fresh : pool)[Math.floor(Math.random() * Math.max(1, (fresh.length ? fresh : pool).length))];
-    if (!again || p.done) nextTurn();
-    G.rolling = false;
-    turnView(news, d);
-    visit(n);                          // 札を並べた後に（札の大きさを測って、空いた所に収める）
-    if (d && window.MAME) {
-      MAME.record(d.id);
-      if (d.text == null && M.loadIntro) M.loadIntro(n).then(() => { const t = box.querySelector('.sg-mame p'); if (t && G) t.textContent = d.text || ''; }, () => {});
-    }
-  }
-  function nextTurn() {
-    const n = G.players.length;
-    for (let i = 1; i <= n; i++) { const j = (G.turn + i) % n; if (!G.players[j].done) { G.turn = j; return; } }
-  }
-  function stop(quiet) {
-    if (G) { M.tourLift(-1); if (!quiet) M.view(Object.assign({}, M.HOME)); }
-    G = null;
-    komaBox.classList.remove('on'); komaBox.textContent = '';
-    box.classList.remove('open');
-  }
-
-  // ---- 毎コマ：こまを県の上に置く（同じ県のこまは横にずらす）
   M.on('frame', () => {
     if (!G || M.inside) return;
-    const seen = new Map();
-    G.players.forEach((p, i) => {
-      const pr = prefOf(G.order[p.pos]), s = M.project(pr.ax, M.liftY(pr.k) + 1, pr.az), j = seen.get(pr.n) || 0;
-      seen.set(pr.n, j + 1);
-      const e = G.el[i];
-      if (!s.ok) { e.style.display = 'none'; return; }
-      e.style.display = '';
-      e.style.transform = `translate(${(s.x + j * 16 - 8).toFixed(1)}px, ${(s.y - 30).toFixed(1)}px)`;
+    const strands = [[]], marks = [];
+    for (const r of G.route) {
+      const s = capPt(r.n), on = s && s.ok;
+      if (!r.ok) { if (strands[strands.length - 1].length) strands.push([]); }
+      else if (on) strands[strands.length - 1].push(s);
+      marks.push(on ? [s.x, s.y, r.ok] : null);
+    }
+    const d = strands.filter((a) => a.length > 1).map((a) => 'M' + a.map((s) => s.x.toFixed(1) + ' ' + s.y.toFixed(1)).join('L')).join('');
+    halo.setAttribute('d', d); road.setAttribute('d', d);
+    while (dots.children.length < marks.length) dots.appendChild(svg('circle', { r: 5 }));
+    [...dots.children].forEach((c, i) => {
+      const m = marks[i];
+      if (!m) { c.style.display = 'none'; return; }
+      c.style.display = ''; c.setAttribute('cx', m[0].toFixed(1)); c.setAttribute('cy', m[1].toFixed(1)); c.setAttribute('class', m[2] ? 'ok' : 'ng');
     });
+    const s = G.pref ? capPt(G.pref) : null;
+    if (s && s.ok) { koma.style.display = ''; koma.setAttribute('transform', `translate(${s.x.toFixed(1)} ${s.y.toFixed(1)})`); } else koma.style.display = 'none';
   });
   M.on('world', (w) => { if (w && G) stop(true); });
   addEventListener('keydown', (e) => { if (e.code === 'Escape' && box.classList.contains('open') && !e.target.closest('input')) { stop(); e.stopImmediatePropagation(); } }, true);
 
-  // 検査用
-  window.SUGO = { open, stop, get state() { return G && { turn: G.turn, players: G.players.map((p) => ({ name: p.name, pos: p.pos, done: p.done, pref: G.order[p.pos] })), rolling: G.rolling }; } };
+  // 検査用：問いの台帳（県ごと）・遊びの状態
+  window.SUGO = { open, stop, bank, titleOf, nameErr, answer, get prof() { return L.prof && Object.assign({ shown: shown() }, L.prof); }, get best() { return L.best; },
+    get state() { return G && { round: G.round, pref: G.pref, step: G.step, know: G.know, km: G.km, route: G.route.map((r) => Object.assign({}, r)), q: G.q && { id: G.q.id, lv: G.q.lv, kind: G.q.kind, ans: G.q.ans, n: G.q.opts.length }, done: G.done, next: !!G.next, over: !!G.over, spinning: !!G.spinning }; } };
 })();

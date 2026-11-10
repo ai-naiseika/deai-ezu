@@ -5,7 +5,7 @@
   'use strict';
   const M = window.MAP3D;
   if (!M) return;
-  const FILES = ['地名.js', '紹介.js', '名物の絵.js', '案内.js', '一言.js', '県の中.js', '遊覧.js', '旅.js', '輪くぐり.js', '豆知識.js', '音楽.js', '駅.js', '戻る.js', 'クイズ.js', 'すごろく.js', '縁の台帳.js', 'であい帖.js', '縁.js'];
+  const FILES = ['地名.js', '紹介.js', '名物の絵.js', '案内.js', '一言.js', '県の中.js', '遊覧.js', '旅.js', '輪くぐり.js', '豆知識.js', '音楽.js', '駅.js', '戻る.js', 'クイズ.js', 'すごろくの台帳.js', 'すごろく.js', '縁の台帳.js', 'であい帖.js', '縁.js'];
   const $ = (s) => document.querySelector(s);
   $('#o-retry').addEventListener('click', () => location.reload());
   M.on('shown', () => {
