@@ -21,7 +21,16 @@
   M.on('season', (i) => { season = i; if (ready && !self && mode.season !== 'manual') { mode.season = 'manual'; } ui(); });
   M.on('time', (h) => { hour = h; if (ready && !self && mode.time !== 'manual') { mode.time = 'manual'; } ui(); });
 
+  // 「朝」「夕」は季節に合わせる（本人 2026-11-11「朝夕ボタンは日の出日の入りでいい」）：朝＝日の出の1時間後・夕＝日の入りの30分前。
+  // 6時・17時15分の決め打ちでは、11月の朝6時はまだ日の出前で夜の地図（七色の海では星空）になった。ボタンの data-h を書きかえるので、
+  // 入口の同じボタン（入口.js が data-h で時刻の窓のボタンを押す）もそのまま合う
+  function sunButtons() {
+    if (!M.sunTimes) return;
+    const s = M.sunTimes(new Date()), v = { rise: (s.rise + 1).toFixed(2), set: (s.set - 0.5).toFixed(2) };
+    for (const b of document.querySelectorAll('button[data-sun]')) b.dataset.h = v[b.dataset.sun];
+  }
   function follow(now) {
+    sunButtons();
     const d = new Date();
     if (mode.season === 'now' && season !== seasonOf(d)) setSeason(seasonOf(d), now);
     if (mode.time === 'now') setHour(d.getHours() + d.getMinutes() / 60, now);

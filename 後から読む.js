@@ -12,7 +12,7 @@
     let left = FILES.length, failed = false;
     const done = () => {          // 読んだ物の「準備ができた」の知らせ（map3d.js の on が setTimeout で渡す）が済んでから開ける
       document.body.classList.remove('ui-wait');
-      $('#o-go').inert = false; $('#o-sugo').inert = false;
+      $('#o-go').inert = false; $('#o-sugo').inert = false; $('#o-yuran').inert = false;
       window.__ready = true;
     };
     for (const f of FILES) {

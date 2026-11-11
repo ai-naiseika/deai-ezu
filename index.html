@@ -64,10 +64,12 @@
   #o-head { position: fixed; left: 34px; top: 26px; }
   #o-title { margin: 0; font-weight: 400; pointer-events: none; }
   /* すごろくの入口（2026-11-11 本人「スマホで見ても双六の入り口がわからない」）：選ぶ欄の中は巻かないと見えない画面があるので、題の下のいつも見える所に */
-  #o-sugo { display: inline-flex; align-items: center; gap: 6px; margin: 14px 0 0 4px; font-size: 15px; padding: 5px 12px; color: var(--shu); border-color: var(--shu); background: rgba(251,246,232,.94); }
-  #o-sugo svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
-  #o-sugo svg .f { fill: currentColor; stroke: none; }
-  #o-sugo[inert] { opacity: .45; }
+  /* 遊覧の入口も並べる（本人 2026-11-11「全国では遊覧かすごろくを最初に誘うのが入り口として良さそう。左上のボタンに遊覧も」） */
+  #o-sugo, #o-yuran { display: inline-flex; align-items: center; gap: 6px; margin: 14px 0 0 4px; font-size: 15px; padding: 5px 12px; color: var(--shu); border-color: var(--shu); background: rgba(251,246,232,.94); }
+  #o-yuran { margin-left: 8px; }
+  #o-sugo svg, #o-yuran svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
+  #o-sugo svg .f, #o-yuran svg .f { fill: currentColor; stroke: none; }
+  #o-sugo[inert], #o-yuran[inert] { opacity: .45; }
   #o-title b { display: inline-block; font-size: 50px; line-height: 1.18; color: var(--shu); border: 2.5px solid var(--shu); padding: 8px 18px 12px;
     background: rgba(250,244,226,.6); letter-spacing: .04em; }
   #o-title span { display: block; font-size: 18px; color: #3a3428; margin: 12px 0 0 4px; }
@@ -92,7 +94,10 @@
   #o-tour { margin-top: 6px; width: 100%; font-size: 14px; }
   @media (max-width: 700px) and (orientation: portrait), (max-width: 700px) and (min-height: 521px) {
     #o-title b { font-size: 30px; padding: 4px 10px 6px; } #o-title span { font-size: 13px; margin-top: 6px; } #o-head { left: 16px; top: 16px; }
-    #o-sugo { margin: 6px 0 0; font-size: 13px; padding: 3px 9px; } #o-sugo .m { display: none; }
+    #o-sugo, #o-yuran { margin: 6px 0 0; font-size: 13px; padding: 3px 9px; } #o-sugo .m { display: none; }
+    /* 縦のスマホは「遊覧」をすごろくの下の段に、字は「遊覧」だけ（横に並べると右へ伸び、すぐ下の竹島の印と北陸の岸を隠した。
+       下の段でも「遊覧で旅する」の長さでは、縦長の画面で右端が竹島の印に 8px より近づいた） */
+    #o-yuran { display: flex; width: fit-content; } #o-yuran .t { display: none; }
     #o-regions { left: 16px; right: 16px; top: auto; bottom: 28px; transform: none; width: auto; padding: 10px; max-height: 60vh; }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips { margin-bottom: 7px; } #o-regions .chips button { font-size: 12px; padding: 3px 7px; }
     #o-regions .list { grid-template-columns: 1fr 1fr 1fr; } #o-regions .list button { font-size: 15px; padding: 6px 4px; text-align: center; }
@@ -100,7 +105,7 @@
   }
   /* 縦のスマホは列島が題のすぐ横まで来るので短く（「すごろく10回チャレンジ！」は 360×740 で東北の岸に触れた）。
      背の低い縦のスマホ（iPhone SE・アドレスバーの出た Safari）は「すごろく」だけ（長いと能登と竹島の印を隠した） */
-  @media (max-width: 700px) and (orientation: portrait) and (max-height: 739px) { #o-sugo .t { display: none; } }
+  @media (max-width: 700px) and (orientation: portrait) and (max-height: 739px) { #o-sugo .t, #o-yuran .t { display: none; } }
   #title b { display: inline-block; font-size: 56px; color: var(--shu); border: 2.5px solid var(--shu); padding: 0 14px 4px; line-height: 1.2; }
   #title span { display: block; font-size: 24px; font-weight: 700; margin: 8px 0 0 16px; }
   #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -453,6 +458,10 @@
   @media (pointer: coarse) { #lamp { width: 260px; height: 260px; margin: -130px 0 0 -130px; } }
   body.opening #lamp, body.flying #lamp { display: none; }
   #fuda-open { position: fixed; left: 34px; top: 222px; font-size: 14px; padding: 4px 10px; background: rgba(250,244,226,.95); border-color: var(--gold); }
+  /* 県の中で遊覧を誘う（本人 2026-11-11「県の中でも遊覧を誘うように分かり易いボタンがあったほうがいい」）：題の下に、すごろくの入口と同じ朱の枠で */
+  #in-yuran { display: none; position: fixed; left: 34px; top: 260px; align-items: center; gap: 6px; font-size: 14px; padding: 4px 11px; color: var(--shu); border-color: var(--shu); background: rgba(251,246,232,.94); }
+  #in-yuran svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+  body.inside:not(.touring):not(.flying) #in-yuran { display: inline-flex; }
   #fuda { position: fixed; left: 34px; top: 258px; width: 300px; box-sizing: border-box; z-index: 8; display: none;
     background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 10px 12px; }
   #fuda.open { display: block; }
@@ -818,6 +827,7 @@
     #deai-open { left: 10px; top: 72px; font-size: 12px; padding: 2px 8px; }
     #mame-open { left: 10px; top: 100px; font-size: 12px; padding: 2px 8px; }
     #fuda-open { left: 10px; top: 128px; font-size: 12px; padding: 2px 8px; }
+    #in-yuran { left: 10px; top: 72px; font-size: 13px; padding: 3px 9px; }
     #deai { inset: 10px; padding: 14px; }
     #deai .pic { inset: 10px; }
     #deai .seals { grid-template-columns: repeat(auto-fill, 70px); }
@@ -894,6 +904,7 @@
     #deai-open { left: 12px; top: 72px; font-size: 12px; padding: 2px 8px; }
     #mame-open { left: 12px; top: 100px; font-size: 12px; padding: 2px 8px; }
     #fuda-open { left: 12px; top: 128px; font-size: 12px; padding: 2px 8px; }
+    #in-yuran { left: 12px; top: 158px; font-size: 12px; padding: 2px 8px; }
     #deai { inset: 8px; padding: 12px; }
     #deai .pic { inset: 8px; }
     #fuda { left: 12px; top: 156px; max-height: calc(100vh - 170px); overflow-y: auto; }
@@ -901,7 +912,7 @@
     #q { font-size: 15px; padding: 6px 8px; }
     #o-head { left: 12px; top: 8px; }
     #o-title b { font-size: 28px; padding: 4px 10px 6px; } #o-title span { font-size: 12px; margin-top: 4px; }
-    #o-sugo { margin: 6px 0 0; font-size: 12px; padding: 3px 8px; } #o-sugo .t { display: none; }
+    #o-sugo, #o-yuran { margin: 6px 0 0; font-size: 12px; padding: 3px 8px; } #o-yuran { margin-left: 6px; } #o-sugo .t, #o-yuran .t { display: none; }
     #o-regions { right: 8px; width: 280px; padding: 8px 10px; max-height: calc(100vh - 16px); }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips button { font-size: 12px; padding: 2px 7px; }
     #o-regions .list { grid-template-columns: 1fr 1fr; } #o-regions .list button { font-size: 13px; padding: 4px 8px; }
@@ -965,7 +976,7 @@
       <div class="grp" id="seasons"><button data-s="0">春</button><button data-s="1" class="on">夏</button><button data-s="2">秋</button><button data-s="3">冬</button></div>
       <p>時刻 <b id="toki-h">12:00</b></p>
       <input type="range" id="toki-range" min="0" max="24" step="0.25" value="12" aria-label="時刻">
-      <div class="grp" id="toki-quick"><button data-h="6">朝</button><button data-h="12">昼</button><button data-h="17.25">夕</button><button id="night" data-h="21" title="夜の日本（N）">夜</button></div>
+      <div class="grp" id="toki-quick"><button data-h="6" data-sun="rise">朝</button><button data-h="12">昼</button><button data-h="17.25" data-sun="set">夕</button><button id="night" data-h="21" title="夜の日本（N）">夜</button></div>
       <div class="grp"><button id="toki-now">今に合わせる</button><button id="toki-meguri">季節めぐり</button><button id="toki-flow">時間を流す</button></div>
       <small id="toki-state"></small>
     </div>
@@ -1062,12 +1073,13 @@
 <div id="fly-ud"><button id="fly-up">上へ</button><button id="fly-dn">下へ</button></div>
 <div id="opening">
   <div id="o-head"><h1 id="o-title"><b>にっぽん<br>であい絵図</b><span>土地の魅力に出会う、四季の鳥瞰図</span></h1>
-    <button id="o-sugo" type="button" inert><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.2"/><circle class="f" cx="8.6" cy="8.6" r="1.5"/><circle class="f" cx="12" cy="12" r="1.5"/><circle class="f" cx="15.4" cy="15.4" r="1.5"/></svg><span>すごろく<span class="m">10回チャレンジ！</span><span class="t">で遊ぶ</span></span></button></div>
+    <button id="o-sugo" type="button" inert><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.2"/><circle class="f" cx="8.6" cy="8.6" r="1.5"/><circle class="f" cx="12" cy="12" r="1.5"/><circle class="f" cx="15.4" cy="15.4" r="1.5"/></svg><span>すごろく<span class="m">10回チャレンジ！</span><span class="t">で遊ぶ</span></span></button>
+    <button id="o-yuran" type="button" inert><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c2.5-4 5-1 7-5s4-6 9-7" stroke-dasharray="2.2 2.2"/><circle cx="4" cy="18" r="1.6"/><path class="f" d="M20 3.5c-1.7 0-3 1.3-3 3 0 2.2 3 5 3 5s3-2.8 3-5c0-1.7-1.3-3-3-3Z"/></svg><span>遊覧<span class="t">で旅する</span></span></button></div>
   <div id="o-regions">
     <p>見たい情報（いくつでも）</p><div class="chips" id="o-miru"></div>
     <p>季節と時刻</p>
     <div class="chips" id="o-toki"><button type="button" data-now="1">今に合わせる</button><button type="button" data-s="0">春</button><button type="button" data-s="1">夏</button><button type="button" data-s="2">秋</button><button type="button" data-s="3">冬</button></div>
-    <div class="chips" id="o-hour"><button type="button" data-h="6">朝</button><button type="button" data-h="12">昼</button><button type="button" data-h="17.25">夕</button><button type="button" data-h="21">夜</button></div>
+    <div class="chips" id="o-hour"><button type="button" data-h="6" data-sun="rise">朝</button><button type="button" data-h="12">昼</button><button type="button" data-h="17.25" data-sun="set">夕</button><button type="button" data-h="21">夜</button></div>
     <p>どこから旅を始めますか<span id="o-wait">（読み込み中）</span><span id="o-fail">（読み込めませんでした）</span><button id="o-retry" type="button">もう一度</button></p><div id="o-go" inert><div class="list"></div><button id="o-all">日本全体をながめる</button><button id="o-tour">遊覧で旅する（出発はおまかせ）</button></div>
   </div>
 </div>
@@ -1075,6 +1087,7 @@
 <button id="deai-open">であい帖</button>
 <button id="mame-open"></button>
 <button id="fuda-open" aria-controls="fuda"></button>
+<button id="in-yuran" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14c3-2 5-2 8 0s5 2 8 0"/><path d="M12 4 21 9l-9 1-3 4V9.5L3 8Z"/></svg>空から遊覧する</button>
 <div id="fuda"><p>見る情報（いくつでも）</p><div class="chips miru"></div><p>地図に出す札（テロップ）</p><div class="chips" id="fuda-chips"></div><small>出していない札も、地図にマウスを当てると、その周りだけ浮かびます（スマホは触れた所）。光の粒は豆知識です。</small></div>
 <div id="mame-card" role="dialog" aria-label="豆知識"></div>
 <div id="mame-book" role="dialog" aria-label="豆知識帳"></div>

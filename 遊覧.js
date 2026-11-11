@@ -245,6 +245,7 @@
   // 飛んでいる途中に押しても、行き先の紹介文を出す（「つぎは〜へ」のまま出どころだけ出て、何の出どころか分からなかった）
   $('#t-more').addEventListener('click', () => { if (!T) return; pause(true); caption(false); T.stops[T.i].more(); });
   $('#tour-open').addEventListener('click', start);
+  $('#in-yuran').addEventListener('click', start);     // 県の中の題の下の「空から遊覧する」
   $('#tour-nat').addEventListener('click', startNat);
   M.on('world', (w) => { if (T && (!w || T.mode === 'nat')) end(false); });
   // 全国の遊覧の途中で県を押したら、遊覧を終えて、その県を選んだ状態に

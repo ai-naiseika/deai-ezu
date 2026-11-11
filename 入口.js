@@ -71,7 +71,9 @@
   M.on('select', () => { if (open) close(); });                // 地図の県を押したら、入口を閉じてその県へ
   $('#o-all').addEventListener('click', wholeView);
   // 遊覧で旅する：出発の県はくじで（全国から）
-  $('#o-tour').addEventListener('click', () => { close(); setRegion(null); if (window.YURAN) YURAN.startNat(); });
+  const tourNat = () => { close(); setRegion(null); if (window.YURAN) YURAN.startNat(); };
+  $('#o-tour').addEventListener('click', tourNat);
+  $('#o-yuran').addEventListener('click', tourNat);     // 題の下の「遊覧で旅する」（本人 2026-11-11「全国では遊覧かすごろくを最初に誘うのが入り口として良さそう」）
   // すごろく（本人 2026-11-11「スマホで見ても双六の入り口がわからない」）：クイズの窓の奥だけでなく、最初の画面からも入れる
   $('#o-sugo').addEventListener('click', () => { wholeView(); if (window.SUGO) SUGO.open(); });
   // 「全体」は入口へ（本人 2026-10-29「全体の俯瞰にもどった時に、初期のエリア選択ができない」）：真上の俯瞰と「どこから旅を始めますか」。

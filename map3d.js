@@ -93,8 +93,9 @@
       // 吹き出しの置き場所（screenBox）と、スマホで選んだ時の眺めも同じ範囲で
       // 長崎は本土・五島・壱岐まで（対馬は外す）、鹿児島は本土と種子島・屋久島まで（奄美は外す）。
       // 沖縄は沖縄島・宮古・八重山・尖閣まで（東経129度より東の大東諸島は外す）。沖縄島だけにすると尖閣の印が画面の外に出て、
-      // 「沖縄を浮かせた時に尖閣の吹き出しを出す」（本人 2026-10-27）が効かなくなった（2026-11-06）
-      const FR = { '東京': 90, '長崎': 120, '鹿児島': 160, '沖縄': { r: 470, lonMax: 129 } }[p.name] || 380;
+      // 「沖縄を浮かせた時に尖閣の吹き出しを出す」（本人 2026-10-27）が効かなくなった（2026-11-06）。
+      // 沖縄の半径は 470→500：与那国島（札の点から 484km）が外れ、北が上のスマホで県を押すと西の端が画面から切れた（本人 2026-11-11「南が下で全体が表示されるなら」）
+      const FR = { '東京': 90, '長崎': 120, '鹿児島': 160, '沖縄': { r: 500, lonMax: 129 } }[p.name] || 380;
       const f = [1e9, 1e9, -1e9, -1e9], R = FR.r || FR, xMax = FR.lonMax ? (FR.lonMax - 137.5) * 111.32 * Math.cos(36 * Math.PI / 180) : Infinity;
       p.fr = R;
       p.inFr = (x, z) => (x - p.ax) ** 2 + (z - p.az) ** 2 <= R * R && x <= xMax;
@@ -779,6 +780,11 @@
     const A = Math.atan2(Math.sin(H), Math.cos(H) * Math.sin(LAT) - Math.tan(dec) * Math.cos(LAT)) + Math.PI;     // 北から時計回り
     return { e, A };
   }
+  // 日の出・日の入り（上の式で太陽の高さが0になる時刻）：時刻の窓の「朝」「夕」を季節に合わせる（とき.js）
+  function sunTimes(day) {
+    const cross = (a, b, up) => { for (let i = 0; i < 30; i++) { const m = (a + b) / 2; if ((sunPath(day, m).e > 0) === up) b = m; else a = m; } return (a + b) / 2; };
+    return { rise: cross(0, 12, true), set: cross(12, 24, false) };
+  }
   function setTime(h, day = todDay) {
     tod = ((h % 24) + 24) % 24; todDay = day;
     Object.assign(sun, sunPath(day, tod));
@@ -945,10 +951,7 @@
     const p = P[k], f = p.frame;
     extras(p);
     const size = Math.max(f[2] - f[0], f[3] - f[1]);
-    if (SHEET()) {
-      // スマホ：札の窓は下から出るので、浮かせた県は上の空いた所に収める（縦長の画面では、幅で決めた距離だと県が左右にはみ出した）
-      Object.assign(goal, fitAll(goal.th, 0.6, landPts([k], true).map(([x, z]) => [x, z, LIFT]), SHEET()));
-    } else {
+    if (!SHEET()) {
       // 右に札の窓が開くので、浮かせた県は左の空いた所の真ん中に（見る向きの右へ、注視点を少しずらす）
       const D = clamp(size * 1.9 + 240, 420, 2200);
       Object.assign(goal, { x: (f[0] + f[2]) / 2 + Math.cos(goal.th) * D * 0.1, z: (f[1] + f[3]) / 2 + Math.sin(goal.th) * D * 0.1, y: LIFT * 0.55, D, ph: 0.6 });
@@ -958,6 +961,13 @@
     emit('select', k);
     $('#card').classList.add('open');
     $('#tip').style.display = 'none';
+    if (SHEET()) {
+      // スマホ：札の窓は下から出るので、浮かせた県は上の空いた所に収める（縦長の画面では、幅で決めた距離だと県が左右にはみ出した）。
+      // 札の窓が開いた後に上端を測り、その上に収める（決め打ちの「画面の45%より上」では、背の低い iPhone SE で札の上端が39%になり、沖縄の南の島が札に隠れた）
+      const a = SHEET(), top = $('#card').offsetTop;
+      if (top > 0) a[2] = Math.max(a[2], 1 - (top - 10) / VH * 2);
+      Object.assign(goal, fitAll(goal.th, 0.6, landPts([k], true).map(([x, z]) => [x, z, LIFT]), a));
+    }
   }
   function deselect() {
     for (const I of ISLES) I.pinned = false;
@@ -1808,6 +1818,7 @@
     // 検査用：絵の具の時刻を止める・戻す。2枚を撮って比べる時、時刻で流れる雲の影が差に混ざった（2026-11-02 海津の水路）
     stopTime(on) { tStop = on ? U.uTime.value : null; },
     nanairo(on, now) { nanaOn = on ? 1 : 0; if (now) U.uNana.value.x = nanaOn; },
+    sunTimes: (day) => sunTimes(day || todDay),
     // 検査用：空の雲（出ているか・風の向き・位置と幅・濃さ）
     get clouds() { return { on: cloudMesh.visible, wind: wd.slice(), pos: Array.from(cPos), inf: Array.from(cInf), base: clouds.map((c) => c.a), cam: camera.position.toArray() }; },
     screenOf(k) { const p = P[k]; tmp.set(p.ax, p.ay + liftY(k), p.az).project(camera); return [(tmp.x + 1) / 2 * VW, (1 - tmp.y) / 2 * VH]; },
