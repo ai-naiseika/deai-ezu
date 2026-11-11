@@ -1,6 +1,8 @@
 // クイズ（本人 2026-10-30「1日1問に加えて、遊びたい人は『クイズモード』で次々問題を出して楽しめる。10問1クールで点数」「そのログも取って楽しめるように」）：
-// 問題は確かめ済みの台帳（紹介.js の品目・全国遊覧・紹介・豆知識・目印・山と湖）から作る。答えは4択か、地図の県を押す。
-// 答えると、その県を浮かせて説明を出し、豆知識なら豆知識帳に記録する。記録（今日の一問・1クールの点数・まちがえた問題・ジャンル別）は端末の中だけ。字は全部 textContent
+// 問題は確かめ済みの台帳（紹介.js の品目・全国遊覧・紹介・豆知識・目印・山と湖）から作る。全国では答えは4択か、地図の県を押す。
+// 県の中では、その県のことを4択で問う（すごろくの問いの作り方。本人 2026-11-11「全国を見ているときは全国から、県内を見ているときは県内の情報から」）。
+// どちらも、まだ知らない物（豆知識帳・であい帖に無い物）から出し、豆知識を多めに混ぜる。答えると説明を出し、合っていても違っていても
+// 豆知識なら豆知識帳、ほかはであい帖に入る。記録（今日の一問・1クールの点数・まちがえた問題・ジャンル別）は端末の中だけ。字は全部 textContent
 (function () {
   'use strict';
   const M = window.MAP3D, IN = window.INTRO;
@@ -36,6 +38,28 @@
   }
   let POOL = null;
   const all = () => POOL || (POOL = pool());
+  // まだ知らない物から出す（本人 2026-11-11「クイズはできるだけ知らないところから出題されて、間違ってもあってても詳細を見ればそのまま豆知識ゲット」）：
+  // 豆知識は豆知識帳、ほかはであい帖の「知った物」で見る。どれも知っていれば、知っている物から
+  const knownQ = (q) => (q.mame ? !!(window.MAME && MAME.has(q.mame)) : !!(window.DEAI && DEAI.knows(q.lid || q.id)));
+  const pickUnknown = (c, r) => { const u = c.filter((q) => !knownQ(q)), from = u.length ? u : c; return from[Math.floor(r() * from.length)]; };
+  // 県の中では、その県のことを問う（本人「全国を見ているときは全国から、県内を見ているときは県内の情報から」）。
+  // 問いは、すごろくの確かめ済みの作り方（まちがいの選択肢はよその県の同じ種類から・答えの県の物と取り違えない）を使う
+  const prefNow = () => (M.inside && window.SUGO && M.P.find((p) => p.name === M.inside.name)) || null;
+  function prefList(n, r) {
+    const byKind = new Map();
+    for (const q of SUGO.bank(n)) { if (!byKind.has(q.kind)) byKind.set(q.kind, []); byKind.get(q.kind).push(q); }
+    const kinds = [...byKind.keys()].sort(() => r() - 0.5), used = new Set(), out = [];
+    for (let i = 0; out.length < ROUND && i < 300; i++) {
+      const k = i % 3 === 0 && byKind.has('豆知識') ? '豆知識' : kinds[i % kinds.length];     // 豆知識は多めに（3問に1問）
+      const c = byKind.get(k).filter((q) => !used.has(q.lid || q.id));
+      if (!c.length) continue;
+      const q = pickUnknown(c, r);
+      used.add(q.lid || q.id);
+      out.push(Object.assign({}, q, { cat: q.kind, pref: n }));
+    }
+    return out;
+  }
+  const unknownMame = (n) => (IN.mame || []).filter((d) => (n == null || d.pref === n) && !(window.MAME && MAME.has(d.id))).length;
   // かたち当て（ゲームの案.md の「空から見て県を当てる」の軽い形・2026-11-09）：県の形だけを見せて4択。形は全国の形のデータ（JAPAN.prefs の輪）から、
   // いちばん大きな塊と、その近くの島だけを描く（東京の小笠原・沖縄の先島のような遠い島まで入れると、形が点のように小さくなる）
   const tourOf = (no) => (IN.tour || []).find((t) => t.pref === no);
@@ -111,9 +135,20 @@
   // ---------------------------------------------------------------- 遊び方の状態
   let S = null;     // { mode: 'day'|'round'|'wrong', list, i, score, ok, q, ch, t0, done }
   function startRound(mode) {
-    if (M.inside) { M.leave(() => startRound(mode)); return; }
-    const r = rng((Date.now() & 0xffffff) ^ 0x5bd1e995), P = all();
+    const r = rng((Date.now() & 0xffffff) ^ 0x5bd1e995);
     let list;
+    if (mode === 'pref') {
+      const p = prefNow();
+      if (!p) { startRound('round'); return; }
+      list = prefList(p.n, r);
+      if (!list.length) return;
+      S = { mode, list, i: 0, score: 0, ok: 0, r, pref: p.n };
+      box.classList.add('open'); open.classList.add('on');
+      ask();
+      return;
+    }
+    if (M.inside) { M.leave(() => startRound(mode)); return; }
+    const P = all();
     if (mode === 'day') {
       const day = today(), seed = [...day].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619), 2166136261);
       list = [P[Math.floor(rng(seed)() * P.length)]];
@@ -122,14 +157,14 @@
     } else if (mode === 'shape') {
       list = M.P.map((p) => p.n).sort(() => r() - 0.5).slice(0, ROUND).map(shapeQ);
     } else {
-      // ジャンルを混ぜる：産地・旅・紹介・豆知識・名所と山湖から順に
-      const groups = [['産地'], ['旅'], ['特産', '食', '歴史', '名所', '祭り'], ['豆知識'], ['名所', '山', '湖']];
+      // ジャンルを混ぜる：豆知識・産地・紹介・豆知識・名所と山湖・旅から順に（豆知識は多めに）。どれも、まだ知らない物を先に
+      const groups = [['豆知識'], ['産地'], ['特産', '食', '歴史', '名所', '祭り'], ['豆知識'], ['名所', '山', '湖'], ['旅']];
       const used = new Set();
       list = [];
       for (let i = 0; list.length < ROUND && i < 60; i++) {
         const g = groups[i % groups.length], c = P.filter((q) => g.includes(q.cat) && !used.has(q.id));
         if (!c.length) continue;
-        const q = c[Math.floor(r() * c.length)]; used.add(q.id); list.push(q);
+        const q = pickUnknown(c, r); used.add(q.id); list.push(q);
       }
     }
     if (!list.length) return;
@@ -139,10 +174,11 @@
   }
   function ask() {
     const q = S.list[S.i];
-    S.q = q; S.ch = choices(q, S.r); S.t0 = performance.now(); S.done = false;
+    S.q = q; S.ch = q.opts ? q.opts.map((o, i) => i) : choices(q, S.r); S.t0 = performance.now(); S.done = false;
     box.textContent = '';
     const head = el('div', 'head');
-    head.append(el('b', null, S.mode === 'day' ? `今日の一問（${today().slice(5).replace('-', '月')}日）` : S.mode === 'wrong' ? 'まちがえた問題' : S.mode === 'shape' ? 'かたち当て' : 'クイズ'),
+    head.append(el('b', null, S.mode === 'day' ? `今日の一問（${today().slice(5).replace('-', '月')}日）` : S.mode === 'wrong' ? 'まちがえた問題' : S.mode === 'shape' ? 'かたち当て'
+      : S.mode === 'pref' ? `${name(S.pref)}のクイズ` : '全国のクイズ'),
       el('span', 'n', S.mode === 'day' ? '' : `${S.i + 1} / ${S.list.length}　${S.score}点`));
     const x = el('button', 'x', '×'); x.title = 'やめる'; x.addEventListener('click', stop);
     head.append(x);
@@ -150,10 +186,11 @@
     bar.append(fill);
     box.append(head, el('span', 'cat', q.cat), el('p', 'q', q.text), bar);
     if (q.shape) box.append(shapeEl(q.shape));
-    M.loadIntro(q.ans).catch(() => {});      // 答えの後に出す説明（県ごとのファイル）を、考えている間に読んでおく
+    M.loadIntro(q.opts ? q.pref : q.ans).catch(() => {});      // 答えの後に出す説明（県ごとのファイル）を、考えている間に読んでおく
     const g = el('div', 'ch');
-    for (const no of S.ch) { const b = el('button', null, name(no)); b.dataset.no = no; b.addEventListener('click', () => answer(no)); g.append(b); }
-    box.append(g, el('small', 'hint', '地図の都道府県を押しても答えられます'));
+    for (const no of S.ch) { const b = el('button', null, q.opts ? q.opts[no].t : name(no)); b.dataset.no = no; b.addEventListener('click', () => answer(no)); g.append(b); }
+    box.append(g);
+    if (!q.opts) box.append(el('small', 'hint', '地図の都道府県を押しても答えられます'));
     requestAnimationFrame(() => { fill.style.transitionDuration = LIMIT + 's'; fill.style.width = '0%'; });
   }
   function answer(no) {
@@ -170,25 +207,47 @@
       b.classList.toggle('good', n === q.ans); b.classList.toggle('bad', n === no && !ok);
     }
     box.querySelector('.time').remove();
-    box.querySelector('.hint').remove();
+    const hint = box.querySelector('.hint');
+    if (hint) hint.remove();
+    const pref = q.opts ? q.pref : q.ans;
     const res = el('div', 'res ' + (ok ? 'ok' : 'ng'));
-    const more = el('p', null, q.more() || '説明を読み込んでいます…');
-    if (!q.more()) M.loadIntro(q.ans).then(() => { more.textContent = q.more() || ''; }, () => { more.textContent = '説明を読めませんでした（通信を確かめてください）'; });
-    res.append(el('b', null, ok ? `正解！ +${pts}点` : `ざんねん。正解は ${name(q.ans)}`), more);
-    if (q.mame && window.MAME) MAME.record(q.mame);
-    dispatchEvent(new CustomEvent('deai', { detail: { id: q.id, pref: q.ans, day: S.mode === 'day' } }));     // であい帖へ（答えの説明を読むので、合っていても違っていても知った物に数える）
+    const more = el('p', null, q.more() || '説明を読み込んでいます…'), src = el('details', 'src');
+    // 説明と出どころ（県の中の問い）。文と出どころは県ごとのファイルで後から届く
+    const fill = () => {
+      if (q.more()) more.textContent = q.more();
+      src.textContent = '';
+      const list = (q.src ? q.src() : []).filter((s) => s && s.title);
+      src.hidden = !list.length;
+      if (!list.length) return;
+      const ol = el('ol');
+      for (const s of list) {
+        const li = el('li'), u = M.safeUrl ? M.safeUrl(s.url) : null;
+        if (u) { const a = el('a', null, s.title); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; li.append(a); } else li.textContent = s.title;
+        ol.append(li);
+      }
+      src.append(el('summary', null, `もっと知りたい方へ：出どころ（${list.length}件）`), ol);
+    };
+    fill();
+    M.loadIntro(pref).then(() => { if (res.isConnected) fill(); }, () => { if (!q.more()) more.textContent = '説明を読めませんでした（通信を確かめてください）'; });
+    res.append(el('b', null, ok ? `正解！ +${pts}点` : `ざんねん。正解は ${q.opts ? `「${q.opts[q.ans].t}」` : name(q.ans)}`), more, src);
+    // 合っていても違っていても、説明を読むので知った物に数える：豆知識は豆知識帳へ（入ったことを知らせる）、ほかはであい帖へ
+    if (q.mame && window.MAME) {
+      const isNew = MAME.record(q.mame), [got, tot] = MAME.count();
+      res.append(el('p', 'got', (isNew ? '豆知識帳に入りました' : '記録ずみの豆知識です') + `（${got} / ${tot}）`));
+    }
+    dispatchEvent(new CustomEvent('deai', { detail: { id: q.lid || q.id, pref, day: S.mode === 'day' } }));
     const nx = el('button', 'next', S.mode === 'day' || S.i + 1 >= S.list.length ? '結果へ' : '次の問題へ ›');
     nx.addEventListener('click', () => { S.i++; if (S.mode !== 'day' && S.i < S.list.length) ask(); else finish(); });
     res.append(nx);
     box.append(res);
     save(L);
-    // 答えの県を浮かせて見せる（地図を押して答えた時の「選ぶ」と区別するため、答えた後に）
-    const k = kOf(q.ans);
+    // 答えの県を浮かせて見せる（全国の問いだけ。地図を押して答えた時の「選ぶ」と区別するため、答えた後に）
+    const k = q.opts ? -1 : kOf(q.ans);
     if (k >= 0) { S.selfSelect = true; M.select(k); S.selfSelect = false; }
     paintDot();
   }
   function finish() {
-    if (S.mode !== 'day') L.rounds.push({ t: Date.now(), score: S.score, ok: S.ok, n: S.list.length, mode: S.mode });
+    if (S.mode !== 'day') L.rounds.push(Object.assign({ t: Date.now(), score: S.score, ok: S.ok, n: S.list.length, mode: S.mode }, S.pref ? { pref: S.pref } : {}));
     if (L.rounds.length > 200) L.rounds.shift();
     const kept = save(L);
     box.textContent = '';
@@ -199,10 +258,11 @@
     if (S.mode === 'day') box.append(el('p', 'big', S.ok ? '今日の一問、正解！' : '今日の一問は、また明日。'), el('p', null, `今日の一問の連続：${streak()}日`));
     else box.append(el('p', 'big', `${S.score}点（${S.ok} / ${S.list.length}問）`), el('p', 'title', `称号：${titleOf(S.score)}`));
     const row = el('div', 'row');
-    const again = el('button', null, 'もう1クール'); again.addEventListener('click', () => startRound(S && S.mode === 'shape' ? 'shape' : 'round'));
+    const again = el('button', null, 'もう1クール'); again.addEventListener('click', () => startRound(S && (S.mode === 'shape' || S.mode === 'pref') ? S.mode : 'round'));
     const share = el('button', null, '結果を写す');
     share.addEventListener('click', () => {
-      const t = S && S.mode === 'day' ? `全国3D鳥瞰図 今日の一問 ${S.ok ? '正解' : '不正解'}（連続${streak()}日）` : `全国3D鳥瞰図${S && S.mode === 'shape' ? 'かたち当て' : 'クイズ'} ${S.score}点（${S.ok}/${S.list.length}）${titleOf(S.score)}`;
+      const t = S && S.mode === 'day' ? `全国3D鳥瞰図 今日の一問 ${S.ok ? '正解' : '不正解'}（連続${streak()}日）`
+        : `全国3D鳥瞰図${S && S.mode === 'shape' ? 'かたち当て' : S && S.mode === 'pref' ? name(S.pref) + 'のクイズ' : 'クイズ'} ${S.score}点（${S.ok}/${S.list.length}）${titleOf(S.score)}`;
       (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { share.textContent = '写しました'; }, () => { share.textContent = t; });
     });
     row.append(again, share);
@@ -217,6 +277,8 @@
     d.append(el('p', null, `クイズ ${R.length}回・自己ベスト ${best}点・平均 ${avg}点・今日の一問の連続 ${streak()}日`));
     const SH = L.rounds.filter((x) => x.mode === 'shape');
     if (SH.length) d.append(el('p', null, `かたち当て ${SH.length}回・自己ベスト ${SH.reduce((m, x) => Math.max(m, x.score), 0)}点`));
+    const PR = L.rounds.filter((x) => x.mode === 'pref');
+    if (PR.length) d.append(el('p', null, `県のクイズ ${PR.length}回・自己ベスト ${PR.reduce((m, x) => Math.max(m, x.score), 0)}点`));
     const ul = el('ul');
     for (const [c, [o, n]] of Object.entries(L.cats).sort((a, b) => b[1][1] - a[1][1])) ul.append(el('li', null, `${c}：${o} / ${n}（${Math.round(100 * o / n)}%）`));
     d.append(ul);
@@ -235,18 +297,29 @@
     const day = L.daily[today()];
     const b1 = el('button', 'big', day ? `今日の一問：${day.ok ? '正解ずみ' : '答えずみ'}（また明日）` : '今日の一問に答える');
     b1.disabled = !!day; b1.addEventListener('click', () => startRound('day'));
-    const b2 = el('button', 'big', `クイズに挑戦（${ROUND}問）`);
+    // 県の中ではその県のクイズを先頭に、全国では全国のクイズを（本人 2026-11-11「全国を見ているときは全国から、県内を見ているときは県内の情報から」）
+    const p = prefNow(), btns = [];
+    if (p) {
+      const bp = el('button', 'big', `${name(p.n)}のクイズに挑戦（${ROUND}問）`);
+      bp.addEventListener('click', () => startRound('pref'));
+      btns.push(bp);
+    }
+    const b2 = el('button', 'big' + (p ? ' sub' : ''), `全国のクイズに挑戦（${ROUND}問）` + (p ? '・県の外へ' : ''));
     b2.addEventListener('click', () => startRound('round'));
-    const b3 = el('button', 'big', `かたちで当てる（${ROUND}問）`);
+    const b3 = el('button', 'big sub', `かたちで当てる（${ROUND}問）`);
     b3.addEventListener('click', () => startRound('shape'));
-    const b4 = el('button', 'big', 'すごろく10回チャレンジ！');
+    const b4 = el('button', 'big sub', 'すごろく10回チャレンジ！');
     b4.addEventListener('click', () => { if (window.SUGO) SUGO.open(); });
-    box.append(head, el('p', null, '答えは4つから選ぶか、地図の都道府県を押します。速く答えるほど点が増えます。'), b1, b2, b3, b4, logView(save(L)));
+    const un = unknownMame(p ? p.n : null), lead = p
+      ? `${name(p.n)}のことを4つから選びます。まだ知らない物から出します（${name(p.n)}のまだ知らない豆知識 ${un}件）。`
+      : `答えは4つから選ぶか、地図の都道府県を押します。まだ知らない物から出します（まだ知らない豆知識 ${un}件）。`;
+    box.append(head, el('p', null, lead + '合っていても違っていても、答えの説明を読めば豆知識帳とであい帖に入ります。速く答えるほど点が増えます。'),
+      ...btns, b1, b2, b3, b4, logView(save(L)));
     box.classList.add('open'); open.classList.add('on');
   }
   function stop() { S = null; box.classList.remove('open'); open.classList.remove('on'); }
   // 地図の県を押して答える（答えの県を浮かせる時の「選ぶ」は数えない）
-  M.on('select', (k) => { if (S && !S.done && !S.selfSelect && M.P[k]) answer(M.P[k].n); });
+  M.on('select', (k) => { if (S && !S.done && !S.selfSelect && S.q && !S.q.opts && M.P[k]) answer(M.P[k].n); });
   // すごろくの窓と同じ所に開くので、すごろくは閉じてから。遊んでいる途中は開かない（閉じると番付の挑戦が1回むだになる）
   open.addEventListener('click', () => {
     if (box.classList.contains('open')) { stop(); return; }
@@ -257,5 +330,6 @@
   // 今日の一問がまだなら、アイコンに小さな点
   const paintDot = () => open.classList.toggle('dot', !L.daily[today()]);
   paintDot();
-  window.QUIZ = { dayDone: () => !!L.daily[today()], get pool() { return all(); }, start: startRound, menu, stop, answer, shape: shapeEl, get state() { return S && { mode: S.mode, i: S.i, n: S.list.length, score: S.score, ok: S.ok, q: S.q && S.q.id, ans: S.q && S.q.ans, ch: S.ch, done: S.done }; }, get log() { return L; } };
+  window.QUIZ = { dayDone: () => !!L.daily[today()], get pool() { return all(); }, start: startRound, menu, stop, answer, shape: shapeEl, get state() { return S && { mode: S.mode, i: S.i, n: S.list.length, score: S.score, ok: S.ok, q: S.q && S.q.id, ans: S.q && S.q.ans, ch: S.ch, done: S.done,
+    pref: S.pref || null, opts: !!(S.q && S.q.opts), mame: S.q && S.q.mame || null, known: S.list.map(knownQ), list: S.list.map((q) => ({ id: q.id, lid: q.lid || null, mame: q.mame || null, pref: q.opts ? q.pref : q.ans, opts: !!q.opts })) }; }, get log() { return L; } };
 })();
