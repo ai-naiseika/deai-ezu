@@ -82,7 +82,7 @@
     if (w.length < 3) return [];
     const ken = (IN.spots || []).find((s) => s.pref === n && s.icon === 'kencho');
     return [Object.assign({ id: 'cap:' + n, lid: ken ? 'spot:' + ken.name : null, lv: 'easy', kind: office(n) + 'の所在地', text: `${FULL(n)}の${office(n)}所在地は？`,
-      more: () => `${office(n)}所在地は${c.capital}。` + (ken && ken.note ? ken.note : '') }, four(T_(c.capital), w.map((x) => T_(x.capital))))];
+      more: () => `${office(n)}所在地は${c.capital}。` + (ken && ken.note ? ken.note : ''), src: () => (ken && ken.sources) || [] }, four(T_(c.capital), w.map((x) => T_(x.capital))))];
   }
   const CATQ = { 特産: '特産', 食: '名物の食べ物', 名所: '名所', 歴史: 'ゆかりの歴史', 祭り: 'お祭り' };
   function qItems(n) {
@@ -94,7 +94,7 @@
         const w = wrongs(pool, n, (x) => x.name, [it.name]);
         if (w.length < 3) continue;
         out.push(Object.assign({ id: 'item:' + n + it.name, lid: 'item:' + n + it.name, lv: 'mid', kind: CATQ[cat], text: `${FULL(n)}の${CATQ[cat]}はどれ？`,
-          more: () => (it.text ? it.text.slice(0, 2).join('') : '') }, four(T_(it.name), w.map((x) => T_(x.name)))));
+          more: () => (it.text ? it.text.slice(0, 2).join('') : ''), src: () => it.sources || [] }, four(T_(it.name), w.map((x) => T_(x.name)))));
       }
     }
     return out;
@@ -104,7 +104,7 @@
     for (const it of IN.items.filter((x) => x.pref === n && x.cat === '祭り' && (x.months || []).length === 1 && !x.name.includes('月'))) {
       const m = it.months[0], far = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].filter((k) => Math.min(Math.abs(k - m), 12 - Math.abs(k - m)) >= 2));
       out.push(Object.assign({ id: 'month:' + n + it.name, lid: 'item:' + n + it.name, lv: 'mid', kind: 'お祭りの月', text: `${FULL(n)}の「${it.name}」が行われるのは何月？`,
-        more: () => [it.when, it.text && it.text[0]].filter(Boolean).join('　') }, four({ t: m + '月', m }, far.slice(0, 3).map((k) => ({ t: k + '月', m: k })), (a, b) => a.m - b.m)));
+        more: () => [it.when, it.text && it.text[0]].filter(Boolean).join('　'), src: () => it.sources || [] }, four({ t: m + '月', m }, far.slice(0, 3).map((k) => ({ t: k + '月', m: k })), (a, b) => a.m - b.m)));
     }
     return out;
   }
@@ -117,7 +117,7 @@
       for (const y of (IN.yama || []).filter((x) => x.pref === n && x.kind === kind && cnt.get(x.name) === 1 && !hasPref(x.name))) {
         const w = wrongs(pool, n, (x) => x.name, [y.name]);
         if (w.length < 3) continue;
-        out.push(Object.assign({ id: 'yama:' + n + y.name, lid: 'yama:' + n + y.name, lv: 'mid', kind, text: `${FULL(n)}にある${kind}は？`, more: () => y.note || '' },
+        out.push(Object.assign({ id: 'yama:' + n + y.name, lid: 'yama:' + n + y.name, lv: 'mid', kind, text: `${FULL(n)}にある${kind}は？`, more: () => y.note || '', src: () => y.sources || [] },
           four(T_(y.name), w.map((x) => T_(x.name)))));
       }
     }
@@ -132,7 +132,7 @@
       let w = wrongs(same, n, (x) => x.name, [s.name]);
       if (w.length < 3) w = wrongs(pool, n, (x) => x.name, [s.name]);
       if (w.length < 3) continue;
-      out.push(Object.assign({ id: 'spot:' + n + s.name, lid: 'spot:' + s.name, lv: 'mid', kind: '名所', text: `${FULL(n)}にあるのはどれ？`, more: () => s.note || '' },
+      out.push(Object.assign({ id: 'spot:' + n + s.name, lid: 'spot:' + s.name, lv: 'mid', kind: '名所', text: `${FULL(n)}にあるのはどれ？`, more: () => s.note || '', src: () => s.sources || [] },
         four(T_(s.name), w.map((x) => T_(x.name)))));
     }
     return out;
@@ -144,7 +144,7 @@
       const w = shuffle(others.slice()).slice(0, 3);
       if (w.length < 3) continue;
       out.push(Object.assign({ id: 'en:' + n + e.id, lv: 'mid', kind: '縁', text: `${FULL(n)}が入っている「縁」（昔の道や、日本三大〇〇など）はどれ？`,
-        more: () => `${e.name}：${e.teaser}。${(e.lines || [])[0] || ''}` }, four(T_(e.name), w.map((x) => T_(x.name)))));
+        more: () => `${e.name}：${e.teaser}。${(e.lines || [])[0] || ''}`, src: () => e.sources || [] }, four(T_(e.name), w.map((x) => T_(x.name)))));
     }
     return out;
   }
@@ -157,7 +157,8 @@
       const w = shuffle(notIn.slice()).slice(0, 3), top = r === 0;
       out.push(Object.assign({ id: 'crop:' + n + c.name, lid: 'crop:' + c.name, lv: top ? 'hard' : 'mid', kind: '産地',
         text: top ? `${FULL(n)}が全国1位の品目は？` : `${FULL(n)}が全国${c.top.length}位までに入っている品目は？`,
-        more: () => `${c.name}（${c.measure}・${c.year}）：` + c.top.map((t, i) => `${i + 1}位 ${FULL(t.pref)} ${fmt(t.value)}${t.unit}`).join('　') + `。出どころ：${c.survey}` },
+        more: () => `${c.name}（${c.measure}・${c.year}）：` + c.top.map((t, i) => `${i + 1}位 ${FULL(t.pref)} ${fmt(t.value)}${t.unit}`).join('　') + '。',
+        src: () => [{ title: `${c.survey}「${c.measure}」（${c.year}）`, url: c.url }] },
       four(T_(c.name), w.map((x) => T_(x.name)))));
     }
     return out;
@@ -166,8 +167,8 @@
   function qNums(n) {
     const S = (IN.spec && IN.spec.prefs) || [], me = S.find((x) => x.pref === n);
     if (!me) return [];
-    const src = Object.values(IN.spec.sources || {}).map((s) => s && s.title).filter(Boolean).join('・');
-    const all = () => `人口 ${fmt(me.population)}人・面積 ${fmt(me.area)}km²・市 ${me.cities}・町 ${me.towns}・村 ${me.villages}。` + (me.note ? me.note + '。' : '') + (src ? `出どころ：${src}` : '');
+    const SS = IN.spec.sources || {}, srcs = () => ['population', 'area', 'municipalities'].map((k) => SS[k]).filter((s) => s && s.title);
+    const all = () => `人口 ${fmt(me.population)}人・面積 ${fmt(me.area)}km²・市 ${me.cities}・町 ${me.towns}・村 ${me.villages}。` + (me.note ? me.note + '。' : '');
     const pop = (v) => (v >= 1e6 ? `約${fmt(Math.round(v / 1e5) * 10)}万人` : `約${Math.round(v / 1e4)}万人`);
     const area = (v) => `約${fmt(Math.round(v / 100) * 100)}km²`;
     const out = [];
@@ -182,7 +183,7 @@
         if (ws.length >= 3) break;
       }
       if (ws.length < 3) return;
-      out.push(Object.assign({ id: kind + ':' + n, lv: 'hard', kind, text, more: all },
+      out.push(Object.assign({ id: kind + ':' + n, lv: 'hard', kind, text, more: all, src: srcs },
         four({ t: label(v), v }, ws.map((x) => ({ t: label(x[key]), v: x[key] })), (a, b) => a.v - b.v)));
     };
     const ratio = (r) => (a, b) => Math.max(a, b) / Math.min(a, b) >= r;
@@ -206,7 +207,7 @@
       let w = wrongs(same, n, (x) => x.title, [d.title]);
       if (w.length < 3) w = wrongs(pool, n, (x) => x.title, [d.title]);
       if (w.length < 3) continue;
-      out.push(Object.assign({ id: 'mame:' + d.id, lid: 'mame:' + d.id, mame: d.id, lv: 'hard', kind: '豆知識', text: `${FULL(n)}の豆知識はどれ？`, more: () => d.text || '' },
+      out.push(Object.assign({ id: 'mame:' + d.id, lid: 'mame:' + d.id, mame: d.id, lv: 'hard', kind: '豆知識', text: `${FULL(n)}の豆知識はどれ？`, more: () => d.text || '', src: () => d.sources || [] },
         four(T_(d.title), w.map((x) => T_(x.title)))));
     }
     return out;
@@ -217,7 +218,7 @@
       if (d.title.includes(d.eki)) continue;
       const others = shuffle(names.filter((s) => s !== d.eki && !d.title.includes(s))).slice(0, 3);
       if (others.length < 3) continue;
-      out.push(Object.assign({ id: 'eki:' + d.id, lid: 'mame:' + d.id, mame: d.id, lv: 'hard', kind: '駅の豆知識', text: `駅の豆知識「${d.title}」。この話の駅は？`, more: () => d.text || '' },
+      out.push(Object.assign({ id: 'eki:' + d.id, lid: 'mame:' + d.id, mame: d.id, lv: 'hard', kind: '駅の豆知識', text: `駅の豆知識「${d.title}」。この話の駅は？`, more: () => d.text || '', src: () => d.sources || [] },
         four(T_(d.eki + '駅'), others.map((s) => T_(s + '駅')))));
     }
     return out;
@@ -405,7 +406,7 @@
   function begin(remote) {
     const go = async () => {
       if (M.sel >= 0) M.back();
-      G = { route: [], round: 0, pref: 0, step: 0, used: new Set(), kc: {}, know: 0, okN: 0, qn: 0, km: 0, bonusLeft: BONUS, remote: !!(remote && API) };
+      G = { route: [], round: 0, pref: 0, step: 0, used: new Set(), kc: {}, know: 0, okN: 0, qn: 0, km: 0, bonusLeft: BONUS, remote: !!(remote && API), read: [] };
       if (G.remote) {
         const me = G;
         head(false);
@@ -551,6 +552,40 @@
     };
     send();
   }
+  // 出どころ（本人 2026-11-11「答えの解説に出典元へのリンクを付けると、もっと知りたい人に丁寧」）：たたんだ1行から開く。
+  // 開いたままにすると、出どころの長い題でスマホの「つぎの問い」が下へ押し出される。押すとファイルが落ちる物（e-Stat の表・PDF）は種類を添える
+  const fileTag = (u) => (/e-stat\.go\.jp\/stat-search\/(file-download|files\/data)/.test(u) ? '（Excelの表）' : /\.pdf$/i.test(u.split(/[?#]/)[0]) ? '（PDF）' : '');
+  function links(list) {
+    const ol = el('ol');
+    for (const s of list) {
+      const li = el('li'), u = M.safeUrl ? M.safeUrl(s.url) : null;
+      if (u) { const a = el('a', null, s.title + fileTag(u)); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; li.appendChild(a); } else li.textContent = s.title;
+      ol.appendChild(li);
+    }
+    return ol;
+  }
+  function srcBox(det, list) {
+    const ok = (list || []).filter((s) => s && s.title);
+    if (!ok.length) return false;
+    det.append(el('summary', null, `もっと知りたい方へ：出どころ（${ok.length}件）`), links(ok),
+      el('p', 'note', 'リンクは別のタブで開きます。遊び終わった後の画面にも、今回の出どころをまとめて出します。'));
+    return true;
+  }
+  // 遊び終わった後に、今回の問いの出どころをまとめて（途中で別のタブへ移らずに読めるように。同じリンクは1回だけ）
+  function srcAll() {
+    const det = el('details', 'src all'), seen = new Set();
+    let n = 0;
+    for (const r of G.read) {
+      const list = (r.q.src() || []).filter((s) => s && s.title && !seen.has(s.url || s.title));
+      if (!list.length) continue;
+      for (const s of list) seen.add(s.url || s.title);
+      det.append(el('p', 'grp', `${prefOf(r.pref).name}・${r.q.kind}：${r.right}`), links(list));
+      n++;
+    }
+    if (!n) return null;
+    det.prepend(el('summary', null, `今回の問いの出どころ（${n}問ぶん）`));
+    return det;
+  }
   function settle(i, ok, pts, ri, next) {
     const q = G.q;
     G.qn++;
@@ -563,9 +598,13 @@
     if (st) { st.children[1].textContent = `知識 ${G.know}点`; st.children[2].textContent = `旅 ${fmt(Math.round(G.km))}km`; }
     const res = el('div', 'res ' + (ok ? 'ok' : 'ng')), right = q.opts[ri];
     res.appendChild(el('b', null, ok ? `正解！ +${pts}点` + (q.lv === 'hard' ? '（むずかしい問いの＋10点つき）' : '') : `ざんねん。正解は「${right.t}」`));
-    const more = el('p', 'more', q.more() || '説明を読み込んでいます…');
-    if (!q.more()) M.loadIntro(G.pref).then(() => { more.textContent = q.more() || ''; }, () => { more.textContent = '説明を読めませんでした（通信を確かめてください）'; });
-    res.appendChild(more);
+    // 説明と出どころ：紹介・豆知識・目印・山と湖の文と出どころは県ごとのファイル（県庁の問いは、説明が先に出せても出どころがまだ届いていない）
+    const more = el('p', 'more', q.more() || '説明を読み込んでいます…'), det = el('details', 'src');
+    const fill = () => { if (q.more()) more.textContent = q.more(); det.textContent = ''; det.hidden = !srcBox(det, q.src()); };
+    fill();
+    M.loadIntro(G.pref).then(() => { if (res.isConnected) fill(); }, () => { if (!q.more()) more.textContent = '説明を読めませんでした（通信を確かめてください）'; });
+    res.append(more, det);
+    G.read.push({ q, pref: G.pref, right: right.t });
     if (G.step === 0 && !ok) res.appendChild(el('p', 'cut', '1問目をまちがえたので、旅の線はこの県で切れます。'));
     if (q.mame && window.MAME) MAME.record(q.mame);
     if (q.lid) dispatchEvent(new CustomEvent('deai', { detail: { id: q.lid, pref: G.pref } }));     // であい帖へ（答えの説明を読むので、知った物に数える）
@@ -638,7 +677,10 @@
     const row = el('div', 'row'), again = el('button', 'big', 'もう一度'), rk = el('button', 'big sub', '番付を見る'), was = G.remote;
     again.addEventListener('click', () => begin(was)); rk.addEventListener('click', rankView);
     row.append(again, rk);
-    box.append(row, el('p', 'note', !kept ? 'この画面では記録を残せません（プライベートモードなど）' : f ? 'この端末にも記録を残します。' : API ? '記録はこの端末の中だけに残します。' : '記録はこの端末の中だけに残します（みんなの番付は準備中）'));
+    box.appendChild(row);
+    const all = srcAll();
+    if (all) box.appendChild(all);
+    box.append(el('p', 'note', !kept ? 'この画面では記録を残せません（プライベートモードなど）' : f ? 'この端末にも記録を残します。' : API ? '記録はこの端末の中だけに残します。' : '記録はこの端末の中だけに残します（みんなの番付は準備中）'));
     M.tourLift(-1);
     M.view(Object.assign({}, M.HOME));
   }
@@ -700,6 +742,6 @@
   addEventListener('keydown', (e) => { if (e.code === 'Escape' && box.classList.contains('open') && !e.target.closest('input')) { stop(); e.stopImmediatePropagation(); } }, true);
 
   // 検査用：問いの台帳（県ごと）・遊びの状態
-  window.SUGO = { open, stop, bank, titleOf, nameErr, answer, get playing() { return !!(G && !G.over); },get prof() { return L.prof && Object.assign({ shown: shown() }, L.prof); }, get best() { return L.best; },
+  window.SUGO = { open, stop, bank, titleOf, nameErr, answer, fileTag, get playing() { return !!(G && !G.over); },get prof() { return L.prof && Object.assign({ shown: shown() }, L.prof); }, get best() { return L.best; },
     get state() { return G && { round: G.round, pref: G.pref, step: G.step, know: G.know, km: G.km, route: G.route.map((r) => Object.assign({}, r)), q: G.q && { id: G.q.id, lv: G.q.lv, kind: G.q.kind, ans: G.q.ans, n: G.q.opts.length }, done: G.done, next: !!G.next, over: !!G.over, spinning: !!G.spinning, remote: !!G.remote, fin: G.fin || null }; }, get api() { return API; } };
 })();
