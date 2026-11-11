@@ -176,6 +176,8 @@
     uPpk: { value: 1 }, uDpr: { value: 1 }, uHideId: { value: -1 }, uPop: { value: 0 }, uNight: { value: 0 }, uDusk: { value: 0 }, uTime: { value: 0 }, uCloud: { value: 1 }, uWind: { value: new T.Vector2(1, 0) }, uLand: { value: null }, uLuOn: { value: 0 }, uNear3D: { value: 0 }, uPatK: { value: 0.01 }, uConOdds: { value: 1 },
     // 県の中の山の強め方の倍率（1＝5倍のまま。空を飛ぶ間は旅.js が高さで決める）・木と家の絵の大きさの倍率・絵の大きさの上限（0＝いつもの上限）
     uInY: { value: 1 }, uPtK: { value: 1 }, uPxMax: { value: 0 }, uNearR: { value: 0 }, uNearK: { value: 0 },
+    // 七色の海（番付の特典の見本・2026-11-11）：x＝濃さ（0〜1・なめらかに寄せる）、y＝色の帯を流す時刻（動きを減らす設定の端末では止める）
+    uNana: { value: new T.Vector2(0, 0) },
   };
   // 町の濃さ（2.5km の升ごとの町丁目の数。鳥瞰.js）。無い時は町を描かない
   const TOWN = window.CHOKAN && window.CHOKAN.town;
@@ -489,7 +491,7 @@
       gl_Position = projectionMatrix * mv;
     }`;
   const FS_SEA = `
-    uniform sampler2D uMask; uniform vec4 uBox; uniform vec3 uSea, uShallow, uFoam; uniform float uTime;
+    uniform sampler2D uMask; uniform vec4 uBox; uniform vec3 uSea, uShallow, uFoam; uniform float uTime; uniform vec2 uNana;
     ${FINISH}
     varying vec3 vW; varying float vDist;
     float land(vec2 p) { return texture2D(uMask, vec2((p.x - uBox.x) / uBox.z, 1.0 - (p.y - uBox.y) / uBox.w)).r; }
@@ -512,13 +514,37 @@
       float wide = textureLod(uMask, uv, 6.0).r;
       vec3 c = mix(uSea * vec3(0.80, 0.86, 0.92), uSea, smoothstep(0.0, 0.25, wide));
       c = mix(c, uShallow, smoothstep(0.02, 0.45, a));
+      // 七色の海：ゆがんだ帯で7色がめぐる。海の色の明るさと淡さはそのままに、色合いだけを回す（別の色を混ぜると、青に混ざって
+      // 暖かい色が濁り、強くすると天気図のようになった）。帯は1分で1めぐり（uTime は1時間で0へ戻るので、1時間にちょうど60めぐり）
+      vec3 rb = vec3(0.0), sc = vec3(0.0);
+      float spark = 0.0;
+      if (uNana.x > 0.001) {
+        float h = fract(dot(p, vec2(0.0006, 0.0004)) + vnoise(p / 700.0) * 0.25 + uNana.y / 60.0);
+        rb = mix(0.5 + 0.5 * cos(6.2832 * (h + vec3(0.0, 0.333, 0.667))), vec3(1.0), 0.42);
+        vec3 y = mat3(0.299, 0.596, 0.211, 0.587, -0.274, -0.523, 0.114, -0.322, 0.312) * c;
+        float ang = atan(y.z, y.y) + 6.2832 * h, ch = length(y.yz) * 0.62;
+        float yel = max(0.0, cos(ang + 0.77));     // 黄色の向き（黄色は海の暗さのままだと、オリーブや土色の濁った水に見えた）
+        vec3 turned = clamp(mat3(1.0, 1.0, 1.0, 0.956, -0.272, -1.106, 0.621, -0.647, 1.703) * vec3(y.x + 0.04 + 0.11 * yel * yel, ch * cos(ang), ch * sin(ang)), 0.0, 1.0);
+        c = mix(c, turned, uNana.x * (0.9 - 0.3 * smoothstep(0.02, 0.45, a)));
+        // 光の粒：沖にまばらに、1つずつゆっくり灯っては消える（色はその場の七色を明るくした物。大きさは画面で約2画素）。
+        // 全国の眺めの奥（霧の始まり＝カメラから見ている所までの距離のあたり）より遠くでは消す（遠くは粒がつぶれて混み、紙吹雪に見えた）
+        vec2 gq = p / 110.0, gi = floor(gq), gf = (fract(gq) - 0.5) * 110.0;
+        vec2 go = (vec2(hash2(gi + 1.7), hash2(gi + 8.3)) - 0.5) * 80.0;
+        float tw = 0.5 + 0.5 * sin(uNana.y * 0.9 + hash2(gi + 4.4) * 6.2832);
+        float pxw = length(fwidth(p));
+        spark = (1.0 - smoothstep(pxw * 0.8, pxw * 2.4, length(gf - go))) * step(hash2(gi + 6.1), 0.3) * smoothstep(0.55, 1.0, tw)
+          * uNana.x * (1.0 - smoothstep(0.02, 0.3, a)) * (1.0 - smoothstep(uFogNear, uFogNear * 1.35, vDist));
+        sc = mix(rb, vec3(1.0), 0.55);
+        c = mix(c, sc, spark);
+      }
       vec2 g = f - (vec2(hash2(id), hash2(id + 5.3)) - 0.5) * 0.4;
       float arc = abs(length(g - vec2(0.0, 0.12)) - 0.16);
       float on = (1.0 - smoothstep(0.0, px * 1.2 + 0.01, arc - 0.012)) * step(g.y, 0.08) * step(hash2(id + 2.1), 0.35)
         * (0.35 + 0.65 * (0.5 + 0.5 * sin(uTime * 0.7 + hash2(id + 9.7) * 6.283)));
       c = mix(c, uFoam, on * 0.55 * (1.0 - smoothstep(0.1, 0.4, a)) * (1.0 - smoothstep(0.05, 0.11, px)));
       c = mix(c, uFoam, smoothstep(0.25, 0.6, near) * 0.75);
-      gl_FragColor = vec4(finish(c, vec3(0.0), vDist), 1.0);
+      // 夜の七色の海は、月夜に沈めた後から光らせる（夜光虫のように。光の粒も沈めずに灯す）
+      gl_FragColor = vec4(finish(c, vec3(0.0), vDist) + (rb * uNana.x * 0.26 * (1.0 - smoothstep(uFogNear, uFogFar, vDist)) + sc * spark * 0.8) * uNight, 1.0);
     }`;
 
   // 押した県を当てる：県の番号を色にして、指の下の1点だけ描く
@@ -585,6 +611,7 @@
   // 幅は画面で約 BOB_PX 画素（寄っても引いても同じ見え方）。lift は浮かせる高さ（せり上がりの検査・しきい値）、描く高さは lift＋bobY
   const bobA = new Float32Array(NS), bobAV = new Float32Array(NS), bobY = new Float32Array(NS), BOB_PX = 8, BOB_T = 5.2;
   const calm = matchMedia('(prefers-reduced-motion: reduce)');
+  let nanaOn = /[?&]nanairo=1/.test(location.search) ? 1 : 0;     // 七色の海の見本は ?nanairo=1 で（番付の特典につなぐのは、見た目が決まってから）
   const liftY = (k) => lift[k] + bobY[k];
 
   function assemble() {
@@ -1587,6 +1614,8 @@
     U.uNight.value += (nightT - U.uNight.value) * (1 - Math.exp(-dt * 2.5));
     if (Math.abs(nightT - U.uNight.value) < 1e-3) U.uNight.value = nightT;
     U.uTime.value = tStop != null ? tStop : (performance.now() / 1000) % 3600;
+    U.uNana.value.x += (nanaOn - U.uNana.value.x) * (1 - Math.exp(-dt * 1.2));
+    if (!calm.matches) U.uNana.value.y = U.uTime.value;
     U.uCloud.value = 1 - U.uNight.value;
     U.uDusk.value += (duskT - U.uDusk.value) * (1 - Math.exp(-dt * 2.5));
     if (Math.abs(duskT - U.uDusk.value) < 1e-3) U.uDusk.value = duskT;
@@ -1711,6 +1740,7 @@
     get bob() { return { a: Array.from(bobA), y: Array.from(bobY) }; },
     // 検査用：絵の具の時刻を止める・戻す。2枚を撮って比べる時、時刻で流れる雲の影が差に混ざった（2026-11-02 海津の水路）
     stopTime(on) { tStop = on ? U.uTime.value : null; },
+    nanairo(on, now) { nanaOn = on ? 1 : 0; if (now) U.uNana.value.x = nanaOn; },
     // 検査用：空の雲（出ているか・風の向き・位置と幅・濃さ）
     get clouds() { return { on: cloudMesh.visible, wind: wd.slice(), pos: Array.from(cPos), inf: Array.from(cInf), base: clouds.map((c) => c.a), cam: camera.position.toArray() }; },
     screenOf(k) { const p = P[k]; tmp.set(p.ax, p.ay + liftY(k), p.az).project(camera); return [(tmp.x + 1) / 2 * VW, (1 - tmp.y) / 2 * VH]; },

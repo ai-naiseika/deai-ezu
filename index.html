@@ -842,6 +842,7 @@
     #bar .dock .pop { position: fixed; left: 6px; right: 6px; bottom: calc(var(--bar-h) + 10px); transform: none; width: auto; max-width: none; }
     #note { left: 6px; bottom: calc(var(--bar-h) + 6px); max-width: calc(100vw - 12px); font-size: 10px; line-height: 1.5; pointer-events: auto;
       max-height: 1.5em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: rgba(250,244,226,.85); padding: 1px 6px; box-sizing: border-box; }
+    body.night #note { color: #6a6250; }     /* 帯が明るいので、夜も昼の字の色（夜の明るい字のままだと、明るい帯の上で読めなかった 2026-11-11） */
     body:has(#card.open) #note, body:has(#legend.open) #note, body:has(#mame-card.open) #note, body:has(#eki-card.open) #note, body.touring #note { display: none; }
     body.opening #note { bottom: 6px; }
     body:has(#card.open) #mame-open, body:has(#card.open) #fuda-open, body:has(#card.open) #deai-open { display: none; }
@@ -916,6 +917,7 @@
     #bar .ico svg { width: 20px; height: 20px; }
     #note { left: 8px; bottom: 8px; max-width: min(200px, calc(50vw - 245px)); font-size: 10px; line-height: 1.5; pointer-events: auto;
       max-height: 1.5em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: rgba(250,244,226,.85); padding: 1px 6px; box-sizing: border-box; }
+    body.night #note { color: #6a6250; }
     #legend { left: 12px; top: 156px; max-height: calc(100vh - 170px); overflow-y: auto; box-sizing: border-box; }
   }
 </style>
