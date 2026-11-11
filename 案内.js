@@ -435,13 +435,15 @@
     d.textContent = Object.entries(MARK).map(([k, v]) => `${k} ${v}`).join('　') + (IN.updated ? `　（${IN.updated} 時点）` : '');
     return d;
   }
-  M.openItem = (it) => { if (cardK >= 0) openItem(it); };       // 遊覧から、着いた名所のくわしい説明を札の窓に出す
+  M.openItem = (it, show) => { if (cardK >= 0) openItem(it, show); };       // 遊覧から、着いた名所のくわしい説明を札の窓に出す（show＝遊覧中でも窓を開く）
   // 遊覧の行き先の印は、灯りの外でも名前の札を出す（本人 2026-10-30「マウスを重ねなくてもその場所のカード表示していい。観光してるのだし」）
   M.tourPin = (it) => { for (const q of pins) { q.tour = q.it === it; q.el.classList.toggle('tour', q.tour); } };
   M.MARK = MARK; M.safeUrl = safeUrl;                            // 全国の遊覧の札も、同じ印と同じ確かめ方で
-  function openItem(it) {
+  function openItem(it, show) {
     dispatchEvent(new CustomEvent('deai', { detail: { id: 'item:' + it.pref + it.name, pref: it.pref } }));     // であい帖へ
-    if (!document.body.classList.contains('touring')) mini(false);   // スマホの県の中では札の窓をたたんでいるので、開いて説明を見せる（たたんだままだと、印を押しても何も出なかった）
+    // スマホの県の中では札の窓をたたんでいるので、開いて説明を見せる（たたんだままだと、印を押しても何も出なかった）。
+    // 遊覧中も「くわしく」から来た時は開く（本人 2026-11-11「遊覧中に詳しくを押しても出典へのリンクなどが出ない」＝たたんだ窓に書いていた）
+    if (show || !document.body.classList.contains('touring')) mini(false);
     const box = $('#c-intro'); box.textContent = '';
     const back = el('button', null, '‹ 一覧へ'); back.addEventListener('click', () => renderList(cardK)); box.appendChild(back);
     const d = el('div', 'detail');

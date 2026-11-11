@@ -1117,7 +1117,7 @@
         mode: e.pointerType !== 'mouse' || e.button === 2 || e.button === 1 || e.shiftKey ? 'pan' : 'rot' };
     } else if (ptrs.size === 2) {
       const [a, b] = [...ptrs.values()], mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, d = Math.hypot(a.x - b.x, a.y - b.y), an = Math.atan2(b.y - a.y, b.x - a.x);
-      drag = { mode: 'pinch', kind: '', moved: true, d, mx, my, an, pa: { ...a }, pb: { ...b }, d0: d, mx0: mx, my0: my, an0: an, pa0: { ...a }, pb0: { ...b } };
+      drag = { mode: 'pinch', kind: '', moved: true, d, mx, my, an, d0: d, mx0: mx, my0: my, an0: an };
     }
   };
   cv.addEventListener('pointerdown', down);
@@ -1137,23 +1137,17 @@
         const sx = mx - drag.mx0, sy = my - drag.my0, sr = Math.abs(Math.log(d / drag.d0)), sa = Math.abs(turn(an - drag.an0));
         if (Math.hypot(sx, sy) > 14 || sr > 0.08 || sa > 0.12) {
           drag.kind = Math.abs(sy) > 2 * Math.abs(sx) && sr < 0.08 && sa < 0.12 ? 'tilt' : 'zoom';
-          Object.assign(drag, { d: drag.d0, mx: drag.mx0, my: drag.my0, an: drag.an0, pa: drag.pa0, pb: drag.pb0 });     // 決めるまでに動いた分も、まとめて効かせる
+          Object.assign(drag, { d: drag.d0, mx: drag.mx0, my: drag.my0, an: drag.an0 });     // 決めるまでに動いた分も、まとめて効かせる
         }
       }
       if (drag.kind === 'tilt') goal.ph = clamp(goal.ph + (my - drag.my) * 0.004, PH[0], PH[1]);
       else if (drag.kind === 'zoom') {
+        // 寄る・動かすだけで、ひねっても回さない（本人 2026-11-11「地図に寄って行ったときも基本は南を下に。特にスマホ」。前はひねった分だけ回していて、
+        // 広げて寄るたびに指が少しねじれて南が下からずれた）。向きは「向き」のボタンと方位で変える
         zoomAt(mx, my, drag.d / d);
-        // ひねった分だけ回す。回す角は地面の上で測る（斜めに見下ろす眺めでは、画面の上の角と地面の上の角が違い、指から地面が遅れた）。
-        // 指の真ん中の下の地面が、指の下に残るように回す
-        const g = [ground(drag.pa.x, drag.pa.y, cam.y), ground(drag.pb.x, drag.pb.y, cam.y), ground(a.x, a.y, cam.y), ground(b.x, b.y, cam.y)];
-        const da = g.every(Boolean) ? turn(Math.atan2(g[3].z - g[2].z, g[3].x - g[2].x) - Math.atan2(g[1].z - g[0].z, g[1].x - g[0].x)) : turn(an - drag.an);
-        const p0 = ground(mx, my, cam.y);
-        goal.th = cam.th = cam.th - da; camV.th = 0; place();
-        const p1 = p0 && ground(mx, my, cam.y);
-        if (p1) { cam.x += p0.x - p1.x; cam.z += p0.z - p1.z; keepIn(cam); goal.x = cam.x; goal.z = cam.z; camV.x = camV.z = 0; place(); }
         panBy(drag.mx, drag.my, mx, my);
       }
-      Object.assign(drag, { d, mx, my, an, pa: { ...a }, pb: { ...b } });
+      Object.assign(drag, { d, mx, my, an });
       return;
     }
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;

@@ -58,9 +58,10 @@
   function inStops(w, k) {
     const items = IN.items.filter((it) => it.pref === M.P[k].n);
     return route(items).map((it) => ({
-      x: it.x, z: it.z, y: M.groundY(k, it.x, it.z), D: D_STOP, ph: PH_STOP, th: null, k: -1,
+      // 北が上のまま飛ぶ（本人 2026-11-11「地図に寄って行ったときも基本は南を下に。特にスマホ」。前は th: null で、進む向きへ回っていた）
+      x: it.x, z: it.z, y: M.groundY(k, it.x, it.z), D: D_STOP, ph: PH_STOP, th: 0, k: -1,
       it, name: it.name, cat: it.cat, text: (it.text && it.text[0]) || '', when: it.when || '', months: it.months || [],
-      more: () => { if (M.openItem) M.openItem(it); },
+      more: () => { if (M.openItem) M.openItem(it, true); if (!$('#card').offsetWidth) showItem(it); },
     }));
   }
   function startN() {
@@ -83,18 +84,34 @@
       };
     });
   }
+  const link = (title, url) => {
+    const a = document.createElement('a'), u = M.safeUrl(url);
+    a.textContent = title || url;
+    if (u) { a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+    return a;
+  };
+  const srcList = (d, sources) => {
+    const ol = document.createElement('ol');
+    for (const s of sources || []) { const li = document.createElement('li'); li.appendChild(link(s.title, s.url)); ol.appendChild(li); }
+    if (ol.childNodes.length) { d.appendChild(document.createTextNode('出どころ')); d.appendChild(ol); }
+  };
+  // 県の中の「くわしく」：パソコンは札の窓に出す。スマホは遊覧中は札の窓を隠しているので、遊覧の札の中に説明の続きと出どころを
+  // （本人 2026-11-11「遊覧中に詳しくを押しても出典へのリンクなどが出ない」＝隠れた札の窓に書いていた）。文は県ごとのファイルで後から届く
+  function showItem(it) {
+    const fill = () => {
+      const d = $('#t-src');
+      d.textContent = '';
+      for (const t of (it.text || []).slice(1)) { const p = document.createElement('p'); p.textContent = t; d.appendChild(p); }
+      srcList(d, it.sources);
+      box.classList.add('src');
+    };
+    if (it.text == null && M.loadIntro) M.loadIntro(it.pref).then(fill, fill); else fill();
+  }
   // 全国の「くわしく」：出どころと県の公式サイトを、遊覧の札の中に並べる（別のタブは、押した時だけ開く）
   function showSources(t, p) {
-    const d = $('#t-src'), link = (title, url) => {
-      const a = document.createElement('a'), u = M.safeUrl(url);
-      a.textContent = title || url;
-      if (u) { a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; }
-      return a;
-    };
+    const d = $('#t-src');
     d.textContent = '';
-    const ol = document.createElement('ol');
-    for (const s of t.sources || []) { const li = document.createElement('li'); li.appendChild(link(s.title, s.url)); ol.appendChild(li); }
-    if (ol.childNodes.length) { d.appendChild(document.createTextNode('出どころ')); d.appendChild(ol); }
+    srcList(d, t.sources);
     if (t.url) d.appendChild(link(`${M.FULL(p.name)}の公式サイト ›`, t.url));
     box.classList.add('src');
   }
