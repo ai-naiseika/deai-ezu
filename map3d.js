@@ -491,10 +491,75 @@
       gl_Position = projectionMatrix * mv;
     }`;
   const FS_SEA = `
-    uniform sampler2D uMask; uniform vec4 uBox; uniform vec3 uSea, uShallow, uFoam; uniform float uTime; uniform vec2 uNana;
+    uniform sampler2D uMask; uniform vec4 uBox; uniform vec3 uSea, uShallow, uFoam; uniform float uTime, uDpr; uniform vec2 uNana;
     ${FINISH}
     varying vec3 vW; varying float vDist;
     float land(vec2 p) { return texture2D(uMask, vec2((p.x - uBox.x) / uBox.z, 1.0 - (p.y - uBox.y) / uBox.w)).r; }
+    // 七色の海の夜＝満天の星空（本人 2026-11-11「夜は海を満天の星空のような夜空に。ところどころ銀河も小さく見えてもいい、ちょっと神秘的な」）。
+    // 星は3段（明るい・ふつう・かすか。暗い星ほど多い）。大きさは画面の画素で決め、升が画面で細かすぎる段は消す（砂に見えないよう）
+    vec3 starsAt(vec2 p, float cell, float prob, float seed, float pxw, float bright) {
+      if (cell / pxw < 2.5) return vec3(0.0);
+      vec2 i = floor(p / cell), f = p - (i + 0.5) * cell;
+      if (hash2(i + seed) > prob) return vec3(0.0);
+      float m = hash2(i + seed + 3.7);
+      vec2 d = (f - (vec2(hash2(i + seed + 1.3), hash2(i + seed + 7.1)) - 0.5) * cell * 0.6) / pxw;
+      float rpx = mix(0.6, 1.6, m * m) * max(1.0, uDpr * 0.8), r = length(d);
+      float lit = 1.0 - smoothstep(rpx * 0.4, rpx * 1.2, r);
+      lit += exp(-r * r / (rpx * rpx * 5.0)) * 0.3 * m;
+      lit += step(0.9, m) * bright * (exp(-abs(d.y) / 0.7 - abs(d.x) / (rpx * 4.0)) + exp(-abs(d.x) / 0.7 - abs(d.y) / (rpx * 4.0))) * 0.5;
+      float tw = 0.72 + 0.28 * sin(uNana.y * (0.5 + m) + hash2(i + seed + 5.5) * 6.2832);
+      vec3 tint = mix(vec3(0.72, 0.82, 1.0), vec3(1.0, 0.88, 0.72), hash2(i + seed + 9.9));
+      return tint * bright * (0.3 + 0.7 * m * m) * lit * tw * smoothstep(2.5, 6.0, cell / pxw);
+    }
+    // 小さな銀河：650 の升に1つまで（3割）。傾けた渦巻き（明るい芯と2本の腕）か、楕円のぼんやりした光。画面で半径7画素より小さくしない
+    vec3 galaxyAt(vec2 p, float pxw) {
+      vec2 i = floor(p / 650.0), f = p - (i + 0.5) * 650.0;
+      if (hash2(i + 3.1) > 0.3) return vec3(0.0);
+      vec2 d = f - (vec2(hash2(i + 5.7), hash2(i + 9.2)) - 0.5) * 380.0;
+      float an = hash2(i + 2.2) * 6.2832, sn = sin(an), cs = cos(an);
+      d = vec2(cs * d.x - sn * d.y, sn * d.x + cs * d.y);
+      float R = max(26.0 + 34.0 * hash2(i + 4.4), pxw * 10.0);
+      vec2 e = vec2(d.x, d.y / (0.3 + 0.6 * hash2(i + 7.7))) / R;
+      float r = length(e);
+      if (r > 2.2) return vec3(0.0);
+      float arm = 0.5 + 0.5 * cos(2.0 * atan(e.y, e.x) - log(r + 0.04) * 5.0);
+      float disk = exp(-r * 2.6) * mix(1.0, 0.25 + 0.75 * arm * arm, step(0.35, hash2(i + 8.8)));
+      vec3 tint = mix(vec3(0.62, 0.72, 1.0), vec3(0.95, 0.68, 0.9), hash2(i + 1.3));
+      return vec3(1.0, 0.93, 0.8) * exp(-r * r * 12.0) * 0.95 + tint * disk * 0.7;
+    }
+    // 岸のホタルイカの光の粒（升が画面で細かすぎる時は描かない）。ゆっくり明滅する
+    float glintAt(vec2 p, float cell, float prob, float seed, float pxw) {
+      if (cell / pxw < 2.5) return 0.0;
+      vec2 i = floor(p / cell), f = p - (i + 0.5) * cell;
+      if (hash2(i + seed) > prob) return 0.0;
+      float r = length(f - (vec2(hash2(i + seed + 1.3), hash2(i + seed + 7.1)) - 0.5) * cell * 0.6) / pxw;
+      return (1.0 - smoothstep(0.5, 1.4 * max(1.0, uDpr * 0.8), r)) * (0.5 + 0.5 * sin(uNana.y * 1.7 + hash2(i + seed + 5.5) * 6.2832));
+    }
+    // 夜空：深い藍に、天の川（海を斜めに横切る淡い帯・ゆらぎと暗い塵の筋）、昼の七色の帯を引きついだかすかな星雲、星、銀河。
+    // 星は控えめに、陸の近くではさらに控えめに（本人「星が目立って陸地が見えない」）。
+    // 岸は、ホタルイカのような青い淡い光が、岸へ寄せる波のようにうねって灯り、波打ちぎわに光の粒がきらめく（海岸線が見えるように）
+    vec3 nightSky(vec2 p, float h, float pxw, float near, float a, float wide) {
+      float w = dot(p - vec2(300.0, 700.0), normalize(vec2(0.55, 1.0))) + (vnoise(p / 420.0) - 0.5) * 260.0;
+      float band = exp(-w * w / 115600.0);
+      float dl = (w + (vnoise(p / 160.0) - 0.5) * 120.0) / 55.0;
+      float milk = band * (0.35 + 0.65 * (vnoise(p / 90.0) * 0.5 + vnoise(p / 37.0) * 0.3 + vnoise(p / 15.0) * 0.2))
+        * (1.0 - 0.75 * exp(-dl * dl) * smoothstep(0.35, 0.65, vnoise(p / 70.0 + 4.0)));
+      float cloud = clamp(vnoise(p / 520.0 + 9.0) * 0.6 + vnoise(p / 190.0) * 0.4, 0.0, 1.0);
+      vec3 col = vec3(0.016, 0.022, 0.07) + mix(0.5 + 0.5 * cos(6.2832 * (h + vec3(0.0, 0.333, 0.667))), vec3(0.5, 0.55, 0.8), 0.4) * cloud * cloud * cloud * 0.2
+        + vec3(0.62, 0.66, 0.85) * milk * 0.36;
+      float sk = 1.0 - 0.65 * smoothstep(0.0, 0.3, wide);
+      col += (starsAt(p, 170.0, 0.6, 0.0, pxw, 0.45) + starsAt(p, 55.0, 0.5 + band * 0.4, 11.0, pxw, 0.27)
+        + starsAt(p, 18.0, 0.4 + band * 0.5, 23.0, pxw, 0.15) + galaxyAt(p, pxw) * 0.7) * sk;
+      // 岸の光は2重：岸から百数十まで届く、ぼんやりした青い光の層（その中を波の帯が岸へ寄せる）と、岸から約24の明るい帯。
+      // 岸から約24の帯だけだと、スマホの全国の眺めで3画素ほどの線になり、海岸線が見えなかった
+      float halo = smoothstep(0.0, 0.4, wide), coastB = smoothstep(0.02, 0.5, a);
+      float wave = 0.5 + 0.5 * sin(wide * 40.0 + a * 10.0 - uNana.y * 1.3 + vnoise(p / 55.0) * 5.0);
+      float swell = 0.6 + 0.4 * vnoise(p / 140.0 + vec2(uNana.y * 0.05, 0.0));
+      col += mix(vec3(0.14, 0.36, 0.95), vec3(0.42, 0.86, 1.0), wave) * (halo * (0.14 + 0.24 * wave * wave) + coastB * (0.45 + 0.5 * wave * wave)) * swell;
+      col += vec3(0.5, 0.85, 1.0) * smoothstep(0.25, 0.6, near) * (0.6 + 0.3 * wave);
+      col += vec3(0.45, 0.85, 1.0) * (glintAt(p, 30.0, coastB * 0.7, 41.0, pxw) + glintAt(p, 9.0, coastB * 0.6, 53.0, pxw) * 0.8) * swell;
+      return col;
+    }
     void main() {
       vec2 p = vW.xz;
       // 波の印はゆっくり東へ漂い、印ごとに現れては消える（本人 2026-10-29「海は波が立ったり寄せたりするように動きが少しほしい」）
@@ -517,22 +582,21 @@
       // 七色の海：ゆがんだ帯で7色がめぐる。海の色の明るさと淡さはそのままに、色合いだけを回す（別の色を混ぜると、青に混ざって
       // 暖かい色が濁り、強くすると天気図のようになった）。帯は1分で1めぐり（uTime は1時間で0へ戻るので、1時間にちょうど60めぐり）
       vec3 rb = vec3(0.0), sc = vec3(0.0);
-      float spark = 0.0;
+      float spark = 0.0, h = 0.0, pxw = length(fwidth(p));
       if (uNana.x > 0.001) {
-        float h = fract(dot(p, vec2(0.0006, 0.0004)) + vnoise(p / 700.0) * 0.25 + uNana.y / 60.0);
+        h = fract(dot(p, vec2(0.0006, 0.0004)) + vnoise(p / 700.0) * 0.25 + uNana.y / 60.0);
         rb = mix(0.5 + 0.5 * cos(6.2832 * (h + vec3(0.0, 0.333, 0.667))), vec3(1.0), 0.42);
         vec3 y = mat3(0.299, 0.596, 0.211, 0.587, -0.274, -0.523, 0.114, -0.322, 0.312) * c;
-        float ang = atan(y.z, y.y) + 6.2832 * h, ch = length(y.yz) * 0.62;
+        float ang = atan(y.z, y.y) + 6.2832 * h, ch = length(y.yz) * 0.5;
         float yel = max(0.0, cos(ang + 0.77));     // 黄色の向き（黄色は海の暗さのままだと、オリーブや土色の濁った水に見えた）
-        vec3 turned = clamp(mat3(1.0, 1.0, 1.0, 0.956, -0.272, -1.106, 0.621, -0.647, 1.703) * vec3(y.x + 0.04 + 0.11 * yel * yel, ch * cos(ang), ch * sin(ang)), 0.0, 1.0);
+        vec3 turned = clamp(mat3(1.0, 1.0, 1.0, 0.956, -0.272, -1.106, 0.621, -0.647, 1.703) * vec3(y.x + 0.06 + 0.11 * yel * yel, ch * cos(ang), ch * sin(ang)), 0.0, 1.0);
         c = mix(c, turned, uNana.x * (0.9 - 0.3 * smoothstep(0.02, 0.45, a)));
         // 光の粒：沖にまばらに、1つずつゆっくり灯っては消える（色はその場の七色を明るくした物。大きさは画面で約2画素）。
         // 全国の眺めの奥（霧の始まり＝カメラから見ている所までの距離のあたり）より遠くでは消す（遠くは粒がつぶれて混み、紙吹雪に見えた）
         vec2 gq = p / 110.0, gi = floor(gq), gf = (fract(gq) - 0.5) * 110.0;
         vec2 go = (vec2(hash2(gi + 1.7), hash2(gi + 8.3)) - 0.5) * 80.0;
         float tw = 0.5 + 0.5 * sin(uNana.y * 0.9 + hash2(gi + 4.4) * 6.2832);
-        float pxw = length(fwidth(p));
-        spark = (1.0 - smoothstep(pxw * 0.8, pxw * 2.4, length(gf - go))) * step(hash2(gi + 6.1), 0.3) * smoothstep(0.55, 1.0, tw)
+        spark =(1.0 - smoothstep(pxw * 0.8, pxw * 2.4, length(gf - go))) * step(hash2(gi + 6.1), 0.3) * smoothstep(0.55, 1.0, tw)
           * uNana.x * (1.0 - smoothstep(0.02, 0.3, a)) * (1.0 - smoothstep(uFogNear, uFogNear * 1.35, vDist));
         sc = mix(rb, vec3(1.0), 0.55);
         c = mix(c, sc, spark);
@@ -543,8 +607,10 @@
         * (0.35 + 0.65 * (0.5 + 0.5 * sin(uTime * 0.7 + hash2(id + 9.7) * 6.283)));
       c = mix(c, uFoam, on * 0.55 * (1.0 - smoothstep(0.1, 0.4, a)) * (1.0 - smoothstep(0.05, 0.11, px)));
       c = mix(c, uFoam, smoothstep(0.25, 0.6, near) * 0.75);
-      // 夜の七色の海は、月夜に沈めた後から光らせる（夜光虫のように。光の粒も沈めずに灯す）
-      gl_FragColor = vec4(finish(c, vec3(0.0), vDist) + (rb * uNana.x * 0.26 * (1.0 - smoothstep(uFogNear, uFogFar, vDist)) + sc * spark * 0.8) * uNight, 1.0);
+      vec3 col = finish(c, vec3(0.0), vDist);
+      // 七色の海の夜は、海を満天の星空に（遠くは夜の霞の色に溶かす）。夕方は、暗くなるにつれて星空が現れる
+      if (uNana.x > 0.001 && uNight > 0.01) col = mix(col, mix(nightSky(p, h, pxw, near, a, wide), uFogCol, smoothstep(uFogNear, uFogFar, vDist)), uNana.x * uNight);
+      gl_FragColor = vec4(col, 1.0);
     }`;
 
   // 押した県を当てる：県の番号を色にして、指の下の1点だけ描く
