@@ -15,8 +15,8 @@
   const SEA_Y = -0.15;
   const NS = 64;                               // 県ごとの状態を並べる画像の幅（47県＋余り）
   const PH = [0.36, 1.45];                     // 見下ろす角度の幅（約20°〜83°）
-  const DR = [140, 9000];                      // カメラの距離の幅 km（入口のスマホの縦長の画面で全国を収めるため 4600→9000）
-  const HOME = { th: -0.35, ph: 0.52, D: 3800, x: -130, y: 0, z: 150 };   // 南南東から。距離と位置は開いた時に画面へ合わせる
+  const DR = [140, 12000];                     // カメラの距離の幅 km（入口のスマホの縦長の画面で全国を収めるため 4600→9000。北を上にした縦長のスマホで 9000 では東西が切れたので 12000）
+  const HOME = { th: 0, ph: 0.52, D: 3800, x: -130, y: 0, z: 150 };   // 北が上。距離と位置は開いた時に画面へ合わせる（homeFit）
   // 「全体」で戻る眺め：入口と同じ、北が上・真上に近い俯瞰（本人 2026-10-29「全体を押したときに、初期の俯瞰の位置まで戻らない」。前は斜めの HOME へ戻っていた）
   const OVER = { th: 0, ph: 1.3 };
 
@@ -538,16 +538,18 @@
     // 夜空：深い藍に、天の川（海を斜めに横切る淡い帯・ゆらぎと暗い塵の筋）、昼の七色の帯を引きついだかすかな星雲、星、銀河。
     // 星は控えめに、陸の近くではさらに控えめに（本人「星が目立って陸地が見えない」）。
     // 岸は、ホタルイカのような青い淡い光が、岸へ寄せる波のようにうねって灯り、波打ちぎわに光の粒がきらめく（海岸線が見えるように）
-    vec3 nightSky(vec2 p, float h, float pxw, float near, float a, float wide) {
+    vec3 nightSky(vec2 p, float h, float pxw, float near, float a, float wide, float cw, float cwBig) {
       float w = dot(p - vec2(300.0, 700.0), normalize(vec2(0.55, 1.0))) + (vnoise(p / 420.0) - 0.5) * 260.0;
       float band = exp(-w * w / 115600.0);
       float dl = (w + (vnoise(p / 160.0) - 0.5) * 120.0) / 55.0;
       float milk = band * (0.35 + 0.65 * (vnoise(p / 90.0) * 0.5 + vnoise(p / 37.0) * 0.3 + vnoise(p / 15.0) * 0.2))
         * (1.0 - 0.75 * exp(-dl * dl) * smoothstep(0.35, 0.65, vnoise(p / 70.0 + 4.0)));
       float cloud = clamp(vnoise(p / 520.0 + 9.0) * 0.6 + vnoise(p / 190.0) * 0.4, 0.0, 1.0);
-      vec3 col = vec3(0.016, 0.022, 0.07) + mix(0.5 + 0.5 * cos(6.2832 * (h + vec3(0.0, 0.333, 0.667))), vec3(0.5, 0.55, 0.8), 0.4) * cloud * cloud * cloud * 0.2
-        + vec3(0.62, 0.66, 0.85) * milk * 0.36;
-      float sk = 1.0 - 0.65 * smoothstep(0.0, 0.3, wide);
+      // 島のまわり（画面で約20画素）は、天の川・星雲・星を暗くして、小さな島の光の縁を浮かばせる（天の川が九州・沖縄を横切り、島の光を打ち消した）
+      float calmL = 1.0 - 0.55 * smoothstep(0.0, 0.2, cwBig);
+      vec3 col = vec3(0.016, 0.022, 0.07) + (mix(0.5 + 0.5 * cos(6.2832 * (h + vec3(0.0, 0.333, 0.667))), vec3(0.5, 0.55, 0.8), 0.4) * cloud * cloud * cloud * 0.2
+        + vec3(0.62, 0.66, 0.85) * milk * 0.36) * calmL;
+      float sk = (1.0 - 0.65 * smoothstep(0.0, 0.3, wide)) * calmL;
       col += (starsAt(p, 170.0, 0.6, 0.0, pxw, 0.45) + starsAt(p, 55.0, 0.5 + band * 0.4, 11.0, pxw, 0.27)
         + starsAt(p, 18.0, 0.4 + band * 0.5, 23.0, pxw, 0.15) + galaxyAt(p, pxw) * 0.7) * sk;
       // 岸の光は2重：岸から百数十まで届く、ぼんやりした青い光の層（その中を波の帯が岸へ寄せる）と、岸から約24の明るい帯。
@@ -557,6 +559,9 @@
       float swell = 0.6 + 0.4 * vnoise(p / 140.0 + vec2(uNana.y * 0.05, 0.0));
       col += mix(vec3(0.14, 0.36, 0.95), vec3(0.42, 0.86, 1.0), wave) * (halo * (0.14 + 0.24 * wave * wave) + coastB * (0.45 + 0.5 * wave * wave)) * swell;
       col += vec3(0.5, 0.85, 1.0) * smoothstep(0.25, 0.6, near) * (0.6 + 0.3 * wave);
+      // 画面で数画素の光の縁（cw＝画面の細かさに合わせて測った陸の近さ）：北が上のスマホの全国の眺めは日本が小さく、上の帯は1〜4画素で、
+      // 沖縄の島々や九州の輪郭が星空に沈んだ（2026-11-11）。どの遠さでも縁が見えるように
+      col += mix(vec3(0.2, 0.5, 1.0), vec3(0.5, 0.9, 1.0), wave) * smoothstep(0.04, 0.35, cw) * (0.6 + 0.4 * wave * wave) * swell;
       col += vec3(0.45, 0.85, 1.0) * (glintAt(p, 30.0, coastB * 0.7, 41.0, pxw) + glintAt(p, 9.0, coastB * 0.6, 53.0, pxw) * 0.8) * swell;
       return col;
     }
@@ -609,7 +614,8 @@
       c = mix(c, uFoam, smoothstep(0.25, 0.6, near) * 0.75);
       vec3 col = finish(c, vec3(0.0), vDist);
       // 七色の海の夜は、海を満天の星空に（遠くは夜の霞の色に溶かす）。夕方は、暗くなるにつれて星空が現れる
-      if (uNana.x > 0.001 && uNight > 0.01) col = mix(col, mix(nightSky(p, h, pxw, near, a, wide), uFogCol, smoothstep(uFogNear, uFogFar, vDist)), uNana.x * uNight);
+      if (uNana.x > 0.001 && uNight > 0.01) col = mix(col, mix(nightSky(p, h, pxw, near, a, wide, textureLod(uMask, uv, clamp(log2(pxw * 6.0 * 2048.0 / uBox.z), 0.0, 6.0)).r,
+        textureLod(uMask, uv, clamp(log2(pxw * 24.0 * 2048.0 / uBox.z), 0.0, 8.0)).r), uFogCol, smoothstep(uFogNear, uFogFar, vDist)), uNana.x * uNight);
       gl_FragColor = vec4(col, 1.0);
     }`;
 
@@ -1635,11 +1641,12 @@
     if (G) homeFit();
   }
   addEventListener('resize', resize);
-  // 「日本全体」の眺め：いつもは南南東から。スマホの縦長の画面では北東を向いて見下ろす（日本の長い向き＝南西から北東を、画面の縦に）。
-  // 南南東からのままだと、寄りの上限（9000）でも北海道が右の外へ切れ、日本が小さく横たわった（2026-11-09）。向きを変えたら測り直す
+  // 「日本全体」の眺め：スマホもパソコンも北が上・東が右（本人 2026-11-11「日本を傾けすぎ。東西南北を上下左右に合わせて正規の位置で示した方が見やすい」。
+  // 前はパソコンが南南東から・縦のスマホが北東を向いて、日本の長い向きを画面の縦にしていた）。向きを変えたら、収まるかを測り直す。
+  // 縦のスマホは真上に近い角度から（斜め 0.6 のままだと、北が上の日本が南北につぶれて画面の真ん中に細く横たわり、上下が海ばかりだった）
   function homeFit() {
     const port = PHONE() && VH > VW;
-    Object.assign(HOME, fitAll(port ? 0.6 : -0.35, port ? 0.6 : 0.52));
+    Object.assign(HOME, fitAll(0, port ? 1.0 : 0.52));
   }
 
   let last = performance.now(), frames = 0;
