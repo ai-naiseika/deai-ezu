@@ -69,13 +69,36 @@
   /* 入口の段（本人 2026-11-12「大きくロゴでオープニング。次に選択肢」）：start＝5つの入口・walk＝今の欄（地方を選ぶ）・sub＝遊覧とクイズの次の選択 */
   #o-regions > .stage { display: none; }
   #o-regions[data-stage="start"] > #o-start, #o-regions[data-stage="walk"] > #o-walk, #o-regions[data-stage="sub"] > #o-sub { display: block; }
-  #o-start > button { display: block; width: 100%; text-align: left; padding: 10px 12px; margin: 0 0 8px; font-size: 17px; font-weight: 700; color: var(--ink); border: 1.6px solid var(--ink); background: #fffdf6; cursor: pointer; }
-  #o-start > button small { display: block; font-size: 12px; font-weight: 400; color: #6a6250; margin-top: 2px; }
-  #o-start > button[inert] { opacity: .45; }
-  #o-start > button:disabled { opacity: .55; cursor: default; border-style: dashed; }
+  /* 雲の選択肢（本人 2026-11-12「選択ボタンが今のままでは趣がない。絵図の空に浮かぶ雲に見立てて。選ぶと雲の景色が変わって次を選び、始まる時は雲を突き抜けて地図へ」）。
+     形は1枚の雲の絵を引き伸ばし、1つおきに左右を返す。ゆっくり上下にただよう（transform だけ＝合成で描く）。
+     選ぶと今の雲は風下（東）へ流れて消え、次の雲が風上（西）から流れてくる（地図の雲の影と同じ向き）。始める時は雲が手前へふくらんで消え、白い霞を抜けて地図へ寄る（入口.js の ghost） */
+  .o-cloud { position: relative; isolation: isolate; display: block; width: calc(100% - 24px); margin: 0 0 2px; padding: 30px 26px 10px; border: 0; background: none;
+    text-align: center; font-size: 17px; font-weight: 700; color: var(--ink); cursor: pointer; filter: drop-shadow(0 4px 5px rgba(40, 70, 110, .28)); }
+  /* ただようのは中身（雲の絵と字）だけ。ボタンの箱は動かさない（動き続ける物は押しにくく、検査の道具も「止まらない」と押せなかった） */
+  .o-cloud::before, .o-cloud > .c { animation: o-float var(--fd, 5.5s) ease-in-out infinite alternate; }
+  .o-cloud > .c { display: block; }
+  .o-cloud::before { content: ''; position: absolute; inset: 0; z-index: -1; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100' preserveAspectRatio='none'%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='.5' stop-color='%23fff'/%3E%3Cstop offset='1' stop-color='%23d3dfe9'/%3E%3C/linearGradient%3E%3Cpath fill='url(%23g)' d='M16 96C4 96 0 80 10 72C2 60 12 44 28 48C30 32 52 24 66 34C76 16 108 12 120 30C132 18 160 22 164 40C182 38 198 54 190 70C200 80 194 96 180 96Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+  .o-cloud.flip { margin-left: 24px; --fd: 6.6s; } .o-cloud.flip::before { scale: -1 1; }
+  .o-cloud:active { scale: .97; }
+  .o-cloud small { display: block; font-size: 12px; font-weight: 400; color: #4f5c68; margin-top: 2px; }
+  .o-cloud[inert] { opacity: .45; }
+  .o-cloud:disabled { opacity: .6; cursor: default; }
+  @keyframes o-float { from { transform: translateY(-3px); } to { transform: translateY(3px); } }
+  @keyframes o-come { from { translate: -90px 0; opacity: 0; } }
+  #o-regions.come .o-cloud { animation: o-come .7s ease var(--cd, 0s) both; }
+  .o-cloud.o-ghost, .o-cloud.o-ghost::before, .o-cloud.o-ghost > .c { animation: none; }
+  .o-cloud.o-ghost { position: fixed; z-index: 26; margin: 0; pointer-events: none; transition: translate .7s ease-in, opacity .7s ease-in, scale .9s ease-in; }
+  .o-cloud.o-ghost.gone { translate: 140px 0; opacity: 0; }
+  .o-cloud.o-ghost.dive { scale: 2.8; opacity: 0; }
+  #o-mist { position: fixed; inset: 0; z-index: 25; pointer-events: none; background: radial-gradient(ellipse at 50% 55%, rgba(255, 255, 255, .3), rgba(248, 251, 255, .96) 72%);
+    animation: o-mist 1.1s ease both; }
+  @keyframes o-mist { 0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .o-cloud, .o-cloud::before, .o-cloud > .c, #o-regions.come .o-cloud { animation: none; } #o-mist { display: none; } }
+  /* 雲の段は欄の紙を外して空に浮かべる（地方を選ぶ段・県を選ぶ段は、数が多いので紙のまま） */
+  #o-regions:is([data-stage="start"], [data-stage="sub"]):not(.paper) { background: none; border-color: transparent; box-shadow: none; overflow: visible; }
+  #o-regions:is([data-stage="start"], [data-stage="sub"]):not(.paper) :is(p, .o-back) { text-shadow: 0 0 3px #fff, 0 0 7px #fff, 0 0 12px #fff; }
   #o-regions .o-back { border: 0; background: none; color: #3c5a8c; font-size: 14px; padding: 0 0 6px; cursor: pointer; }
   #o-sub > p { font-weight: 700; margin: 2px 0 8px; }
-  #o-sub button.big { display: block; width: 100%; text-align: left; padding: 9px 12px; margin: 0 0 8px; font-size: 16px; font-weight: 700; border: 1.4px solid var(--ink); background: #fffdf6; cursor: pointer; }
   #o-sub .reg { font-size: 12px; color: #6a6250; margin: 8px 0 3px; }
   #o-sub .prefs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
   #o-sub .prefs button { font-size: 13px; padding: 6px 2px; border: 1px solid #b9ad8f; background: #fffdf6; cursor: pointer; }
@@ -109,9 +132,11 @@
   @media (max-width: 700px) and (orientation: portrait), (max-width: 700px) and (min-height: 521px) {
     #o-title b { font-size: 30px; padding: 4px 10px 6px; } #o-title span { display: none; } #o-head { left: 16px; top: 16px; }
     /* 縦のスマホは入口の5つを2列に（1列だと欄が画面の半分を超え、列島が小さくなった。幅 360・背 640 では欄の上に収めきれず、沖縄と尖閣の印が欄の下にもぐった） */
-    #o-regions[data-stage="start"] > #o-start { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    #o-regions[data-stage="start"] > #o-start { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6px; }
     #o-start > p { grid-column: 1 / -1; margin: 0; }
-    #o-start > button { padding: 6px 8px 7px; margin: 0; font-size: 14px; line-height: 1.3; letter-spacing: -.02em; } #o-start > button small { font-size: 11px; line-height: 1.35; margin-top: 2px; }
+    /* 縦のスマホの雲は名前だけ（添え書きを入れると雲が縦に伸び、欄が列島を押し上げた）。準備中の宝さがしだけ「準備中」を残す。右の列は少し下げて、並びを空の雲らしく */
+    .o-cloud { width: 100%; margin: 0; padding: 22px 10px 8px; font-size: 14px; line-height: 1.3; letter-spacing: -.02em; } .o-cloud.flip { margin: 10px 0 0; }
+    .o-cloud:not(:disabled) small { display: none; } .o-cloud small { font-size: 11px; }
     #o-regions { left: 16px; right: 16px; top: auto; bottom: 28px; transform: none; width: auto; padding: 10px; max-height: 60vh; }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips { margin-bottom: 7px; } #o-regions .chips button { font-size: 12px; padding: 3px 7px; }
     #o-regions .list { grid-template-columns: 1fr 1fr 1fr; } #o-regions .list button { font-size: 15px; padding: 6px 4px; text-align: center; }
@@ -937,7 +962,7 @@
     #q { font-size: 15px; padding: 6px 8px; }
     #o-head { left: 12px; top: 8px; }
     #o-title b { font-size: 28px; padding: 4px 10px 6px; } #o-title span { font-size: 12px; margin-top: 4px; }
-    #o-start > button { padding: 4px 10px 5px; margin-bottom: 5px; font-size: 15px; } #o-start > button small { font-size: 11px; margin-top: 0; }
+    .o-cloud { padding: 18px 20px 5px; font-size: 15px; } .o-cloud:not(:disabled) small { display: none; } .o-cloud small { font-size: 11px; margin-top: 0; }
     #o-regions { right: 8px; width: 280px; padding: 8px 10px; max-height: calc(100vh - 16px); }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips button { font-size: 12px; padding: 2px 7px; }
     #o-regions .list { grid-template-columns: 1fr 1fr; } #o-regions .list button { font-size: 13px; padding: 4px 8px; }
@@ -1103,11 +1128,11 @@
   <div id="o-regions" data-stage="start">
     <div class="stage" id="o-start">
       <p>何をしますか<span id="o-wait">（読み込み中）</span><span id="o-fail">（読み込めませんでした）</span><button id="o-retry" type="button">もう一度</button></p>
-      <button id="o-walk-go" type="button" inert>自分で選んで歩く<small>地方を選んで、地図を自由に見て回る</small></button>
-      <button id="o-yuran" type="button" inert>まずは遊覧する<small>全国か、選んだ県を空からめぐる</small></button>
-      <button id="o-sugo" type="button" inert>すごろくで全国周遊<small>10県をめぐる・みんなの番付</small></button>
-      <button id="o-quiz" type="button" inert>正統派クイズに挑戦<small>全国版・県版・かたち当て</small></button>
-      <button id="o-takara" type="button" disabled>全国宝さがし<small>準備中（テーマごとの宝を探す）</small></button>
+      <button id="o-walk-go" class="o-cloud" type="button" inert><span class="c">自分で選んで歩く<small>地方を選んで、地図を自由に見て回る</small></span></button>
+      <button id="o-yuran" class="o-cloud flip" type="button" inert><span class="c">まずは遊覧する<small>全国か、選んだ県を空からめぐる</small></span></button>
+      <button id="o-sugo" class="o-cloud" type="button" inert><span class="c">すごろくで全国周遊<small>10県をめぐる・みんなの番付</small></span></button>
+      <button id="o-quiz" class="o-cloud flip" type="button" inert><span class="c">正統派クイズに挑戦<small>全国版・県版・かたち当て</small></span></button>
+      <button id="o-takara" class="o-cloud" type="button" disabled><span class="c">全国宝さがし<small>準備中（テーマごとの宝を探す）</small></span></button>
     </div>
     <div class="stage" id="o-sub"></div>
     <div class="stage" id="o-walk"><button type="button" class="o-back">‹ 入口へ</button>

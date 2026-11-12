@@ -52,7 +52,7 @@
   function show() {
     if (M.inside || (window.TABI && TABI.state)) return;     // 県の中・空を飛ぶ間は、まず出てから
     if (window.YURAN && YURAN.state) YURAN.end(false);
-    open = true; setRegion(null); panel.dataset.stage = 'start';
+    open = true; setRegion(null); panel.dataset.stage = 'start'; panel.classList.remove('paper'); come();
     document.body.classList.add('opening', 'again');           // again＝開いた後に戻ってきた入口（端末の「戻る」で閉じる。最初の入口は閉じこめない）
     if (M.sel >= 0) M.back();
     M.view(VIEW());
@@ -61,6 +61,7 @@
   // 画面が見えないのはもったいない。特にスマホでは」）。右下の「メニュー」で開く。たたむのは最初の1回だけ（開いた人の選びを覆さない）
   let fold = open && !/[?&]fold=0/.test(location.search);     // ?fold=0＝たたまない（検査用。下の並びを使う検査が多いので）
   function close() {
+    ghost('dive');
     open = false; document.body.classList.remove('opening', 'again');
     if (fold && M.phone()) { fold = false; document.body.classList.add('wide'); dispatchEvent(new Event('resize')); }
   }
@@ -74,7 +75,7 @@
   M.on('frame', () => {
     if (!first) return;
     first = false;
-    if (open) { document.body.classList.add('opening'); M.view(VIEW(), true); }
+    if (open) { document.body.classList.add('opening'); M.view(VIEW(), true); come(1.5); }
   });
   M.on('select', () => { if (open) close(); });                // 地図の県を押したら、入口を閉じてその県へ
   $('#o-all').addEventListener('click', wholeView);
@@ -84,21 +85,50 @@
   // 入口の段（本人 2026-11-12「大きくロゴでオープニング。次に選択肢：自分で選んで歩く→エリア／まずは遊覧→全国・指定県／すごろく／
   // 正統派クイズ→全国版・指定県版（かたち当ても）／全国宝さがし」）。「自分で選んで歩く」は今の欄（地方・季節と時刻・日本全体）
   const panel = $('#o-regions');
-  const stage = (s) => { panel.dataset.stage = s; panel.scrollTop = 0; };
+  const calm = matchMedia('(prefers-reduced-motion: reduce)');
+  // 去る雲：今見えている雲を写して欄の外（body）に置き、gone＝風下へ流して消す／dive＝手前へふくらませて消す（白い霞を添える）。欄は閉じても写しは残る
+  function ghost(cls) {
+    if (calm.matches || !open) return;
+    const out = [];
+    for (const b of panel.querySelectorAll('.o-cloud')) {
+      const r = b.getBoundingClientRect();
+      if (!r.width) continue;
+      const g = b.cloneNode(true);
+      g.removeAttribute('id'); g.inert = true; g.classList.add('o-ghost');
+      Object.assign(g.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+      document.body.append(g); out.push(g);
+    }
+    if (cls === 'dive') { const m = document.createElement('div'); m.id = 'o-mist'; document.body.append(m); setTimeout(() => m.remove(), 1200); }
+    requestAnimationFrame(() => requestAnimationFrame(() => { for (const g of out) g.classList.add(cls); }));
+    setTimeout(() => { for (const g of out) g.remove(); }, 1000);
+  }
+  // 来る雲：欄の雲を風上から流しこむ（delay＝最初だけ、題字が消えるのを待つ）
+  function come(delay) {
+    if (calm.matches) return;
+    panel.style.setProperty('--cd', (delay || 0) + 's');
+    panel.classList.remove('come'); void panel.offsetWidth; panel.classList.add('come');
+  }
+  const stage = (s, kept) => {
+    if (!kept) ghost('gone');
+    panel.dataset.stage = s; panel.scrollTop = 0; panel.classList.toggle('paper', s === 'walk');
+    come();
+  };
   $('#o-walk-go').addEventListener('click', () => stage('walk'));
   for (const b of document.querySelectorAll('#o-regions .o-back')) b.addEventListener('click', () => stage('start'));
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   function sub(title, opts) {
+    ghost('gone');
     const box = $('#o-sub'), back = mk('button', 'o-back', '‹ 入口へ');
     box.textContent = '';
     back.type = 'button'; back.addEventListener('click', () => stage('start'));
     box.append(back, mk('p', null, title));
-    for (const [label, fn] of opts) { const b = mk('button', 'big', label); b.type = 'button'; b.addEventListener('click', fn); box.append(b); }
-    stage('sub');
+    opts.forEach(([label, fn], i) => { const b = mk('button', 'big o-cloud' + (i % 2 ? ' flip' : '')); b.append(mk('span', 'c', label)); b.type = 'button'; b.addEventListener('click', fn); box.append(b); });
+    stage('sub', true);
   }
   // 県を選ぶ：地方ごとに47都道府県
   function pickPref(title, fn) {
     sub(title, []);
+    panel.classList.add('paper');
     const box = $('#o-sub');
     for (const [name, a, b] of REGIONS) {
       const g = mk('div', 'prefs');
