@@ -63,16 +63,30 @@
   body.opening #labels, body.opening #pins, body.opening #ranks, body.opening #compass { display: none !important; }   /* 方位は選ぶ欄の角と北海道に重なった */
   #o-head { position: fixed; left: 34px; top: 26px; }
   #o-title { margin: 0; font-weight: 400; pointer-events: none; }
-  /* すごろくの入口（2026-11-11 本人「スマホで見ても双六の入り口がわからない」）：選ぶ欄の中は巻かないと見えない画面があるので、題の下のいつも見える所に */
-  /* 遊覧の入口も並べる（本人 2026-11-11「全国では遊覧かすごろくを最初に誘うのが入り口として良さそう。左上のボタンに遊覧も」） */
-  #o-sugo, #o-yuran { display: inline-flex; align-items: center; gap: 6px; margin: 14px 0 0 4px; font-size: 15px; padding: 5px 12px; color: var(--shu); border-color: var(--shu); background: rgba(251,246,232,.94); }
-  #o-yuran { margin-left: 8px; }
-  #o-sugo svg, #o-yuran svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
-  #o-sugo svg .f, #o-yuran svg .f { fill: currentColor; stroke: none; }
-  #o-sugo[inert], #o-yuran[inert] { opacity: .45; }
   #o-title b { display: inline-block; font-size: 50px; line-height: 1.18; color: var(--shu); border: 2.5px solid var(--shu); padding: 8px 18px 12px;
     background: rgba(250,244,226,.6); letter-spacing: .04em; }
   #o-title span { display: block; font-size: 18px; color: #3a3428; margin: 12px 0 0 4px; }
+  /* 入口の段（本人 2026-11-12「大きくロゴでオープニング。次に選択肢」）：start＝5つの入口・walk＝今の欄（地方を選ぶ）・sub＝遊覧とクイズの次の選択 */
+  #o-regions > .stage { display: none; }
+  #o-regions[data-stage="start"] > #o-start, #o-regions[data-stage="walk"] > #o-walk, #o-regions[data-stage="sub"] > #o-sub { display: block; }
+  #o-start > button { display: block; width: 100%; text-align: left; padding: 10px 12px; margin: 0 0 8px; font-size: 17px; font-weight: 700; color: var(--ink); border: 1.6px solid var(--ink); background: #fffdf6; cursor: pointer; }
+  #o-start > button small { display: block; font-size: 12px; font-weight: 400; color: #6a6250; margin-top: 2px; }
+  #o-start > button[inert] { opacity: .45; }
+  #o-start > button:disabled { opacity: .55; cursor: default; border-style: dashed; }
+  #o-regions .o-back { border: 0; background: none; color: #3c5a8c; font-size: 14px; padding: 0 0 6px; cursor: pointer; }
+  #o-sub > p { font-weight: 700; margin: 2px 0 8px; }
+  #o-sub button.big { display: block; width: 100%; text-align: left; padding: 9px 12px; margin: 0 0 8px; font-size: 16px; font-weight: 700; border: 1.4px solid var(--ink); background: #fffdf6; cursor: pointer; }
+  #o-sub .reg { font-size: 12px; color: #6a6250; margin: 8px 0 3px; }
+  #o-sub .prefs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  #o-sub .prefs button { font-size: 13px; padding: 6px 2px; border: 1px solid #b9ad8f; background: #fffdf6; cursor: pointer; }
+  /* 開いた時のロゴ：真ん中に大きく出て、2秒ほどで消える（押す操作はじゃましない） */
+  #o-splash { position: fixed; inset: 0; z-index: 30; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; pointer-events: none;
+    background: rgba(251,246,232,.9); animation: o-splash 2.6s ease forwards; }
+  body.opening:not(.again) #o-splash { display: flex; }
+  #o-splash b { font-size: clamp(44px, 13vw, 120px); line-height: 1.15; color: var(--shu); border: 3px solid var(--shu); padding: .1em .35em .18em; font-weight: 400; text-align: center; }
+  #o-splash span { font-size: clamp(14px, 3.6vw, 22px); color: #4a4334; }
+  @keyframes o-splash { 0%, 55% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+  @media (prefers-reduced-motion: reduce) { #o-splash { animation-duration: 1.2s; } }
   #o-regions { position: fixed; right: 40px; top: 50%; transform: translateY(-50%); width: 300px; box-sizing: border-box; max-height: calc(100vh - 40px); overflow-y: auto;
     background: rgba(250,244,226,.95); border: 1.6px solid var(--gold); box-shadow: 0 6px 16px rgba(60,40,10,.18); padding: 12px 14px 14px; }
   #o-regions p { margin: 0 0 6px; font-size: 15px; color: var(--shu); font-weight: 700; }
@@ -93,19 +107,16 @@
   #o-all { margin-top: 12px; width: 100%; font-size: 14px; }
   #o-tour { margin-top: 6px; width: 100%; font-size: 14px; }
   @media (max-width: 700px) and (orientation: portrait), (max-width: 700px) and (min-height: 521px) {
-    #o-title b { font-size: 30px; padding: 4px 10px 6px; } #o-title span { font-size: 13px; margin-top: 6px; } #o-head { left: 16px; top: 16px; }
-    #o-sugo, #o-yuran { margin: 6px 0 0; font-size: 13px; padding: 3px 9px; } #o-sugo .m { display: none; }
-    /* 縦のスマホは「遊覧」をすごろくの下の段に、字は「遊覧」だけ（横に並べると右へ伸び、すぐ下の竹島の印と北陸の岸を隠した。
-       下の段でも「遊覧で旅する」の長さでは、縦長の画面で右端が竹島の印に 8px より近づいた） */
-    #o-yuran { display: flex; width: fit-content; } #o-yuran .t { display: none; }
+    #o-title b { font-size: 30px; padding: 4px 10px 6px; } #o-title span { display: none; } #o-head { left: 16px; top: 16px; }
+    /* 縦のスマホは入口の5つを2列に（1列だと欄が画面の半分を超え、列島が小さくなった。幅 360・背 640 では欄の上に収めきれず、沖縄と尖閣の印が欄の下にもぐった） */
+    #o-regions[data-stage="start"] > #o-start { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    #o-start > p { grid-column: 1 / -1; margin: 0; }
+    #o-start > button { padding: 6px 8px 7px; margin: 0; font-size: 14px; line-height: 1.3; letter-spacing: -.02em; } #o-start > button small { font-size: 11px; line-height: 1.35; margin-top: 2px; }
     #o-regions { left: 16px; right: 16px; top: auto; bottom: 28px; transform: none; width: auto; padding: 10px; max-height: 60vh; }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips { margin-bottom: 7px; } #o-regions .chips button { font-size: 12px; padding: 3px 7px; }
     #o-regions .list { grid-template-columns: 1fr 1fr 1fr; } #o-regions .list button { font-size: 15px; padding: 6px 4px; text-align: center; }
     #o-regions .list button span { display: none; }
   }
-  /* 縦のスマホは列島が題のすぐ横まで来るので短く（「すごろく10回チャレンジ！」は 360×740 で東北の岸に触れた）。
-     背の低い縦のスマホ（iPhone SE・アドレスバーの出た Safari）は「すごろく」だけ（長いと能登と竹島の印を隠した） */
-  @media (max-width: 700px) and (orientation: portrait) and (max-height: 739px) { #o-sugo .t, #o-yuran .t { display: none; } }
   #title b { display: inline-block; font-size: 56px; color: var(--shu); border: 2.5px solid var(--shu); padding: 0 14px 4px; line-height: 1.2; }
   #title span { display: block; font-size: 24px; font-weight: 700; margin: 8px 0 0 16px; }
   #labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -926,7 +937,7 @@
     #q { font-size: 15px; padding: 6px 8px; }
     #o-head { left: 12px; top: 8px; }
     #o-title b { font-size: 28px; padding: 4px 10px 6px; } #o-title span { font-size: 12px; margin-top: 4px; }
-    #o-sugo, #o-yuran { margin: 6px 0 0; font-size: 12px; padding: 3px 8px; } #o-yuran { margin-left: 6px; } #o-sugo .t, #o-yuran .t { display: none; }
+    #o-start > button { padding: 4px 10px 5px; margin-bottom: 5px; font-size: 15px; } #o-start > button small { font-size: 11px; margin-top: 0; }
     #o-regions { right: 8px; width: 280px; padding: 8px 10px; max-height: calc(100vh - 16px); }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips button { font-size: 12px; padding: 2px 7px; }
     #o-regions .list { grid-template-columns: 1fr 1fr; } #o-regions .list button { font-size: 13px; padding: 4px 8px; }
@@ -1087,14 +1098,26 @@
 <div id="fly-ud"><button id="fly-up">上へ</button><button id="fly-dn">下へ</button></div>
 <div id="opening">
   <div id="o-head"><h1 id="o-title"><b>にっぽん<br>であい絵図</b><span>土地の魅力に出会う、四季の鳥瞰図</span></h1>
-    <button id="o-sugo" type="button" inert><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.2"/><circle class="f" cx="8.6" cy="8.6" r="1.5"/><circle class="f" cx="12" cy="12" r="1.5"/><circle class="f" cx="15.4" cy="15.4" r="1.5"/></svg><span>すごろく<span class="m">10回チャレンジ！</span><span class="t">で遊ぶ</span></span></button>
-    <button id="o-yuran" type="button" inert><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c2.5-4 5-1 7-5s4-6 9-7" stroke-dasharray="2.2 2.2"/><circle cx="4" cy="18" r="1.6"/><path class="f" d="M20 3.5c-1.7 0-3 1.3-3 3 0 2.2 3 5 3 5s3-2.8 3-5c0-1.7-1.3-3-3-3Z"/></svg><span>遊覧<span class="t">で旅する</span></span></button></div>
-  <div id="o-regions">
+</div>
+  <div id="o-splash" aria-hidden="true"><b>にっぽん<br>であい絵図</b><span>土地の魅力に出会う、四季の鳥瞰図</span></div>
+  <div id="o-regions" data-stage="start">
+    <div class="stage" id="o-start">
+      <p>何をしますか<span id="o-wait">（読み込み中）</span><span id="o-fail">（読み込めませんでした）</span><button id="o-retry" type="button">もう一度</button></p>
+      <button id="o-walk-go" type="button" inert>自分で選んで歩く<small>地方を選んで、地図を自由に見て回る</small></button>
+      <button id="o-yuran" type="button" inert>まずは遊覧する<small>全国か、選んだ県を空からめぐる</small></button>
+      <button id="o-sugo" type="button" inert>すごろくで全国周遊<small>10県をめぐる・みんなの番付</small></button>
+      <button id="o-quiz" type="button" inert>正統派クイズに挑戦<small>全国版・県版・かたち当て</small></button>
+      <button id="o-takara" type="button" disabled>全国宝さがし<small>準備中（テーマごとの宝を探す）</small></button>
+    </div>
+    <div class="stage" id="o-sub"></div>
+    <div class="stage" id="o-walk"><button type="button" class="o-back">‹ 入口へ</button>
+
     <p>見たい情報（いくつでも）</p><div class="chips" id="o-miru"></div>
     <p>季節と時刻</p>
     <div class="chips" id="o-toki"><button type="button" data-now="1">今に合わせる</button><button type="button" data-s="0">春</button><button type="button" data-s="1">夏</button><button type="button" data-s="2">秋</button><button type="button" data-s="3">冬</button></div>
     <div class="chips" id="o-hour"><button type="button" data-h="6" data-sun="rise">朝</button><button type="button" data-h="12">昼</button><button type="button" data-h="17.25" data-sun="set">夕</button><button type="button" data-h="21">夜</button></div>
-    <p>どこから旅を始めますか<span id="o-wait">（読み込み中）</span><span id="o-fail">（読み込めませんでした）</span><button id="o-retry" type="button">もう一度</button></p><div id="o-go" inert><div class="list"></div><button id="o-all">日本全体をながめる</button><button id="o-tour">遊覧で旅する（出発はおまかせ）</button></div>
+    <p>どこから旅を始めますか</p><div id="o-go" inert><div class="list"></div><button id="o-all">日本全体をながめる</button><button id="o-tour">遊覧で旅する（出発はおまかせ）</button></div>
+    </div>
   </div>
 </div>
 <button id="enter-bub" type="button"></button>

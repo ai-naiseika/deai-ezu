@@ -10,7 +10,9 @@
   // 4つ目＝県ぜんたいを収める（北海道は北方領土まで、沖縄は宮古・八重山まで。ほかの地方は遠く離れた島を除いて寄る）
   const REGIONS = [['北海道', 1, 1, true], ['東北', 2, 7], ['関東', 8, 14], ['中部', 15, 23], ['近畿', 24, 30], ['中国', 31, 35], ['四国', 36, 39], ['九州', 40, 46], ['沖縄', 47, 47, true]];
   // 北が上、真上に近い所から全47県。パソコンは右のボタンの札を、スマホは下のボタンの札を避けて収める
-  const VIEW = () => M.fit(M.OVER.th, M.OVER.ph, null, M.phone() ? [-0.97, 0.97, -0.12, 0.9] : [-0.95, 0.6, -0.92, 0.88]);
+  // スマホの下の端は、入口の欄の上の端を測って決める（欄の背は画面の大きさで変わる。2026-11-12 入口を5つの選択肢にして欄が高くなり、決め打ちでは九州・沖縄を隠した）
+  const lowY = () => { const r = $('#o-regions').getBoundingClientRect(); return r.height ? Math.min(0.3, 1 - 2 * (r.top - 22) / innerHeight) : -0.12; };
+  const VIEW = () => M.fit(M.OVER.th, M.OVER.ph, null, M.phone() ? [-0.97, 0.97, lowY(), 0.9] : [-0.95, 0.6, -0.92, 0.88]);
   let open = !/[?&]open=0/.test(location.search), first = true;
   let region = null;                          // 「〇〇から始める」で選んだ地方（遊覧の基点に使う。全体・入口へ戻ると忘れる）
   const tourBtn = $('#tour-nat');
@@ -50,12 +52,18 @@
   function show() {
     if (M.inside || (window.TABI && TABI.state)) return;     // 県の中・空を飛ぶ間は、まず出てから
     if (window.YURAN && YURAN.state) YURAN.end(false);
-    open = true; setRegion(null);
+    open = true; setRegion(null); panel.dataset.stage = 'start';
     document.body.classList.add('opening', 'again');           // again＝開いた後に戻ってきた入口（端末の「戻る」で閉じる。最初の入口は閉じこめない）
     if (M.sel >= 0) M.back();
     M.view(VIEW());
   }
-  function close() { open = false; document.body.classList.remove('opening', 'again'); }
+  // 入口から地図へ入る時、スマホはメニューをたたんでおく（本人 2026-11-12「今あるようなその他のメニューは、メニューとして隠しておく。
+  // 画面が見えないのはもったいない。特にスマホでは」）。右下の「メニュー」で開く。たたむのは最初の1回だけ（開いた人の選びを覆さない）
+  let fold = open && !/[?&]fold=0/.test(location.search);     // ?fold=0＝たたまない（検査用。下の並びを使う検査が多いので）
+  function close() {
+    open = false; document.body.classList.remove('opening', 'again');
+    if (fold && M.phone()) { fold = false; document.body.classList.add('wide'); dispatchEvent(new Event('resize')); }
+  }
   function go(r) {
     close(); setRegion(r);
     M.fitRegion(M.P.filter((p) => p.n >= r[1] && p.n <= r[2]).map((p) => p.k), r[3]);
@@ -73,7 +81,50 @@
   // 遊覧で旅する：出発の県はくじで（全国から）
   const tourNat = () => { close(); setRegion(null); if (window.YURAN) YURAN.startNat(); };
   $('#o-tour').addEventListener('click', tourNat);
-  $('#o-yuran').addEventListener('click', tourNat);     // 題の下の「遊覧で旅する」（本人 2026-11-11「全国では遊覧かすごろくを最初に誘うのが入り口として良さそう」）
+  // 入口の段（本人 2026-11-12「大きくロゴでオープニング。次に選択肢：自分で選んで歩く→エリア／まずは遊覧→全国・指定県／すごろく／
+  // 正統派クイズ→全国版・指定県版（かたち当ても）／全国宝さがし」）。「自分で選んで歩く」は今の欄（地方・季節と時刻・日本全体）
+  const panel = $('#o-regions');
+  const stage = (s) => { panel.dataset.stage = s; panel.scrollTop = 0; };
+  $('#o-walk-go').addEventListener('click', () => stage('walk'));
+  for (const b of document.querySelectorAll('#o-regions .o-back')) b.addEventListener('click', () => stage('start'));
+  const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  function sub(title, opts) {
+    const box = $('#o-sub'), back = mk('button', 'o-back', '‹ 入口へ');
+    box.textContent = '';
+    back.type = 'button'; back.addEventListener('click', () => stage('start'));
+    box.append(back, mk('p', null, title));
+    for (const [label, fn] of opts) { const b = mk('button', 'big', label); b.type = 'button'; b.addEventListener('click', fn); box.append(b); }
+    stage('sub');
+  }
+  // 県を選ぶ：地方ごとに47都道府県
+  function pickPref(title, fn) {
+    sub(title, []);
+    const box = $('#o-sub');
+    for (const [name, a, b] of REGIONS) {
+      const g = mk('div', 'prefs');
+      for (const p of M.P.filter((q) => q.n >= a && q.n <= b)) { const bt = mk('button', null, p.name); bt.type = 'button'; bt.addEventListener('click', () => fn(p.n)); g.append(bt); }
+      box.append(mk('p', 'reg', name), g);
+    }
+  }
+  // 選んだ県の中へ入ってから始める（遊覧・県のクイズは県の中でしか動かない）
+  let afterIn = null;
+  function intoPref(n, then) {
+    close(); setRegion(null);
+    const p = M.P.find((q) => q.n === n);
+    afterIn = { name: p.name, then };
+    M.select(p.k);
+    setTimeout(() => { const e = $('#c-enter'); if (e) e.click(); }, 600);
+  }
+  M.on('world', (w) => { if (w && afterIn && w.name === afterIn.name) { const f = afterIn.then; afterIn = null; setTimeout(f, 900); } });
+  $('#o-yuran').addEventListener('click', () => sub('まずは遊覧する', [
+    ['全国を遊覧する（出発はおまかせ）', tourNat],
+    ['県を選んで遊覧する', () => pickPref('どの県を遊覧しますか', (n) => intoPref(n, () => window.YURAN && YURAN.start()))],
+  ]));
+  $('#o-quiz').addEventListener('click', () => sub('正統派クイズに挑戦', [
+    ['全国版（10問）', () => { wholeView(); if (window.QUIZ) QUIZ.start('round'); }],
+    ['県を選んで（10問）', () => pickPref('どの県のクイズにしますか', (n) => intoPref(n, () => window.QUIZ && QUIZ.start('pref')))],
+    ['かたち当て（10問）', () => { wholeView(); if (window.QUIZ) QUIZ.start('shape'); }],
+  ]));
   // すごろく（本人 2026-11-11「スマホで見ても双六の入り口がわからない」）：クイズの窓の奥だけでなく、最初の画面からも入れる
   $('#o-sugo').addEventListener('click', () => { wholeView(); if (window.SUGO) SUGO.open(); });
   // 「全体」は入口へ（本人 2026-10-29「全体の俯瞰にもどった時に、初期のエリア選択ができない」）：真上の俯瞰と「どこから旅を始めますか」。
