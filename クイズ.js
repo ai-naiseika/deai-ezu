@@ -9,6 +9,7 @@
   if (!M || !IN) return;
   const $ = (s) => document.querySelector(s);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const R = (e, s) => (window.RUBY ? RUBY.text(e, s) : ((e.textContent = s), e));     // ふりがな（ふりがな.js。無い時は字だけ）
   const KEY = 'zenkoku3d-quiz-v1', ROUND = 10, LIMIT = 15;    // 1クールの問題数・速さの点を数える秒
   const box = $('#quiz'), open = $('#quiz-open');
   const name = (no) => { const p = M.P.find((q) => q.n === no); return p ? M.FULL(p.name) : '?'; };
@@ -181,14 +182,14 @@
       : S.mode === 'pref' ? `${name(S.pref)}のクイズ` : '全国のクイズ'),
       el('span', 'n', S.mode === 'day' ? '' : `${S.i + 1} / ${S.list.length}　${S.score}点`));
     const x = el('button', 'x', '×'); x.title = 'やめる'; x.addEventListener('click', stop);
-    head.append(x);
+    head.append(...(window.RUBY ? [RUBY.button()] : []), x);
     const bar = el('div', 'time'), fill = el('i');
     bar.append(fill);
-    box.append(head, el('span', 'cat', q.cat), el('p', 'q', q.text), bar);
+    box.append(head, el('span', 'cat', q.cat), R(el('p', 'q'), q.text), bar);
     if (q.shape) box.append(shapeEl(q.shape));
     M.loadIntro(q.opts ? q.pref : q.ans).catch(() => {});      // 答えの後に出す説明（県ごとのファイル）を、考えている間に読んでおく
     const g = el('div', 'ch');
-    for (const no of S.ch) { const b = el('button', null, q.opts ? q.opts[no].t : name(no)); b.dataset.no = no; b.addEventListener('click', () => answer(no)); g.append(b); }
+    for (const no of S.ch) { const b = R(el('button'), q.opts ? q.opts[no].t : name(no)); b.dataset.no = no; b.addEventListener('click', () => answer(no)); g.append(b); }
     box.append(g);
     if (!q.opts) box.append(el('small', 'hint', '地図の都道府県を押しても答えられます'));
     requestAnimationFrame(() => { fill.style.transitionDuration = LIMIT + 's'; fill.style.width = '0%'; });
@@ -229,7 +230,7 @@
     };
     fill();
     M.loadIntro(pref).then(() => { if (res.isConnected) fill(); }, () => { if (!q.more()) more.textContent = '説明を読めませんでした（通信を確かめてください）'; });
-    res.append(el('b', null, ok ? `正解！ +${pts}点` : `ざんねん。正解は ${q.opts ? `「${q.opts[q.ans].t}」` : name(q.ans)}`), more, src);
+    res.append(R(el('b'), ok ? `正解！ +${pts}点` : `ざんねん。正解は ${q.opts ? `「${q.opts[q.ans].t}」` : name(q.ans)}`), more, src);
     // 合っていても違っていても、説明を読むので知った物に数える：豆知識は豆知識帳へ（入ったことを知らせる）、ほかはであい帖へ
     if (q.mame && window.MAME) {
       const isNew = MAME.record(q.mame), [got, tot] = MAME.count();

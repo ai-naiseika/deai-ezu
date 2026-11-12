@@ -8,6 +8,7 @@
   const M = window.MAP3D, IN = window.INTRO, D = window.SUGO_DATA;
   if (!M || !IN || !D) return;
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const R = (e, s) => (window.RUBY ? RUBY.text(e, s) : ((e.textContent = s), e));     // ふりがな（ふりがな.js。無い時は字だけ）
   const NS = 'http://www.w3.org/2000/svg';
   const svg = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs || {}) e.setAttribute(k, attrs[k]); return e; };
   const KEY = 'zenkoku3d-sugo-v1', ROUNDS = 10, CHAIN = 3, KM_PT = 50, BONUS = 2;
@@ -304,7 +305,7 @@
     box.textContent = '';
     const h = el('div', 'head'), x = el('button', 'x', '×');
     x.setAttribute('aria-label', 'やめる'); x.addEventListener('click', () => stop());
-    h.append(el('b', null, 'すごろく10回チャレンジ！'), x);
+    h.append(el('b', null, 'すごろく10回チャレンジ！'), ...(window.RUBY ? [RUBY.button()] : []), x);
     box.appendChild(h);
     if (stat && G) {
       const st = el('div', 'stat');
@@ -502,10 +503,10 @@
     if (G.step) tag.appendChild(el('span', 'chain', `つづけて${G.step + 1}問目`));
     box.appendChild(tag);
     if (G.bonus) box.appendChild(el('p', 'bonus', 'ボーナス問題！ 正解で点が2倍'));
-    box.appendChild(el('p', 'q', q.text));
+    box.appendChild(R(el('p', 'q'), q.text));
     const g = el('div', 'ch');
     q.opts.forEach((o, i) => {
-      const b = el('button', null, o.t);
+      const b = R(el('button'), o.t);
       b.dataset.i = i;
       b.addEventListener('click', () => answer(i));
       g.appendChild(b);
@@ -597,7 +598,7 @@
     const st = box.querySelector('.stat');
     if (st) { st.children[1].textContent = `知識 ${G.know}点`; st.children[2].textContent = `旅 ${fmt(Math.round(G.km))}km`; }
     const res = el('div', 'res ' + (ok ? 'ok' : 'ng')), right = q.opts[ri];
-    res.appendChild(el('b', null, ok ? `正解！ +${pts}点` + (q.lv === 'hard' ? '（むずかしい問いの＋10点つき）' : '') : `ざんねん。正解は「${right.t}」`));
+    res.appendChild(R(el('b'), ok ? `正解！ +${pts}点` + (q.lv === 'hard' ? '（むずかしい問いの＋10点つき）' : '') : `ざんねん。正解は「${right.t}」`));
     // 説明と出どころ：紹介・豆知識・目印・山と湖の文と出どころは県ごとのファイル（県庁の問いは、説明が先に出せても出どころがまだ届いていない）
     const more = el('p', 'more', q.more() || '説明を読み込んでいます…'), det = el('details', 'src');
     const fill = () => { if (q.more()) more.textContent = q.more(); det.textContent = ''; det.hidden = !srcBox(det, q.src()); };

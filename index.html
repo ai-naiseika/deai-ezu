@@ -721,6 +721,14 @@
   #quiz .res p { font-size: 14px; line-height: 1.7; margin: 4px 0 8px; }
   #quiz button.next, #quiz button.big, #quiz .row button, #quiz .log button { padding: 8px 12px; font-size: 15px; font-weight: 700; border: 1.4px solid var(--ink); background: #fffdf6; cursor: pointer; margin: 4px 0; }
   #quiz button.big { display: block; width: 100%; }
+  /* ふりがな（ふりがな.js・2026-11-12）：読みは字の上に小さく。「ふりがな：なし」で消す */
+  ruby { ruby-align: center; }
+  rt { font-size: .5em; font-weight: 400; letter-spacing: 0; line-height: 1; white-space: nowrap; }
+  body.no-ruby rt { display: none; }
+  .ruby-tg { font-size: 11px; font-weight: 400; padding: 1px 7px; border: 1px solid #b9ad8f; border-radius: 9px; background: #fffdf6; color: #6a6250; cursor: pointer; white-space: nowrap; }
+  #sugo .head .ruby-tg, #quiz .head .ruby-tg { margin-left: auto; }
+  #sugo .head .ruby-tg + .x, #quiz .head .ruby-tg + .x { margin-left: 6px; }
+  #mame-card .head .ruby-tg { margin-left: auto; }
   #quiz button.big.sub { font-weight: 400; font-size: 14px; background: #f6efdc; }
   #quiz .res p.got { font-size: 13px; color: #2f7a4a; font-weight: 700; margin: 0 0 6px; }
   #quiz details.src { font-size: 12px; color: #6a6250; margin: 0 0 6px; }

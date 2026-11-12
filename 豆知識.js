@@ -132,8 +132,8 @@
     const d = B.d;
     card.textContent = '';
     const head = el('div', 'head');
-    head.append(el('b', null, '豆知識'), catEl(d.cat), el('span', 'pref', P ? M.FULL(P[B.k].name) : ''));
-    card.append(head, el('h3', null, d.title), el('p', 'text', d.text == null ? '読み込んでいます…' : d.text), el('p', 'where', d.where ? '場所：' + d.where : ''));
+    head.append(el('b', null, '豆知識'), catEl(d.cat), el('span', 'pref', P ? M.FULL(P[B.k].name) : ''), ...(window.RUBY ? [RUBY.button()] : []));
+    card.append(head, window.RUBY ? RUBY.text(el('h3'), d.title) : el('h3', null, d.title), el('p', 'text', d.text == null ? '読み込んでいます…' : d.text), el('p', 'where', d.where ? '場所：' + d.where : ''));
     if (d.sources) {
       const det = el('details', 'src'), ol = el('ol');
       det.appendChild(el('summary', null, `${d.mark} ${M.MARK ? M.MARK[d.mark] || '' : ''}・出どころ（${d.sources.length}）`));
