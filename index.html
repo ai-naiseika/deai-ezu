@@ -211,7 +211,7 @@
      人口のボタンはどこでも出す（全国では日本のデータ・県の中では世帯数の塗り分け） */
   #bar #tour-open, #bar #fly-open { display: none; }
   body.inside #bar #tour-open, body.inside #bar #fly-open { display: inline-flex; }
-  body.inside #bar #sugo-open { display: none; }   /* すごろくは全国の遊び。県の中は県の道具で並びが混み、横向きのスマホで2段になって出典の注にかかった */
+  body.inside #bar #sugo-open, body.inside #bar #takara-open { display: none; }   /* すごろくは全国の遊び。県の中は県の道具で並びが混み、横向きのスマホで2段になって出典の注にかかった */
   /* 日本のデータ（全国の眺めで人口のボタンを押した時。案内.js） */
   #natdata { position: fixed; left: 16px; bottom: 236px; width: 300px; max-width: calc(100vw - 32px); background: rgba(250,244,226,.97); border: 1.6px solid var(--gold);
     box-shadow: 0 6px 16px rgba(60,40,10,.15); padding: 10px 12px; display: none; font-size: 13px; line-height: 1.6; z-index: 6; }
@@ -678,6 +678,37 @@
   #quiz { position: fixed; left: 16px; top: 268px; z-index: 7; width: min(340px, calc(100vw - 32px)); max-height: calc(100vh - 366px); overflow-y: auto; box-sizing: border-box;
     background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 10px 14px; display: none; }
   #quiz.open { display: block; }
+  /* 全国宝さがし（2026-11-13）：窓はクイズと同じ置き場と形。選んだ宝の場所に寄ると光る印（#takara-spot）と、さがしている宝の謎かけの帯（#takara-chip） */
+  #takara { position: fixed; left: 16px; top: 268px; z-index: 7; width: min(360px, calc(100vw - 32px)); max-height: calc(100vh - 366px); overflow-y: auto; box-sizing: border-box;
+    background: rgba(250,244,226,.98); border: 1.6px solid var(--gold); box-shadow: 0 8px 22px rgba(60,40,10,.22); padding: 10px 14px; display: none; }
+  #takara.open { display: block; }
+  #takara .head { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; } #takara .head b { font-size: 16px; color: var(--shu); }
+  #takara .head .x, #takara .head .back { border: 0; background: none; cursor: pointer; color: #6a6250; } #takara .head .x { margin-left: auto; font-size: 18px; } #takara .head .back { font-size: 14px; color: #3c5a8c; padding: 0; }
+  #takara button.big { display: block; width: 100%; text-align: left; padding: 8px 12px; margin: 4px 0; font-size: 15px; font-weight: 700; border: 1.4px solid var(--ink); background: #fffdf6; cursor: pointer; }
+  #takara button.small { font-size: 13px; padding: 4px 9px; margin: 4px 6px 0 0; border: 1px solid var(--ink); background: #fffdf6; cursor: pointer; } #takara button.sub { border-color: #b9ad8f; color: #4a4334; }
+  #takara .note { font-size: 13px; line-height: 1.6; color: #4a4334; margin: 4px 0 6px; } #takara .note.small { font-size: 12px; color: #6a6250; }
+  #takara .tk { border-top: 1px solid #e3d6b6; padding: 8px 0; } #takara .tk.hunt { background: #fff3d6; } #takara .tk.got b { color: #8a5a00; }
+  #takara .riddle { font-size: 14.5px; line-height: 1.7; margin: 0 0 4px; } #takara .dir { font-size: 13px; color: #3c5a8c; margin: 4px 0; } #takara .pref { font-size: 13px; color: #6a6250; }
+  #takara .text { font-size: 14px; line-height: 1.75; } #takara .src { font-size: 12px; color: #6a6250; } #takara .src a { color: #3c5a8c; }
+  #takara svg.piece { display: block; width: 100%; height: 150px; margin: 4px 0; background: #e8dcbc; border: 1px solid #b9a77c; box-sizing: border-box; }
+  #takara svg.piece path { fill: #f3ead2; stroke: #6b5a38; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+  #takara svg.piece .mark { fill: #b23a2a; font-size: 18px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+  #takara .stone { margin-top: 10px; border-top: 1.4px solid var(--gold); padding-top: 8px; } #takara .stone input { font-size: 15px; padding: 4px 6px; width: 60%; }
+  #takara ol.stones { font-size: 14px; } #takara ol.stones li.me { color: var(--shu); font-weight: 700; }
+  #takara-spot { position: fixed; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 0; z-index: 6; cursor: pointer; display: none; background: none; padding: 0; }
+  /* 脈打つのは中の光だけ（押す所を動かすと押しにくく、検査の道具も押せなかった） */
+  #takara-spot::before { content: ''; position: absolute; inset: 0; border-radius: 50%; animation: tk-glow 1.6s ease-in-out infinite;
+    background: radial-gradient(circle, rgba(255,240,170,.95) 0 22%, rgba(255,214,90,.55) 40%, rgba(255,214,90,0) 70%); }
+  /* 豆知識の光の粒と見分けるため、朱の輪と「✦ 掘る」の字を添える（2026-11-13 撮って見ると、同じ金色の光で区別がつかなかった） */
+  #takara-spot::after { content: '✦ 掘る'; position: absolute; left: 50%; top: 100%; translate: -50% 2px; white-space: nowrap; font-size: 13px; font-weight: 700;
+    color: #fffaf0; background: var(--shu); border: 1px solid var(--ink); padding: 1px 7px; }
+  #takara-spot { box-shadow: 0 0 0 2.5px var(--shu) inset; }
+  #takara-spot.on { display: block; } #takara-spot.dig::before { animation: tk-dig .9s ease-out forwards; }
+  @keyframes tk-glow { 50% { scale: 1.35; } } @keyframes tk-dig { to { scale: 3; opacity: 0; } }
+  #takara-chip { position: fixed; left: 50%; top: 8px; translate: -50% 0; z-index: 6; max-width: min(520px, calc(100vw - 180px)); display: none; font-size: 13px; line-height: 1.5;
+    padding: 4px 10px; background: rgba(255,243,214,.96); border: 1px solid var(--gold); text-align: left; cursor: pointer; color: var(--ink); }
+  #takara-chip.on { display: block; } body.opening #takara-chip, body.touring #takara-chip { display: none; }
+  @media (prefers-reduced-motion: reduce) { #takara-spot::before { animation: none; } }
   #quiz .head { display: flex; gap: 8px; align-items: baseline; }
   #quiz .head b { font-size: 16px; color: var(--shu); }
   #quiz .head .n { font-size: 13px; color: #6a6250; font-weight: 700; }
@@ -954,6 +985,7 @@
      844×390 で、検索の枠が札の窓の題に・方位が札の窓の角に・出典の注が下の並びと「〇〇の中へ」にかぶった（2026-11-07） */
   @media (max-height: 520px) and (orientation: landscape) {
     .kasumi { display: none; }
+    #bar #takara-open { display: none; }   /* 背の低い横向きは並びが2段になり出典の注にかかった（2026-11-13）。宝さがしは入口の雲と謎かけの帯から */
     #title { left: 12px; top: 8px; }
     #title b { font-size: 26px; padding: 0 8px 2px; border-width: 2px; }
     #title span { font-size: 12px; margin: 2px 0 0 2px; }
@@ -1046,6 +1078,7 @@
   </div>
   <button class="ico" id="quiz-open" data-tip="クイズ（今日の一問・10問で点数）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16v10H10l-4 3.5v-3.5H4Z"/><path d="M10 8.6a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.3"/><circle class="f" cx="12" cy="13.6" r=".9"/></svg><span class="lab">クイズ</span></button>
   <button class="ico" id="sugo-open" data-tip="すごろく10回チャレンジ！（みんなの番付）"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3.2"/><circle class="f" cx="8.6" cy="8.6" r="1.5"/><circle class="f" cx="12" cy="12" r="1.5"/><circle class="f" cx="15.4" cy="15.4" r="1.5"/></svg><span class="lab">すごろく</span></button>
+  <button class="ico" id="takara-open" data-tip="全国宝さがし"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11h16v8H4Z"/><path d="M4 11c0-3.5 3.6-5.5 8-5.5s8 2 8 5.5"/><path d="M10.5 13h3v3h-3Z"/></svg><span class="lab">宝さがし</span></button>
   <button class="ico" id="cal-open" data-tip="旬のカレンダー"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path class="f" d="M7 12.5h3v3H7z"/></svg><span class="lab">旬のカレンダー</span></button>
   <button class="ico" id="tour-nat" data-tip="全国を遊覧（見ている所から）"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18c2.5-4 5-1 7-5s4-6 9-7" stroke-dasharray="2.2 2.2"/><circle cx="4" cy="18" r="1.6"/><path class="f" d="M20 3.5c-1.7 0-3 1.3-3 3 0 2.2 3 5 3 5s3-2.8 3-5c0-1.7-1.3-3-3-3Z"/></svg><span class="lab">全国を遊覧</span></button>
   <button class="ico" id="tour-open" data-tip="空から遊覧"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 14c3-2 5-2 8 0s5 2 8 0"/><path d="M12 4 21 9l-9 1-3 4V9.5L3 8Z"/></svg><span class="lab">空から遊覧</span></button>
@@ -1138,7 +1171,7 @@
       <button id="o-yuran" class="o-cloud flip" type="button" inert><span class="c">まずは遊覧する<small>全国か、選んだ県を空からめぐる</small></span></button>
       <button id="o-sugo" class="o-cloud" type="button" inert><span class="c">すごろくで全国周遊<small>10県をめぐる・みんなの番付</small></span></button>
       <button id="o-quiz" class="o-cloud flip" type="button" inert><span class="c">正統派クイズに挑戦<small>全国版・県版・かたち当て</small></span></button>
-      <button id="o-takara" class="o-cloud" type="button" disabled><span class="c">全国宝さがし<small>準備中（テーマごとの宝を探す）</small></span></button>
+      <button id="o-takara" class="o-cloud" type="button" inert><span class="c">全国宝さがし<small>謎かけを手がかりに宝を探す</small></span></button>
     </div>
     <div class="stage" id="o-sub"></div>
     <div class="stage" id="o-walk"><button type="button" class="o-back">‹ 入口へ</button>
