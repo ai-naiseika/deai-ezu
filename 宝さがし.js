@@ -7,8 +7,9 @@
   const M = window.MAP3D;
   if (!M) return;
   const $ = (s) => document.querySelector(s);
-  const KEY = 'zenkoku3d-takara-v1', THEMES = ['食', '歴史', '山'];
-  const TITLE = { '食': '食の宝の主', '歴史': '歴史の宝の主', '山': '山の宝の主' };
+  const KEY = 'zenkoku3d-takara-v1';
+  let THEMES = [];                            // テーマの並びは台帳の順（宝.js を読んだ時に決める）
+  const TITLE = { '食': '食の宝の主', '歴史': '歴史の宝の主', '山': '山の宝の主', '偉人': '偉人の宝の主', '酪農': '酪農の宝の主', '日本の宝': '日本の宝の主' };
   const API = (() => {
     const t = /[?&]sugoapi=([^&]+)/.exec(location.search), u = t ? decodeURIComponent(t[1]) : '';
     return /^http:\/\/127\.0\.0\.1:\d+$/.test(u) ? u : 'https://deai-banzuke.ai-naiseika.workers.dev';
@@ -38,7 +39,7 @@
     if (D) return Promise.resolve(D);
     if (!loading) loading = new Promise((ok, ng) => {
       const s = document.createElement('script');
-      s.src = '宝.js'; s.onload = () => { D = window.TAKARA_DATA; ok(D); }; s.onerror = () => { loading = null; ng(new Error('load')); };
+      s.src = '宝.js'; s.onload = () => { D = window.TAKARA_DATA; THEMES = [...new Set(D.items.map((t) => t.theme))]; ok(D); }; s.onerror = () => { loading = null; ng(new Error('load')); };
       document.head.appendChild(s);
     });
     return loading;
