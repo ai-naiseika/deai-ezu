@@ -119,7 +119,7 @@
   function sub(title, opts) {
     ghost('gone');
     const box = $('#o-sub'), back = mk('button', 'o-back', '‹ 入口へ');
-    box.textContent = '';
+    box.textContent = ''; box.className = 'stage';
     back.type = 'button'; back.addEventListener('click', () => stage('start'));
     box.append(back, mk('p', null, title));
     opts.forEach(([label, fn], i) => { const b = mk('button', 'big o-cloud' + (i % 2 ? ' flip' : '')); b.append(mk('span', 'c', label)); b.type = 'button'; b.addEventListener('click', fn); box.append(b); });
@@ -146,8 +146,14 @@
     setTimeout(() => { const e = $('#c-enter'); if (e) e.click(); }, 600);
   }
   M.on('world', (w) => { if (w && afterIn && w.name === afterIn.name) { const f = afterIn.then; afterIn = null; setTimeout(f, 900); } });
+  // 全国の遊覧は出発の地方を選ぶ（本人 2026-11-13「全国遊覧の場合は、開始位置をどこからにするかを選ぶように」）。
+  // 選んだ地方の先頭の県から回り、沖縄の次は北海道へつないで一巡する（遊覧.js の natOrder）。9つの雲は3列に
+  function pickStart() {
+    sub('どこから出発しますか', REGIONS.map((r) => [r[0] + 'から', () => { close(); setRegion(r); if (window.YURAN) YURAN.startNat(); }]));
+    $('#o-sub').classList.add('grid3');
+  }
   $('#o-yuran').addEventListener('click', () => sub('まずは遊覧する', [
-    ['全国を遊覧する（出発はおまかせ）', tourNat],
+    ['全国を遊覧する', pickStart],
     ['県を選んで遊覧する', () => pickPref('どの県を遊覧しますか', (n) => intoPref(n, () => window.YURAN && YURAN.start()))],
   ]));
   $('#o-quiz').addEventListener('click', () => sub('正統派クイズに挑戦', [

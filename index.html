@@ -80,6 +80,7 @@
   .o-cloud::before { content: ''; position: absolute; inset: 0; z-index: -1; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100' preserveAspectRatio='none'%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='.5' stop-color='%23fff'/%3E%3Cstop offset='1' stop-color='%23d3dfe9'/%3E%3C/linearGradient%3E%3Cpath fill='url(%23g)' d='M16 96C4 96 0 80 10 72C2 60 12 44 28 48C30 32 52 24 66 34C76 16 108 12 120 30C132 18 160 22 164 40C182 38 198 54 190 70C200 80 194 96 180 96Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
   .o-cloud.flip { margin-left: 24px; --fd: 6.6s; } .o-cloud.flip::before { scale: -1 1; }
   .o-cloud:active { scale: .97; }
+  .o-cloud:hover { background: none; filter: drop-shadow(0 5px 7px rgba(40, 70, 110, .36)) brightness(1.04); }   /* ボタンに乗せた時の白い四角（button:hover）を雲には出さない */
   .o-cloud small { display: block; font-size: 12px; font-weight: 400; color: #4f5c68; margin-top: 2px; }
   .o-cloud[inert] { opacity: .45; }
   .o-cloud:disabled { opacity: .6; cursor: default; }
@@ -99,6 +100,9 @@
   #o-regions:is([data-stage="start"], [data-stage="sub"]):not(.paper) :is(p, .o-back) { text-shadow: 0 0 3px #fff, 0 0 7px #fff, 0 0 12px #fff; }
   #o-regions .o-back { border: 0; background: none; color: #3c5a8c; font-size: 14px; padding: 0 0 6px; cursor: pointer; }
   #o-sub > p { font-weight: 700; margin: 2px 0 8px; }
+  #o-regions[data-stage="sub"] > #o-sub.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 6px; align-items: start; }
+  #o-sub.grid3 > :is(p, .o-back) { grid-column: 1 / -1; justify-self: start; }
+  #o-sub.grid3 .o-cloud { width: 100%; margin: 0; padding: 22px 4px 7px; font-size: 14px; } #o-sub.grid3 .o-cloud.flip { margin-top: 8px; }
   #o-sub .reg { font-size: 12px; color: #6a6250; margin: 8px 0 3px; }
   #o-sub .prefs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
   #o-sub .prefs button { font-size: 13px; padding: 6px 2px; border: 1px solid #b9ad8f; background: #fffdf6; cursor: pointer; }

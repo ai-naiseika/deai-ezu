@@ -368,6 +368,8 @@
         if (G !== me || !all.isConnected) return;
         all.textContent = '';
         if (r.err) { all.appendChild(el('p', 'note', errText(r))); return; }
+        perk(r.me && r.me.rank);
+        all.appendChild(el('p', 'note', '特典：10位以内にいる間は、海が七色に光ります（夜は星の海に）'));
         all.appendChild(el('p', 'note', r.me ? `あなたは ${r.players}人中 ${r.me.rank}位（ベスト ${r.me.score}点）` : `${r.players}人がのっています。番付に挑戦すると、あなたの位置が出ます。`));
         const ol = el('ol', 'best top');
         r.top.forEach((x, i) => {
@@ -672,6 +674,7 @@
     ul.append(el('li', null, `知識：${G.know}点（${G.qn}問のうち${G.okN}問正解）`), el('li', null, `旅の距離：${fmt(rec.km)}km → ${dist}点（50kmごとに1点）`));
     box.append(el('p', 'big', `${total}点`), el('p', 'title', `称号：${title}`), ul);
     routeList();
+    if (f) perk(f.rank);
     if (f) box.appendChild(el('p', 'note', f.better ? `みんなの番付に記録しました：${f.players}人中 ${f.rank}位（名前：${rec.name}）`
       : `みんなの番付のあなたのベストは ${f.best}点（${f.players}人中 ${f.rank}位）。今回はベストを超えませんでした。`));
     else if (rank >= 0) box.appendChild(el('p', 'note', `あなたの記録の${rank + 1}位に入りました（練習は、みんなの番付にはのりません）`));
@@ -743,6 +746,23 @@
   addEventListener('keydown', (e) => { if (e.code === 'Escape' && box.classList.contains('open') && !e.target.closest('input')) { stop(); e.stopImmediatePropagation(); } }, true);
 
   // 検査用：問いの台帳（県ごと）・遊びの状態
-  window.SUGO = { open, stop, bank, titleOf, nameErr, answer, fileTag, get playing() { return !!(G && !G.over); },get prof() { return L.prof && Object.assign({ shown: shown() }, L.prof); }, get best() { return L.best; },
+  // 番付の特典（本人 2026-11-11「ランキングに乗っている間は何かボーナス」→ 七色の海。見た目が決まって 2026-11-13 につないだ）：
+  // みんなの番付の10位以内にいる間は、海が七色に光る（見た目だけ。点には効かせない）。位は、番付に参加したことのある端末だけ、
+  // 開いた時に1回と、番付を見た時・挑戦を終えた時に受け口で確かめる。?nanairo=1（見本）の時は触らない
+  let perkOn = false;
+  function perk(rank) {
+    if (/[?&]nanairo=1/.test(location.search)) return;
+    const on = Number.isFinite(rank) && rank >= 1 && rank <= 10;
+    if (window.MAP3D && MAP3D.nanairo) MAP3D.nanairo(on);
+    const tst = document.getElementById('mame-toast');
+    if (on && !perkOn && tst) {
+      tst.textContent = `番付の${rank}位にいる特典：10位以内にいる間は、海が七色に光ります`;
+      tst.classList.add('on'); setTimeout(() => tst.classList.remove('on'), 6000);
+    }
+    perkOn = on;
+  }
+  if (API && L.prof) setTimeout(() => call('/board?d=' + L.prof.device, null).then((r) => { if (!r.err) perk(r.me && r.me.rank); }), 2500);
+
+  window.SUGO = { open, stop, bank, titleOf, nameErr, answer, fileTag, get playing() { return !!(G && !G.over); },get prof() { return L.prof && Object.assign({ shown: shown() }, L.prof); }, get best() { return L.best; }, get perk() { return perkOn; },
     get state() { return G && { round: G.round, pref: G.pref, step: G.step, know: G.know, km: G.km, route: G.route.map((r) => Object.assign({}, r)), q: G.q && { id: G.q.id, lv: G.q.lv, kind: G.q.kind, ans: G.q.ans, n: G.q.opts.length }, done: G.done, next: !!G.next, over: !!G.over, spinning: !!G.spinning, remote: !!G.remote, fin: G.fin || null }; }, get api() { return API; } };
 })();
