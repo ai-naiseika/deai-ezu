@@ -1816,7 +1816,7 @@
     liftY: (k) => inside ? 0 : liftY(k),     // 描いている高さ（ぷかぷかを含む）。県の上に置く札・豆・印はこちらで
     get bob() { return { a: Array.from(bobA), y: Array.from(bobY) }; },
     // 検査用：絵の具の時刻を止める・戻す。2枚を撮って比べる時、時刻で流れる雲の影が差に混ざった（2026-11-02 海津の水路）
-    stopTime(on) { tStop = on ? U.uTime.value : null; },
+    stopTime(on) { tStop = typeof on === 'number' ? on : on ? U.uTime.value : null; },   // 数を渡すとその時刻で止める（検査で波の光り方をそろえる）
     nanairo(on, now) { nanaOn = on ? 1 : 0; if (now) U.uNana.value.x = nanaOn; },
     sunTimes: (day) => sunTimes(day || todDay),
     // 検査用：空の雲（出ているか・風の向き・位置と幅・濃さ）

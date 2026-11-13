@@ -20,15 +20,16 @@
   const setRegion = (r) => { region = r; const t = r ? r[0] + 'から遊覧' : '全国を遊覧'; tourBtn.querySelector('.lab').textContent = t; tourBtn.dataset.tip = t + '（見ている所から）'; };
 
   const list = $('#o-regions .list');
-  for (const r of REGIONS) {
-    const [name, a, b, whole] = r;
-    const bt = document.createElement('button'), tail = document.createElement('span');
-    tail.textContent = 'から始める';             // スマホでは名前だけ（見出しが「どこから旅を始めますか」）
-    bt.append(name, tail);
+  REGIONS.forEach((r, i) => {
+    const name = r[0];
+    const bt = document.createElement('button'), c = document.createElement('span'), tail = document.createElement('span');
+    tail.textContent = 'から始める'; tail.className = 'tail';     // 雲には名前だけ（見出しが「どこから旅を始めますか」）。読み上げには残す
+    c.className = 'c'; c.append(name, tail); bt.append(c);
+    bt.className = 'o-cloud' + (i % 2 ? ' flip' : ''); bt.type = 'button';
     bt.dataset.region = name;
     bt.addEventListener('click', () => go(r));
     list.appendChild(bt);
-  }
+  });
   // 季節と時刻（本人 2026-10-31「季節や時間もリアルなのか、好みのものを最初に選べるように」）：
   // とき.js の窓のボタンをそのまま押す（作りを二重に持たない）。押した状態は とき.js の今の決まりから映す
   const tokiBtns = [...document.querySelectorAll('#o-toki button, #o-hour button')];

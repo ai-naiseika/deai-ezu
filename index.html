@@ -121,8 +121,10 @@
   #o-regions .chips button { font-size: 13px; padding: 3px 9px; }
   #o-regions .chips button[aria-pressed="true"] { background: var(--shu); color: #fffaf0; border-color: var(--ink); }
   #o-toki { margin-bottom: 5px !important; }
-  #o-regions .list { display: grid; grid-template-columns: 1fr; gap: 6px; }
-  #o-regions .list button { text-align: left; font-size: 15px; padding: 5px 10px; }
+  /* 地方の9つも雲（2026-11-13）：3列にして、名前だけ（見出しが「どこから旅を始めますか」） */
+  #o-regions .list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 6px; align-items: start; }
+  #o-regions .list button.o-cloud { width: 100%; margin: 0; padding: 21px 4px 7px; font-size: 14px; text-align: center; } #o-regions .list button.o-cloud.flip { margin-top: 8px; }
+  #o-regions .list button .tail { display: none; }
   #o-go[inert] { opacity: .45; }
   #o-wait, #o-fail, #o-retry { display: none; margin-left: 4px; font-size: 12px; font-weight: 400; color: #3a3428; }
   body.ui-wait #o-wait { display: inline; animation: breathe 1.6s ease-in-out infinite; }
@@ -131,8 +133,10 @@
   body.ui-fail #o-retry { display: inline-block; padding: 1px 8px; }
   body.no-book .book-only { display: none !important; }
   .o-book { display: block; padding: 8px 0 0; text-align: center; font-size: 13px; color: #3c5a8c; }
-  #o-all { margin-top: 12px; width: 100%; font-size: 14px; }
-  #o-tour { margin-top: 6px; width: 100%; font-size: 14px; }
+  /* 地方を選ぶ段は、季節・時刻・見たい情報のボタンもあって縦に長いので、紙の欄（巻ける）のまま。中の地方と「日本全体」「遊覧」だけ雲に（2026-11-13。
+     空に浮かべると欄からはみ出し、375×667 では下の雲に届かなかった） */
+  #o-go { display: grid; grid-template-columns: 1fr 1fr; gap: 0 6px; align-items: start; } #o-go > .list { grid-column: 1 / -1; }
+  #o-all.o-cloud, #o-tour.o-cloud { width: 100%; margin: 4px 0 0; font-size: 14px; padding: 21px 6px 7px; } #o-tour.o-cloud.flip { margin-top: 10px; }
   @media (max-width: 700px) and (orientation: portrait), (max-width: 700px) and (min-height: 521px) {
     #o-title b { font-size: 30px; padding: 4px 10px 6px; } #o-title span { display: none; } #o-head { left: 16px; top: 16px; }
     /* 縦のスマホは入口の5つを2列に（1列だと欄が画面の半分を超え、列島が小さくなった。幅 360・背 640 では欄の上に収めきれず、沖縄と尖閣の印が欄の下にもぐった） */
@@ -143,8 +147,6 @@
     .o-cloud:not(:disabled) small { display: none; } .o-cloud small { font-size: 11px; }
     #o-regions { left: 16px; right: 16px; top: auto; bottom: 28px; transform: none; width: auto; padding: 10px; max-height: 60vh; }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips { margin-bottom: 7px; } #o-regions .chips button { font-size: 12px; padding: 3px 7px; }
-    #o-regions .list { grid-template-columns: 1fr 1fr 1fr; } #o-regions .list button { font-size: 15px; padding: 6px 4px; text-align: center; }
-    #o-regions .list button span { display: none; }
   }
   #title b { display: inline-block; font-size: 56px; color: var(--shu); border: 2.5px solid var(--shu); padding: 0 14px 4px; line-height: 1.2; }
   #title span { display: block; font-size: 24px; font-weight: 700; margin: 8px 0 0 16px; }
@@ -969,7 +971,7 @@
     .o-cloud { padding: 18px 20px 5px; font-size: 15px; } .o-cloud:not(:disabled) small { display: none; } .o-cloud small { font-size: 11px; margin-top: 0; }
     #o-regions { right: 8px; width: 280px; padding: 8px 10px; max-height: calc(100vh - 16px); }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips button { font-size: 12px; padding: 2px 7px; }
-    #o-regions .list { grid-template-columns: 1fr 1fr; } #o-regions .list button { font-size: 13px; padding: 4px 8px; }
+    #o-regions .list button.o-cloud { font-size: 13px; padding: 18px 2px 5px; }
     #card { right: 8px; top: 8px; width: 260px; padding: 10px 12px; box-sizing: border-box; max-height: calc(100vh - 80px); }
     #card h2 { font-size: 24px; margin: 0 0 2px; }
     #compass { right: 8px; bottom: 8px; width: 44px; height: 44px; }
@@ -1145,7 +1147,7 @@
     <p>季節と時刻</p>
     <div class="chips" id="o-toki"><button type="button" data-now="1">今に合わせる</button><button type="button" data-s="0">春</button><button type="button" data-s="1">夏</button><button type="button" data-s="2">秋</button><button type="button" data-s="3">冬</button></div>
     <div class="chips" id="o-hour"><button type="button" data-h="6" data-sun="rise">朝</button><button type="button" data-h="12">昼</button><button type="button" data-h="17.25" data-sun="set">夕</button><button type="button" data-h="21">夜</button></div>
-    <p>どこから旅を始めますか</p><div id="o-go" inert><div class="list"></div><button id="o-all">日本全体をながめる</button><button id="o-tour">遊覧で旅する（出発はおまかせ）</button></div>
+    <p>どこから旅を始めますか</p><div id="o-go" inert><div class="list"></div><button id="o-all" class="o-cloud"><span class="c">日本全体をながめる</span></button><button id="o-tour" class="o-cloud flip"><span class="c">北海道から遊覧</span></button></div>
     </div>
   </div>
 </div>

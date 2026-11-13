@@ -51,7 +51,11 @@
     for (const q of SUGO.bank(n)) { if (!byKind.has(q.kind)) byKind.set(q.kind, []); byKind.get(q.kind).push(q); }
     const kinds = [...byKind.keys()].sort(() => r() - 0.5), used = new Set(), out = [];
     for (let i = 0; out.length < ROUND && i < 300; i++) {
-      const k = i % 3 === 0 && byKind.has('豆知識') ? '豆知識' : kinds[i % kinds.length];     // 豆知識は多めに（3問に1問）
+      let k = i % 3 === 0 && byKind.has('豆知識') ? '豆知識' : kinds[i % kinds.length];     // 豆知識は多めに（3問に1問）
+      // その種類に知らない物が残っていなければ、知らない物が残っている種類へ回す（種類の順番のままだと、知らない物が別の種類に残っていても
+      // 知っている物を出し、知らない物が出ずに終わる回があった 2026-11-13）
+      const unk = (kk) => byKind.get(kk).some((q) => !used.has(q.lid || q.id) && !knownQ(q));
+      if (!unk(k)) { const alt = kinds.filter(unk); if (alt.length) k = alt[Math.floor(r() * alt.length)]; }
       const c = byKind.get(k).filter((q) => !used.has(q.lid || q.id));
       if (!c.length) continue;
       const q = pickUnknown(c, r);
