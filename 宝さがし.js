@@ -47,6 +47,7 @@
   const byId = (id) => D && D.items.find((t) => t.id === id);
   const pOf = (t) => M.P.find((p) => p.n === t.pref);
   const prefName = (t) => { const p = pOf(t); return p ? p.name : ''; };
+  const tn = (th) => (/宝$/.test(th) ? th : th + 'の宝');      // テーマの呼び名（「日本の宝」は「日本の宝の宝」にしない）
 
   // ---------------------------------------------------------------- 窓
   const box = el('div'); box.id = 'takara'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', '全国宝さがし');
@@ -72,7 +73,7 @@
     head('全国宝さがし');
     box.appendChild(el('p', 'note', 'テーマを選んで、謎かけを手がかりに宝の場所を探します。場所に寄ると地面が光ります。'));
     for (const th of THEMES) {
-      const b = el('button', 'big', `${th}の宝　${got(th)} / ${all(th)}`);
+      const b = el('button', 'big', `${tn(th)}　${got(th)} / ${all(th)}`);
       if (got(th) === all(th)) b.appendChild(el('small', null, `　称号「${TITLE[th]}」`));
       b.type = 'button'; b.addEventListener('click', () => themeView(th)); box.appendChild(b);
     }
@@ -80,7 +81,7 @@
     box.appendChild(el('p', 'note small', '見つけた宝はこの端末に残ります（消すと見えなくなります）。みんなの石碑に参加した時だけ、端末の番号と見つけた宝の番号を受け口に送ります。'));
   }
   function themeView(th) {
-    head(`${th}の宝　${got(th)} / ${all(th)}`, themes);
+    head(`${tn(th)}　${got(th)} / ${all(th)}`, themes);
     for (const t of D.items.filter((x) => x.theme === th)) {
       const card = el('div', 'tk' + (L.found[t.id] ? ' got' : '') + (L.hunt === t.id ? ' hunt' : ''));
       if (L.found[t.id]) {
@@ -129,7 +130,7 @@
   }
   function found(t) {
     head(`✦ ${t.name}`, () => themeView(t.theme));
-    box.append(el('p', 'pref', `${t.theme}の宝・${prefName(t)}`), el('p', 'text', t.text));
+    box.append(el('p', 'pref', `${tn(t.theme)}・${prefName(t)}`), el('p', 'text', t.text));
     if (t.src.length) {
       const s = el('p', 'src', '出どころ：');
       t.src.forEach((x, i) => { const a = el('a', null, x.title); a.href = x.url; a.target = '_blank'; a.rel = 'noopener'; if (i) s.append('・'); s.appendChild(a); });
@@ -169,7 +170,7 @@
     L.found[t.id] = Date.now(); L.hunt = null; save(); chip();
     spot.classList.add('dig'); setTimeout(() => spot.classList.remove('dig'), 900);
     const done = got(t.theme) === all(t.theme);
-    toast(done ? `宝を見つけた！「${t.name}」—— ${t.theme}の宝を全部そろえて、称号「${TITLE[t.theme]}」` : `宝を見つけた！「${t.name}」`);
+    toast(done ? `宝を見つけた！「${t.name}」—— ${tn(t.theme)}を全部そろえて、称号「${TITLE[t.theme]}」` : `宝を見つけた！「${t.name}」`);
     open(() => found(t));
     sync();
   });
