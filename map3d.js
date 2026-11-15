@@ -179,6 +179,8 @@
     uInY: { value: 1 }, uPtK: { value: 1 }, uPxMax: { value: 0 }, uNearR: { value: 0 }, uNearK: { value: 0 },
     // 七色の海（番付の特典の見本・2026-11-11）：x＝濃さ（0〜1・なめらかに寄せる）、y＝色の帯を流す時刻（動きを減らす設定の端末では止める）
     uNana: { value: new T.Vector2(0, 0) },
+    // 宝さがしのバフ（テーマを揃えた時の見た目・2026-11-15）：x＝食（夜の町の灯りが提灯の色に）・y＝山（朝夕に高い山の頂が紅く）・z＝日本の宝（岸が金色にきらめく）
+    uBuff: { value: new T.Vector4(0, 0, 0, 0) },
   };
   // 町の濃さ（2.5km の升ごとの町丁目の数。鳥瞰.js）。無い時は町を描かない
   const TOWN = window.CHOKAN && window.CHOKAN.town;
@@ -194,7 +196,7 @@
   `;
   // 仕上げ：選ばれていない県は灰色へ沈め、乗せた県は明るく、遠くは紙の色へ溶かす
   const FINISH = `
-    uniform vec3 uFogCol; uniform float uFogNear, uFogFar, uNight, uDusk;
+    uniform vec3 uFogCol; uniform float uFogNear, uFogFar, uNight, uDusk; uniform vec4 uBuff;
     vec3 finish(vec3 c, vec3 S, float dist) {
       float lum = dot(c, vec3(0.299, 0.587, 0.114));
       c = mix(c, vec3(lum) * 0.5 + vec3(0.43, 0.42, 0.40), S.x * 0.7);
@@ -384,6 +386,8 @@
       float line = uSnowLine + vW.z * uSnowN;
       float sn = clamp((h - line + 90.0) / 180.0, 0.0, 1.0) * smoothstep(0.3, 0.65, n.y) * (1.0 - sub);
       c = mix(c, uSnow, sn);
+      // 山の宝のバフ：朝夕、高い山（1300m から 2300m にかけて）の頂を紅く染める（モルゲンロート）
+      c = mix(c, c * vec3(1.25, 0.62, 0.62) + vec3(0.2, 0.04, 0.05), uBuff.y * uDusk * smoothstep(1100.0, 2000.0, h));
       float l = dot(n, uLdir);
       // 陰影：3段の刷りの平らさと、水彩のぼかしの間（段の境をやわらかく）
       float sh = mix(floor((l - 0.72) * 2.2 + 0.5) / 2.2, l - 0.72, 0.45);
@@ -405,7 +409,9 @@
       float spot = on * (1.0 - smoothstep(0.1, 0.3, length(f))) * smoothstep(0.004, 0.02, kmpp) * smoothstep(2.0, 4.0, S / kmpp);
       // 町丁目の数は都心に偏る（郊外の住宅地は町丁目が大きい）ので、薄い所にも明かりが届くように平方根で
       float glow = sqrt(smoothstep(0.5, 60.0, town)) * mix(0.18, 0.75, smoothstep(0.3, 3.0, kmpp));
-      return vec3(1.0, 0.80, 0.45) * (spot * 0.85 + glow) * uNight * (1.0 - smoothstep(uFogNear, uFogFar, dist));
+      // 食の宝のバフ：灯りを提灯の赤みに寄せ、粒ごとにゆらがせる
+      vec3 lc = mix(vec3(1.0, 0.80, 0.45), vec3(1.0, 0.36, 0.14) * (0.8 + 0.2 * sin(uTime * 3.1 + hash2(i + 3.3) * 6.2832)), uBuff.x);
+      return lc * (spot * 0.85 + glow) * uNight * (1.0 - smoothstep(uFogNear, uFogFar, dist));
     }`;
   const FS_TOP = `
     ${FINISH}
@@ -617,6 +623,15 @@
       // 七色の海の夜は、海を満天の星空に（遠くは夜の霞の色に溶かす）。夕方は、暗くなるにつれて星空が現れる
       if (uNana.x > 0.001 && uNight > 0.01) col = mix(col, mix(nightSky(p, h, pxw, near, a, wide, textureLod(uMask, uv, clamp(log2(pxw * 6.0 * 2048.0 / uBox.z), 0.0, 6.0)).r,
         textureLod(uMask, uv, clamp(log2(pxw * 24.0 * 2048.0 / uBox.z), 0.0, 8.0)).r), uFogCol, smoothstep(uFogNear, uFogFar, vDist)), uNana.x * uNight);
+      // 日本の宝のバフ：岸に沿った細い線が、ゆっくり流れる金色にきらめく（遠くは霞に溶かす）。
+      // 岸からの近さ（a）の帯で塗ると、狭い湾が丸ごと黄色くなり砂浜に見えた（2026-11-15 撮って見た）→ 白波と同じ岸の線（near）に
+      // 帯を一色で塗ると、夜に太い黄色の帯になった → 薄い金の色味に、画面で約2画素の金の粒をまたたかせる
+      if (uBuff.z > 0.001) {
+        float band = smoothstep(0.3, 0.7, near) * uBuff.z * (1.0 - smoothstep(uFogNear, uFogFar, vDist));
+        vec2 gq2 = floor(p / max(pxw * 2.5, 0.02));
+        float glit = step(0.86, hash2(gq2 + floor(uTime * 1.3 + hash2(gq2) * 4.0)));
+        col = mix(col, vec3(1.0, 0.82, 0.32), band * (0.18 + 0.75 * glit));
+      }
       gl_FragColor = vec4(col, 1.0);
     }`;
 
@@ -1817,6 +1832,8 @@
     get bob() { return { a: Array.from(bobA), y: Array.from(bobY) }; },
     // 検査用：絵の具の時刻を止める・戻す。2枚を撮って比べる時、時刻で流れる雲の影が差に混ざった（2026-11-02 海津の水路）
     stopTime(on) { tStop = typeof on === 'number' ? on : on ? U.uTime.value : null; },   // 数を渡すとその時刻で止める（検査で波の光り方をそろえる）
+    buff(k, on) { const i = { chochin: 'x', alpen: 'y', gold: 'z' }[k]; if (i) U.uBuff.value[i] = on ? 1 : 0; },
+    get buffs() { return U.uBuff.value.toArray(); },
     nanairo(on, now) { nanaOn = on ? 1 : 0; if (now) U.uNana.value.x = nanaOn; },
     sunTimes: (day) => sunTimes(day || todDay),
     // 検査用：空の雲（出ているか・風の向き・位置と幅・濃さ）

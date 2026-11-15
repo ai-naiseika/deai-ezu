@@ -693,6 +693,15 @@
   #takara svg.piece { display: block; width: 100%; height: 150px; margin: 4px 0; background: #e8dcbc; border: 1px solid #b9a77c; box-sizing: border-box; }
   #takara svg.piece path { fill: #f3ead2; stroke: #6b5a38; stroke-width: 1.2; vector-effect: non-scaling-stroke; }
   #takara svg.piece .mark { fill: #b23a2a; font-size: 18px; font-weight: 700; text-anchor: middle; dominant-baseline: central; }
+  #takara button.big .buff { display: block; font-size: 12px; font-weight: 400; color: #6a6250; margin-top: 2px; }
+  /* 宝さがしの特典（テーマを揃えた時の見た目・2026-11-15）：歴史＝名所の印が金色に・偉人＝豆知識の粒が金の星に・酪農＝空の雲が牛柄に */
+  body.buff-rekishi .pin b { background: linear-gradient(#f8dc84, #c9952a); color: var(--ink); }
+  body.buff-rekishi .pin u { background: #e8b84a; }
+  body.buff-ijin .mame::before { border-radius: 0; left: 6px; top: 6px; width: 18px; height: 18px; background: #ffe58a;
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+  body.buff-rakuno .cloud::after { content: ''; position: absolute; inset: 22% 16% 18%; opacity: .7; pointer-events: none;
+    background: radial-gradient(ellipse 13% 22% at 24% 42%, #2b2b2b 0 90%, transparent 100%), radial-gradient(ellipse 16% 24% at 58% 62%, #2b2b2b 0 90%, transparent 100%),
+      radial-gradient(ellipse 9% 16% at 82% 34%, #2b2b2b 0 90%, transparent 100%); }
   #takara .stone { margin-top: 10px; border-top: 1.4px solid var(--gold); padding-top: 8px; } #takara .stone input { font-size: 15px; padding: 4px 6px; width: 60%; }
   #takara ol.stones { font-size: 14px; } #takara ol.stones li.me { color: var(--shu); font-weight: 700; }
   #takara-spot { position: fixed; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 0; z-index: 6; cursor: pointer; display: none; background: none; padding: 0; }

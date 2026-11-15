@@ -47,6 +47,23 @@
   const byId = (id) => D && D.items.find((t) => t.id === id);
   const pOf = (t) => M.P.find((p) => p.n === t.pref);
   const prefName = (t) => { const p = pOf(t); return p ? p.name : ''; };
+  // テーマを揃えた時の特典（見た目だけ・点には効かせない。2026-11-15 本人「作ってください」）。map＝地図の絵の具、body＝画面の見た目の印
+  const BUFF = {
+    '食': { text: '夜の町の灯りが、ゆらぐ提灯の色に', map: 'chochin' },
+    '山': { text: '朝夕、高い山の頂が紅く染まる', map: 'alpen' },
+    '歴史': { text: '地図の名所の印が金色に', body: 'buff-rekishi' },
+    '偉人': { text: '豆知識の光の粒が金の星に', body: 'buff-ijin' },
+    '酪農': { text: '空の雲が牛柄に', body: 'buff-rakuno' },
+    '日本の宝': { text: '日本列島の岸が金色にきらめく', map: 'gold' },
+  };
+  function applyBuffs() {
+    if (!D) return;
+    for (const th of Object.keys(BUFF)) {
+      const on = all(th) > 0 && got(th) === all(th), b = BUFF[th];
+      if (b.map && M.buff) M.buff(b.map, on);
+      if (b.body) document.body.classList.toggle(b.body, on);
+    }
+  }
   const tn = (th) => (/宝$/.test(th) ? th : th + 'の宝');      // テーマの呼び名（「日本の宝」は「日本の宝の宝」にしない）
 
   // ---------------------------------------------------------------- 窓
@@ -75,6 +92,7 @@
     for (const th of THEMES) {
       const b = el('button', 'big', `${tn(th)}　${got(th)} / ${all(th)}`);
       if (got(th) === all(th)) b.appendChild(el('small', null, `　称号「${TITLE[th]}」`));
+      if (BUFF[th]) b.appendChild(el('span', 'buff', (got(th) === all(th) ? '特典：' : '揃えると：') + BUFF[th].text));
       b.type = 'button'; b.addEventListener('click', () => themeView(th)); box.appendChild(b);
     }
     stoneBox();
@@ -170,7 +188,8 @@
     L.found[t.id] = Date.now(); L.hunt = null; save(); chip();
     spot.classList.add('dig'); setTimeout(() => spot.classList.remove('dig'), 900);
     const done = got(t.theme) === all(t.theme);
-    toast(done ? `宝を見つけた！「${t.name}」—— ${tn(t.theme)}を全部そろえて、称号「${TITLE[t.theme]}」` : `宝を見つけた！「${t.name}」`);
+    toast(done ? `宝を見つけた！「${t.name}」—— ${tn(t.theme)}を全部そろえて、称号「${TITLE[t.theme]}」。特典：${(BUFF[t.theme] || {}).text || ''}` : `宝を見つけた！「${t.name}」`);
+    applyBuffs();
     open(() => found(t));
     sync();
   });
@@ -239,7 +258,7 @@
   if (go) go.addEventListener('click', () => { if (window.OPENING) OPENING.close(); M.view(Object.assign({}, M.HOME)); open(); });
   const ico = $('#takara-open');
   if (ico) ico.addEventListener('click', () => (box.classList.contains('open') ? close() : open()));
-  if (L.hunt) data().then(chip).catch(() => {});
+  if (L.hunt || Object.keys(L.found).length) data().then(() => { chip(); applyBuffs(); }).catch(() => {});
   if (L.join) setTimeout(sync, 4000);
-  window.TAKARA = { open, close, get state() { return { found: Object.keys(L.found), hunt: L.hunt, join: L.join }; }, items: () => D && D.items, dir: (id) => dirText(byId(id)) };
+  window.TAKARA = { open, close, get state() { return { found: Object.keys(L.found), hunt: L.hunt, join: L.join }; }, items: () => D && D.items, dir: (id) => dirText(byId(id)), buff: BUFF };
 })();
