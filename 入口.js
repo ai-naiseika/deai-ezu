@@ -63,7 +63,9 @@
   let fold = open && !/[?&]fold=0/.test(location.search);     // ?fold=0＝たたまない（検査用。下の並びを使う検査が多いので）
   function close() {
     ghost('dive');
-    open = false; document.body.classList.remove('opening', 'again');
+    // 入口の段から地図へ入る時は履歴を1段積む（積まないと、地図で「戻る」を押した時に入口へ戻らず、ページを出て最初から開き直しになった）
+    if (open && history.state && history.state.o && !replay) history.pushState({}, '');
+    open = false; document.body.classList.remove('opening', 'again', 'back-open');
     if (fold && M.phone()) { fold = false; document.body.classList.add('wide'); dispatchEvent(new Event('resize')); }
   }
   function go(r) {
@@ -109,28 +111,38 @@
     panel.style.setProperty('--cd', (delay || 0) + 's');
     panel.classList.remove('come'); void panel.offsetWidth; panel.classList.add('come');
   }
+  // 端末の「戻る」で入口の段を1つずつ戻る（本人 2026-11-15「何かを見たり遊んだりして、戻るを押すと一つではなくTOPまで毎回戻る」）。
+  // 段ごとに履歴へ1段積む（o＝段の名前・i＝遊覧やクイズの次の選択の何番目か）。戻ってきたら、その段を出し直す。最初の段で「戻る」を押すとページを出る（閉じこめない）
+  const steps = [];                          // 次の選択の段の作り直し方
+  let replay = false;
+  const push = (o, i) => { if (!replay) history.pushState({ o, i }, ''); };
   const stage = (s, kept) => {
     if (!kept) ghost('gone');
     panel.dataset.stage = s; panel.scrollTop = 0; panel.classList.toggle('paper', s === 'walk');
     come();
+    if (s === 'walk') push('walk');
   };
   $('#o-walk-go').addEventListener('click', () => stage('walk'));
-  for (const b of document.querySelectorAll('#o-regions .o-back')) b.addEventListener('click', () => stage('start'));
+  // 「‹ 入口へ」は履歴を1段戻す（端末の「戻る」と同じ道）
+  const up = () => (history.state && history.state.o && history.state.o !== 'start' ? history.back() : stage('start'));
+  for (const b of document.querySelectorAll('#o-regions .o-back')) b.addEventListener('click', up);
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  function sub(title, opts) {
+  function sub(title, opts, more) {
     ghost('gone');
-    const box = $('#o-sub'), back = mk('button', 'o-back', '‹ 入口へ');
+    const box = $('#o-sub'), back = mk('button', 'o-back', '‹ もどる');
     box.textContent = ''; box.className = 'stage';
-    back.type = 'button'; back.addEventListener('click', () => stage('start'));
+    back.type = 'button'; back.addEventListener('click', up);
     box.append(back, mk('p', null, title));
     opts.forEach(([label, fn], i) => { const b = mk('button', 'big o-cloud' + (i % 2 ? ' flip' : '')); b.append(mk('span', 'c', label)); b.type = 'button'; b.addEventListener('click', fn); box.append(b); });
     stage('sub', true);
+    if (more) more(box);                     // 県を選ぶ段は紙の欄（stage の後に。stage は紙の印を外す）
+    if (!replay) { steps.push(() => sub(title, opts, more)); push('sub', steps.length - 1); }
   }
   // 県を選ぶ：地方ごとに47都道府県
   function pickPref(title, fn) {
-    sub(title, []);
-    panel.classList.add('paper');
-    const box = $('#o-sub');
+    sub(title, [], (box) => { panel.classList.add('paper'); prefs(box, fn); });
+  }
+  function prefs(box, fn) {
     for (const [name, a, b] of REGIONS) {
       const g = mk('div', 'prefs');
       for (const p of M.P.filter((q) => q.n >= a && q.n <= b)) { const bt = mk('button', null, p.name); bt.type = 'button'; bt.addEventListener('click', () => fn(p.n)); g.append(bt); }
@@ -181,6 +193,21 @@
   toBook.removeAttribute('id'); toBook.className = 'o-book book-only'; toBook.textContent = '絵図帳に足跡を残す ›';
   $('#o-regions').appendChild(toBook);
 
+  // 地図から「戻る」で入口の段へ来た時は、入口を出し直す（題字の幕は出さない）。県を下ろすのは map3d.js の戻るの知らせが済ませる
+  if (open) history.replaceState(Object.assign({}, history.state, { o: 'start' }), '');
+  addEventListener('popstate', (e) => {
+    const s = e.state;
+    if (!s || !s.o || e.selfPop) return;       // 地図の中の「‹ もどる」が自分で戻した時は、入口を出さない（map3d.js が印を付ける）
+    replay = true;
+    if (!open && !M.inside) {
+      if (window.YURAN && YURAN.state) YURAN.end(false);
+      open = true; setRegion(null);
+      document.body.classList.add('opening', 'back-open');
+      M.view(VIEW());
+    }
+    if (open) { if (s.o === 'sub' && steps[s.i]) steps[s.i](); else stage(s.o === 'walk' ? 'walk' : 'start'); }
+    replay = false;
+  });
   window.OPENING = { show, close, go: (name) => { const r = REGIONS.find((x) => x[0] === name); if (r) go(r); }, get open() { return open; }, get region() { return region; },
     regions: REGIONS };                       // 豆知識帳の地方の分け方も同じ
 })();

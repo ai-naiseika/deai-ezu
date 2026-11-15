@@ -110,9 +110,12 @@
         const lv = L.hint[t.id] || 1;
         if (lv >= 2) card.appendChild(piece(t));
         if (lv >= 3) card.appendChild(el('p', 'dir', dirText(t)));
+        const km = known(t);
+        if (km) card.appendChild(el('p', 'dir', `手がかり：あなたの豆知識帳の「${km.title}」の近く`));
         const row = el('div', 'row');
         const go = el('button', 'small', L.hunt === t.id ? 'さがしている宝' : 'この宝をさがす'); go.type = 'button';
-        go.addEventListener('click', () => { L.hunt = t.id; save(); close(); chip(); });
+        go.addEventListener('click', () => { L.hunt = t.id; save(); close(); chip();
+          toast(`${prefName(t)}の地図（${prefName(t)}の中）に入って、宝のありそうな所へ寄ると「✦ 掘る」が光ります`); });
         row.appendChild(go);
         if (lv < 3) {
           const h = el('button', 'small sub', lv === 1 ? '地図の切れ端を見る' : '方角と距離を見る'); h.type = 'button';
@@ -146,6 +149,17 @@
     const a = (Math.atan2(dx, dn) * 180 / Math.PI + 360 + 22.5) % 360;
     return km < 5 ? `${p.name}のまん中のあたり` : `${p.name}のまん中から${DIRS[Math.floor(a / 45)]}へ約${km}km`;
   }
+  // 宝から10km の内で、いちばん近い、もう豆知識帳に入っている豆知識（同じ県）。知っている豆知識が手がかりになる（2026-11-15 本人）
+  function known(t) {
+    const all = (window.INTRO && INTRO.mame) || [];
+    let best = null, bd = 10;
+    for (const m of all) {
+      if (m.pref !== t.pref || !(window.MAME && MAME.has(m.id))) continue;
+      const d = Math.hypot(m.x - t.x, m.z - t.z);
+      if (d < bd) { bd = d; best = m; }
+    }
+    return best;
+  }
   function found(t) {
     head(`✦ ${t.name}`, () => themeView(t.theme));
     box.append(el('p', 'pref', `${tn(t.theme)}・${prefName(t)}`), el('p', 'text', t.text));
@@ -165,16 +179,32 @@
     const t = byId(L.hunt);
     tip.textContent = t ? `宝さがし中：${t.riddle}` : '';
     tip.classList.toggle('on', !!t);
+    place();
   }
-  let shown = false;
+  // 帯は検索窓の下に置く（画面のいちばん上に置くと、パソコンで検索窓を隠して使えなかった 2026-11-15 本人）。検索窓の下の端を測る
+  function place() {
+    if (!tip.classList.contains('on')) return;
+    const s = $('#search'), r = s && s.offsetWidth ? s.getBoundingClientRect() : null;
+    tip.style.top = Math.round(r ? r.bottom + 6 : 8) + 'px';
+  }
+  addEventListener('resize', place);
+  // 端末の「戻る」・Esc で宝の地図帳を閉じる（map3d.js の窓の段の一覧に #takara.open を足した。閉じるのは Esc と同じ手順）
+  addEventListener('keydown', (e) => { if (e.code === 'Escape' && box.classList.contains('open')) { close(); e.stopImmediatePropagation(); } }, true);
+  // 光るのは、その宝の県の地図（県の中）に入り、宝の場所のすぐそば（見ている所から max(1.5, 距離×0.12) km の内・距離 60 まで寄った時）だけ。
+  // 全国の地図では光らせない（本人 2026-11-15「全国地図で寄って光るなら全問すぐに答えて終わり。県の地図で、近くに行って光るところを探さなきゃいけない」）。
+  // 「この宝をさがす」で選んだ宝だけが光る。県の中と全国は同じ km の座標。高さは県の中の山を強めた地面（宝ごとに1回だけ測る）
+  let shown = false, yKey = '', yVal = 0;
   M.on('frame', () => {
     const t = D && L.hunt && !L.found[L.hunt] ? byId(L.hunt) : null;
     let on = false;
-    // 光るのは、寄って（距離 700 まで）見ている所から宝まで、地図の上で寄り方に応じた数十km 以内の時だけ
-    // （画面の真ん中からの近さで決めると、引いた眺めで100km 離れた別の宝の場所でも光った）
-    const c = M.cam;
-    if (t && !M.inside && !document.body.classList.contains('opening') && c.D < 700 && Math.hypot(t.x - c.x, t.z - c.z) < Math.max(20, c.D * 0.08)) {
-      const p = pOf(t), s = M.project(t.x, (p && p.ay) || 0, t.z);
+    // 近さは、県の中で遊覧が名所に寄った時（距離24）や空を飛ぶ時の眺め（本人 2026-11-15「空を飛ぶか遊覧で寄ったときの距離くらいで光ってくれれば」）：
+    // 見ている所から max(3, 距離×0.2) km の内（距離60まで寄った時）・空を飛ぶ間は飛んでいる位置から 4km の内
+    const c = M.cam, p = t && pOf(t), fly = window.TABI && TABI.state;
+    const near = t && (fly ? Math.hypot(t.x - fly.x, t.z - fly.z) < 4 : c.D < 60 && Math.hypot(t.x - c.x, t.z - c.z) < Math.max(3, c.D * 0.2));
+    if (t && p && M.inside && M.inside.name === p.name && near) {
+      const k = M.inside.name + t.id;
+      if (k !== yKey) { yKey = k; yVal = M.groundY(p.k, t.x, t.z); }
+      const s = M.project(t.x, yVal, t.z);
       if (s.ok) {
         on = true;
         spot.style.transform = `translate(${s.x.toFixed(1)}px, ${s.y.toFixed(1)}px)`;

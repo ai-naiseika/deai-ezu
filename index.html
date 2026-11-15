@@ -109,7 +109,7 @@
   /* 開いた時のロゴ：真ん中に大きく出て、2秒ほどで消える（押す操作はじゃましない） */
   #o-splash { position: fixed; inset: 0; z-index: 30; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; pointer-events: none;
     background: rgba(251,246,232,.9); animation: o-splash 2.6s ease forwards; }
-  body.opening:not(.again) #o-splash { display: flex; }
+  body.opening:not(.again):not(.back-open) #o-splash { display: flex; }   /* back-open＝地図から「戻る」で入口へ来た時（題字の幕は出さない） */
   #o-splash b { font-size: clamp(44px, 13vw, 120px); line-height: 1.15; color: var(--shu); border: 3px solid var(--shu); padding: .1em .35em .18em; font-weight: 400; text-align: center; }
   #o-splash span { font-size: clamp(14px, 3.6vw, 22px); color: #4a4334; }
   @keyframes o-splash { 0%, 55% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
@@ -716,7 +716,7 @@
   @keyframes tk-glow { 50% { scale: 1.35; } } @keyframes tk-dig { to { scale: 3; opacity: 0; } }
   #takara-chip { position: fixed; left: 50%; top: 8px; translate: -50% 0; z-index: 6; max-width: min(520px, calc(100vw - 180px)); display: none; font-size: 13px; line-height: 1.5;
     padding: 4px 10px; background: rgba(255,243,214,.96); border: 1px solid var(--gold); text-align: left; cursor: pointer; color: var(--ink); }
-  #takara-chip.on { display: block; } body.opening #takara-chip, body.touring #takara-chip { display: none; }
+  #takara-chip.on { display: block; }
   @media (prefers-reduced-motion: reduce) { #takara-spot::before { animation: none; } }
   #quiz .head { display: flex; gap: 8px; align-items: baseline; }
   #quiz .head b { font-size: 16px; color: var(--shu); }
