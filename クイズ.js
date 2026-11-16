@@ -9,7 +9,7 @@
   if (!M || !IN) return;
   const $ = (s) => document.querySelector(s);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  const R = (e, s) => (window.RUBY ? RUBY.text(e, s) : ((e.textContent = s), e));     // ふりがな（ふりがな.js。無い時は字だけ）
+  const R = (e, s) => (window.RUBY ? RUBY.text(e, s, S && S.q && (S.q.opts ? S.q.pref : S.q.ans)) : ((e.textContent = s), e));     // ふりがな（ふりがな.js。無い時は字だけ）。県で読みの違う名前は、その問いの県の読みで
   const KEY = 'zenkoku3d-quiz-v1', ROUND = 10, LIMIT = 15;    // 1クールの問題数・速さの点を数える秒
   const box = $('#quiz'), open = $('#quiz-open');
   const name = (no) => { const p = M.P.find((q) => q.n === no); return p ? M.FULL(p.name) : '?'; };

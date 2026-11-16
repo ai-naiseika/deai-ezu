@@ -6,7 +6,10 @@
 (function () {
   'use strict';
   const KEY = 'zenkoku3d-ruby', HIRA = /^[ぁ-ゖー]+$/;
-  let on = true, data = null, keys = [], loading = null;
+  let on = true, data = null, loading = null;
+  // 2つ以上の県に出て、県で読みの違う名前は "名前|県の番号"（大山|14＝おおやま・大山|31＝だいせん）。県の分かる画面でだけ、その県の読みを使い、
+  // 県の分からない所では付けない（前は名前だけで引き、鳥取の大山に神奈川の「おおやま」が出ていた 2026-11-17）
+  let made = -1, gen = {}, byPref = {}, keyMemo = {};
   try { on = localStorage.getItem(KEY) !== '0'; } catch (e) { /* 覚えられない端末では毎回出す */ }
   const paint = () => document.body.classList.toggle('no-ruby', !on);
 
@@ -17,8 +20,7 @@
       s.src = '読み.js?d=' + new Date().toISOString().slice(0, 10); s.async = true;     // 日ごとに読み直す（直した読みが古いまま残らない）
       s.onload = () => {
         data = window.YOMI || {};
-        keys = Object.keys(data).filter((k) => k.length >= 2).sort((a, b) => b.length - a.length);     // 長い名前を先に（短い名前が長い名前の一部を取らない）
-        for (const e of document.querySelectorAll('[data-ruby]')) if (e.isConnected) fill(e, e.dataset.ruby);
+        for (const e of document.querySelectorAll('[data-ruby]')) if (e.isConnected) fill(e, e.dataset.ruby, e.dataset.rubyPref);
         ok();
       };
       s.onerror = () => { loading = null; ok(); };       // 読めなければ、ふりがな無しのまま（次に開いた時にもう一度）
@@ -27,14 +29,29 @@
     return loading;
   }
   // 文を、ふりがなの付いた並びに分ける：[字, 読み|null]
-  function parts(s) {
-    if (keys.length !== Object.keys(data).length) keys = Object.keys(data).filter((k) => k.length >= 2).sort((a, b) => b.length - a.length);     // 読みが増えたら並べ直す
+  function index() {
+    const n = Object.keys(data).length;
+    if (n === made) return;                            // 読みが増えたら分け直す
+    made = n; gen = {}; byPref = {}; keyMemo = {};
+    for (const k of Object.keys(data)) {
+      const i = k.indexOf('|');
+      if (i < 0) gen[k] = data[k];
+      else (byPref[k.slice(i + 1)] = byPref[k.slice(i + 1)] || {})[k.slice(0, i)] = data[k];
+    }
+  }
+  function keysFor(p) {                               // 長い名前を先に（短い名前が長い名前の一部を取らない）
+    if (!keyMemo[p]) keyMemo[p] = [...new Set([...Object.keys(gen), ...Object.keys(byPref[p] || {})])].filter((k) => k.length >= 2).sort((a, b) => b.length - a.length);
+    return keyMemo[p];
+  }
+  function parts(s, pref) {
+    index();
+    const p = pref == null ? '' : String(pref), own = byPref[p] || {};
     const marks = new Array(s.length).fill(null);
-    for (const k of keys) {
+    for (const k of keysFor(p)) {
       for (let i = s.indexOf(k); i >= 0; i = s.indexOf(k, i + k.length)) {
         if (marks.slice(i, i + k.length).some(Boolean)) continue;
         let at = i;                                    // 語は名前の中の前から順（同じ字が2度出る名前でも、前の語の続きから探す）
-        for (const [w, r] of data[k]) {
+        for (const [w, r] of own[k] || gen[k]) {
           const j = s.indexOf(w, at);
           if (j < 0 || j + w.length > i + k.length || !HIRA.test(r) || marks.slice(j, j + w.length).some(Boolean)) continue;
           const m = { start: j, r };
@@ -53,20 +70,21 @@
     }
     return out;
   }
-  function fill(el, s) {
+  function fill(el, s, pref) {
     el.textContent = '';
     if (!data) { el.textContent = s; return; }
-    for (const [t, r] of parts(s)) {
+    for (const [t, r] of parts(s, pref)) {
       if (!r) { el.append(t); continue; }
       const rb = document.createElement('ruby'), rt = document.createElement('rt');
       rb.append(t); rt.textContent = r; rb.append(rt); el.append(rb);
     }
   }
-  // 字を入れる（台帳が届く前は字だけ。届いたら付け直す）
-  function text(el, s) {
+  // 字を入れる（台帳が届く前は字だけ。届いたら付け直す）。pref＝その文がどの県の話か（県で読みの違う名前に使う。分からなければ省く）
+  function text(el, s, pref) {
     s = String(s == null ? '' : s);
     el.dataset.ruby = s;
-    fill(el, s);
+    if (pref == null) delete el.dataset.rubyPref; else el.dataset.rubyPref = String(pref);
+    fill(el, s, pref);
     if (!data) load();
     return el;
   }
@@ -87,5 +105,5 @@
     document.dispatchEvent(new Event('ruby-change'));
   }
   paint();
-  window.RUBY = { text, button, set, load, parts: (s) => (data ? parts(String(s)) : [[String(s), null]]), get on() { return on; }, get ready() { return !!data; } };
+  window.RUBY = { text, button, set, load, parts: (s, pref) => (data ? parts(String(s), pref) : [[String(s), null]]), get on() { return on; }, get ready() { return !!data; } };
 })();

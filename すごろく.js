@@ -8,7 +8,7 @@
   const M = window.MAP3D, IN = window.INTRO, D = window.SUGO_DATA;
   if (!M || !IN || !D) return;
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  const R = (e, s) => (window.RUBY ? RUBY.text(e, s) : ((e.textContent = s), e));     // ふりがな（ふりがな.js。無い時は字だけ）
+  const R = (e, s) => (window.RUBY ? RUBY.text(e, s, G && G.pref) : ((e.textContent = s), e));     // ふりがな（ふりがな.js。無い時は字だけ）。県で読みの違う名前は、今いる県の読みで
   const NS = 'http://www.w3.org/2000/svg';
   const svg = (tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs || {}) e.setAttribute(k, attrs[k]); return e; };
   const KEY = 'zenkoku3d-sugo-v1', ROUNDS = 10, CHAIN = 3, KM_PT = 50, BONUS = 2;
