@@ -11,7 +11,8 @@
   // 字が名前そのもの（選択肢・題）なら、その名前の読み（県で読みの割れる名前は、その県の読みだけ）。
   // 文の中（問い・説明・本文）では、その文の県の名前だけを、言葉の切れ目で当てる。県の分からない文には付けない。
   // 前は名前だけで引き、千葉の山「富山（とみさん）」の読みが「富山県」の問いに、神奈川の「大山（おおやま）」の読みが鳥取の大山に付いていた（2026-11-17）
-  const KJ = /[一-龥々〆ヶ]/, SUF = '県府都道市町村区郡湾港駅線川湖沼池岳峠岬島城寺宮社藩沖麓産焼祭';
+  // 名前の後ろに続いてよい字（富山湾・白山麓）。市・駅などで終わる名前は、後ろに何が続いても読みが変わらない（神戸市灘区・伊丹駅前）
+  const KJ = /[一-龥々〆ヶ]/, SUF = '県府都道市町村区郡湾港駅線川湖沼池岳峠岬島城寺宮社藩沖麓産焼祭', END = '県府都道市町村区郡駅';
   let made = -1, byName = {}, byPref = {}, keyMemo = {};
   try { on = localStorage.getItem(KEY) !== '0'; } catch (e) { /* 覚えられない端末では毎回出す */ }
   const paint = () => document.body.classList.toggle('no-ruby', !on);
@@ -69,7 +70,7 @@
         for (let i = s.indexOf(k); i >= 0; i = s.indexOf(k, i + k.length)) {
           const j = i + k.length;
           if (marks.slice(i, j).some(Boolean)) continue;
-          if ((i > 0 && KJ.test(s[i - 1])) || (j < s.length && KJ.test(s[j]) && !SUF.includes(s[j]))) continue;     // 言葉の切れ目でない（「高山植物」・「大津市」の「津市」）
+          if ((i > 0 && KJ.test(s[i - 1])) || (j < s.length && KJ.test(s[j]) && !SUF.includes(s[j]) && !END.includes(k[k.length - 1]))) continue;     // 言葉の切れ目でない（「高山植物」・「大津市」の「津市」）
           put(i, k, own[k]);
         }
       }

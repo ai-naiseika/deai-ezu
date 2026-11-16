@@ -219,7 +219,7 @@
     const more = el('p', null, q.more() || '説明を読み込んでいます…'), src = el('details', 'src');
     // 説明と出どころ（県の中の問い）。文と出どころは県ごとのファイルで後から届く
     const fill = () => {
-      if (q.more()) more.textContent = q.more();
+      if (q.more()) R(more, q.more());
       src.textContent = '';
       const list = (q.src ? q.src() : []).filter((s) => s && s.title);
       src.hidden = !list.length;

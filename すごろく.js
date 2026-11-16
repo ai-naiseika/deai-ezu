@@ -603,7 +603,7 @@
     res.appendChild(R(el('b'), ok ? `正解！ +${pts}点` + (q.lv === 'hard' ? '（むずかしい問いの＋10点つき）' : '') : `ざんねん。正解は「${right.t}」`));
     // 説明と出どころ：紹介・豆知識・目印・山と湖の文と出どころは県ごとのファイル（県庁の問いは、説明が先に出せても出どころがまだ届いていない）
     const more = el('p', 'more', q.more() || '説明を読み込んでいます…'), det = el('details', 'src');
-    const fill = () => { if (q.more()) more.textContent = q.more(); det.textContent = ''; det.hidden = !srcBox(det, q.src()); };
+    const fill = () => { if (q.more()) R(more, q.more()); det.textContent = ''; det.hidden = !srcBox(det, q.src()); };
     fill();
     M.loadIntro(G.pref).then(() => { if (res.isConnected) fill(); }, () => { if (!q.more()) more.textContent = '説明を読めませんでした（通信を確かめてください）'; });
     res.append(more, det);

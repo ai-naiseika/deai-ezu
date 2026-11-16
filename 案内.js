@@ -446,9 +446,11 @@
     if (show || !document.body.classList.contains('touring')) mini(false);
     const box = $('#c-intro'); box.textContent = '';
     const back = el('button', null, '‹ 一覧へ'); back.addEventListener('click', () => renderList(cardK)); box.appendChild(back);
+    if (window.RUBY) box.appendChild(RUBY.button());
     const d = el('div', 'detail');
-    const h = el('h3'); h.append(el('span', 'cat c-' + it.cat, it.cat), document.createTextNode(' ' + it.name)); d.appendChild(h);
-    for (const t of it.text || []) d.appendChild(el('p', null, t));
+    // 題と文にふりがな（ふりがな.js。文の中はその県の名前だけを言葉の切れ目で）
+    const h = el('h3'); h.append(el('span', 'cat c-' + it.cat, it.cat), document.createTextNode(' '), window.RUBY ? RUBY.text(el('span'), it.name, it.pref) : document.createTextNode(it.name)); d.appendChild(h);
+    for (const t of it.text || []) d.appendChild(window.RUBY ? RUBY.text(el('p'), t, it.pref) : el('p', null, t));
     if (!it.text) {                                              // 文がまだ届いていない（県ごとのファイル）。届いたら、同じ札が開いたままなら描き直す
       const w = el('p', 'when', '説明を読み込んでいます…'); d.appendChild(w);
       M.loadIntro(it.pref).then(() => { if (d.isConnected) openItem(it); }, () => { w.textContent = '説明を読めませんでした（通信を確かめてください）'; });
