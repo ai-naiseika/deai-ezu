@@ -40,6 +40,8 @@
   const SNOW_N = [1.3, 0, 1.0, 0.95];          // 北へ1km行くごとに、雪の高さが下がる m
   const SEASON = ['春', '夏', '秋', '冬'];
   const FULL = (n) => n === '北海道' ? n : n === '東京' ? '東京都' : (n === '京都' || n === '大阪') ? n + '府' : n + '県';
+  // 駅の名前に「駅」を付ける。路面電車の停留場は名前がもう「駅」で終わる（富山駅・高岡駅・松山市駅など7つ。そのまま足すと「高岡駅駅」と出た）
+  const EKI = (s) => /駅$/.test(s) ? s : s + '駅';
 
   const msg = (t) => { const m = $('#msg'); m.textContent = t; m.style.display = 'block'; $('#wait').style.display = 'none'; };
   if (!T || !J) return msg('地図のデータが読めませんでした。フォルダの中身がそろっているか確かめてください。');
@@ -1774,7 +1776,7 @@
 
   // 外から使う道具（案内.js の検索・カレンダー・紹介と、撮影・検査から使う）
   window.MAP3D = {
-    on(e, f) { (ON[e] = ON[e] || []).push(f); if (DONE.has(e)) setTimeout(f, 0); }, FULL,
+    on(e, f) { (ON[e] = ON[e] || []).push(f); if (DONE.has(e)) setTimeout(f, 0); }, FULL, EKI,
     off(e, f) { const L = ON[e], i = L ? L.indexOf(f) : -1; if (i >= 0) L.splice(i, 1); },
     forget(w) { if (lastWorld === w) lastWorld = null; },
     labelOf(k) { const L = labels.find((q) => q.p.k === k); return L && L.d; },

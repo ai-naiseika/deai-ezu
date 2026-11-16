@@ -32,7 +32,7 @@
     for (const t of IN.tour || []) add({ id: 'tour:' + t.pref, cat: '旅', ans: t.pref, text: `「${t.catch}」—— どこの都道府県？`, more: () => t.text.join(' ') });
     for (const it of IN.items || []) add({ id: 'item:' + it.pref + it.name, cat: it.cat, ans: it.pref, text: `${it.cat}「${it.name}」で知られるのは？`, more: () => it.text && it.text[0] });
     for (const d of IN.mame || []) add({ id: 'mame:' + d.id, cat: '豆知識', ans: d.pref, mame: d.id,
-      text: d.eki ? `「${d.eki}駅」の豆知識「${d.title}」。この駅があるのは？` : `豆知識「${d.title}」はどこの話？`, more: () => d.text });
+      text: d.eki ? `「${M.EKI(d.eki)}」の豆知識「${d.title}」。この駅があるのは？` : `豆知識「${d.title}」はどこの話？`, more: () => d.text });
     for (const s of IN.spots || []) if (s.mark) add({ id: 'spot:' + s.name, cat: '名所', ans: s.pref, text: `「${s.name}」があるのは？`, more: () => s.note });   // 印は一言のある名所にだけ付く
     for (const y of IN.yama || []) add({ id: 'yama:' + y.pref + y.name, cat: y.kind, ans: y.pref, text: `${y.kind}「${y.name}」があるのは？`, more: () => y.note });
     return out;

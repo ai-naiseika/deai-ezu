@@ -220,7 +220,7 @@
       const others = shuffle(names.filter((s) => s !== d.eki && !d.title.includes(s))).slice(0, 3);
       if (others.length < 3) continue;
       out.push(Object.assign({ id: 'eki:' + d.id, lid: 'mame:' + d.id, mame: d.id, lv: 'hard', kind: '駅の豆知識', text: `駅の豆知識「${d.title}」。この話の駅は？`, more: () => d.text || '', src: () => d.sources || [] },
-        four(T_(d.eki + '駅'), others.map((s) => T_(s + '駅')))));
+        four(T_(M.EKI(d.eki)), others.map((s) => T_(M.EKI(s))))));
     }
     return out;
   }

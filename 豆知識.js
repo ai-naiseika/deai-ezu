@@ -322,8 +322,8 @@
     if (hunt) B.el.classList.add('hunt');
     if (!here && M.sel !== B.k) { aimAt = reveal ? null : B; M.select(B.k); }
     if (reveal) open(B);
-    else if (B.d.eki && here) toast(`${B.d.eki}駅に、まだ知らない豆知識があります。光っている駅の札を押してみてください`);
-    else toast(`${M.FULL(P[B.k].name)}${B.d.eki ? 'の' + B.d.eki + '駅' : ''}に、まだ知らない豆知識があります。光っている「？」を押してみてください`);
+    else if (B.d.eki && here) toast(`${M.EKI(B.d.eki)}に、まだ知らない豆知識があります。光っている駅の札を押してみてください`);
+    else toast(`${M.FULL(P[B.k].name)}${B.d.eki ? 'の' + M.EKI(B.d.eki) : ''}に、まだ知らない豆知識があります。光っている「？」を押してみてください`);
   }
   function nextUnknown() {
     const left = beans.filter((B) => B.k >= 0 && !got.has(B.d.id));

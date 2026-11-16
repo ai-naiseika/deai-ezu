@@ -24,7 +24,7 @@
     for (const s of IN.spots || []) if (s.pref === pref) out.push({ tag: '名所', name: s.name, x: s.x, z: s.z, go: () => { close(); M.view({ x: s.x, z: s.z, D: 14 }); } });
     for (const d of IN.mame || []) if (d.pref === pref && d.eki !== self) {
       const has = got.has(d.id);
-      out.push({ tag: '豆知識', name: has ? d.title : d.eki ? `？（${d.eki}駅の豆知識）` : '？（まだ開いていない豆知識）', x: d.x, z: d.z, go: () => { close(); M.view({ x: d.x, z: d.z, D: 18 }); if (window.MAME) MAME.open(d.id); } });
+      out.push({ tag: '豆知識', name: has ? d.title : d.eki ? `？（${M.EKI(d.eki)}の豆知識）` : '？（まだ開いていない豆知識）', x: d.x, z: d.z, go: () => { close(); M.view({ x: d.x, z: d.z, D: 18 }); if (window.MAME) MAME.open(d.id); } });
     }
     for (const o of out) {
       o.km = Math.hypot(o.x - sx, o.z - sz);
@@ -43,7 +43,7 @@
     card.textContent = '';
     const head = el('div', 'head');
     head.append(el('b', null, '駅'), el('span', 'pref', [M.FULL(M.P[M.sel].name), st.m, st.t].filter(Boolean).join(' ')));
-    card.append(head, el('h3', null, st.n + '駅'));
+    card.append(head, el('h3', null, M.EKI(st.n)));
     // この駅の豆知識（札の「？」）：開いた時点で豆知識帳に記録する。出どころは豆知識の札で
     for (const d of (IN.mame || []).filter((q) => (st._mame || []).includes(q.id))) {        // その札に付けた豆知識だけ（同じ名前の別の駅の分は出さない）
       const isNew = window.MAME ? MAME.record(d.id) : false, box = el('div', 'eki-mame');

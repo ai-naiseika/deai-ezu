@@ -1363,7 +1363,7 @@
       d.className = 'tag t-' + L.kind + (L.hub ? ' hub' : '');
       if (L.kind === 'station') {
         d.textContent = L.name;
-        d.title = L.name + '駅（押すと駅の案内' + (L.mame ? '・豆知識あり' : '') + '）';
+        d.title = M.EKI(L.name) + '（押すと駅の案内' + (L.mame ? '・豆知識あり' : '') + '）';
         if (L.mame) { const q = document.createElement('i'); q.textContent = '？'; d.appendChild(q); d.classList.add('qa'); }
         d.addEventListener('click', () => window.EKI && EKI.open(L.st, L.id, d, served.has(L.id)));
       } else if (L.kind === 'spot') {
