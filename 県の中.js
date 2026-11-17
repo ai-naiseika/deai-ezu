@@ -1372,8 +1372,8 @@
         if (L.icon === 'tower' || L.icon === 'skytree') im.style.display = 'none';     // 塔は地図の中に立体で立てた（上の「名だたる塔」）。絵札を重ねると二重に見えた
         if (L.sub) { const sm = document.createElement('small'); sm.textContent = L.sub; sp.prepend(sm); }
         d.append(im, sp);
-        // 工房の案内など、行き先のある目印は押すと別のタブで開く
-        if (L.url) { d.classList.add('link'); d.title = '新しいタブで開きます'; d.addEventListener('click', () => window.open(L.url, '_blank', 'noopener')); }
+        // 工房の案内など、行き先のある目印は押すと外のページへ（パソコンは別のタブ・指の端末は同じタブで、戻ると地図へ。外へ.js）
+        if (L.url) { d.classList.add('link'); d.title = '新しいタブで開きます'; d.addEventListener('click', () => (window.OUTLINK ? OUTLINK.open(L.url) : window.open(L.url, '_blank', 'noopener'))); }
       } else d.textContent = L.name;
       // 観光の一言のある札：小さな赤い点。押すと一言（一言.js）
       const note = L.kind === 'spot' ? L.note : (L.kind === 'peak' || L.kind === 'lake' || L.kind === 'marsh') && noteOf(L);

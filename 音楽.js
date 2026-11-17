@@ -22,8 +22,11 @@
     get() { try { return localStorage.getItem(OFF) === '1'; } catch (e) { return false; } },
     set(v) { try { if (v) localStorage.setItem(OFF, '1'); else localStorage.removeItem(OFF); } catch (e) { /* 同上 */ } },
   };
-  let on = false, season = 1, night = false, cur = null, el = null, row = [], fades = [], saved = 0;
+  let on = false, season = 1, night = false, cur = null, el = null, row = [], fades = [], saved = 0, primed = null;
   const OVER = B.settings.overlap ?? 4;          // 曲の終わりの消えぎわ（bgm_prep が終わりをこの秒数で消す）。並びの次の曲はここから重ねる
+  // 鳴らし始め・鳴らし直しは短く大きくする（本人 2026-11-18「最初音楽が鳴りづらいね しばらくしてから鳴るようだ」：
+  // 曲が届いてから 1.2 秒かけて大きくしていたので、押してから聞こえるまで2秒ほどかかった）。1.2 秒は曲から曲へ重ねる時だけ
+  const FADE_IN = 0.3;
 
   // いまの地方：県を押している時はその県の地方、入口で「〇〇から始める」を押した後はその地方（全国の眺めでは無し）
   function region() {
@@ -55,20 +58,34 @@
   function save() {
     if (cur && el) keep.set({ no: cur.no, t: el.currentTime, on });
   }
-  function fade(a, to, done) {
+  function fade(a, to, done, dur = FADE) {
     fades = fades.filter((f) => f.a !== a);
-    fades.push({ a, from: a.volume, to, t: 0, done });
+    fades.push({ a, from: a.volume, to, t: 0, done, dur });
+  }
+  // 入口にいる間に、最初に鳴らすはずの曲の頭（曲の目次）だけ読んでおく（押してから届くのを待つ時間を減らす）。
+  // 曲ぜんぶは読まない（音楽を聞かない人の通信を増やさない）。季節・時刻が変わって曲が変われば読み直す
+  function prime() {
+    if (on || el || !songs.size || userOff.get()) return;
+    const l = pick();
+    if (!l.length || (primed && l.includes(primed.s))) return;
+    const a = new Audio(); a.preload = 'metadata'; a.s = choose(l); a.src = a.s.file;
+    primed = a;
   }
   // 曲を替える：新しい曲を小さく始めて大きく、前の曲は小さくして止める。同じ曲の続きなら、覚えた位置から
   function start(s) {
     const old = el;
-    cur = s; el = new Audio(s.file); el.loop = row.length < 2; el.preload = 'auto'; el.volume = 0;
+    const ready = primed && primed.s === s ? primed : null;
+    primed = null;
+    cur = s; el = ready || new Audio(s.file); el.loop = row.length < 2; el.preload = 'auto'; el.volume = 0;
     const k = keep.get();
-    if (k && k.no === s.no && k.t > 0) el.addEventListener('loadedmetadata', () => { if (el && isFinite(el.duration)) el.currentTime = k.t % el.duration; }, { once: true });
     const a = el;
+    if (k && k.no === s.no && k.t > 0) {
+      const seek = () => { if (a === el && isFinite(a.duration)) a.currentTime = k.t % a.duration; };
+      if (a.readyState >= 1) seek(); else a.addEventListener('loadedmetadata', seek, { once: true });
+    }
     a.addEventListener('timeupdate', () => { if (isFinite(a.duration) && a.currentTime > a.duration - OVER) next(a); });
     a.addEventListener('ended', () => next(a));
-    a.play().then(() => { if (a === el) fade(a, VOL); }).catch(() => { if (a === el) { on = false; ui(); } });
+    a.play().then(() => { if (a === el) fade(a, VOL, null, old ? FADE : FADE_IN); }).catch(() => { if (a === el) { on = false; ui(); } });
     if (old) fade(old, 0, () => old.pause());
     cap.textContent = '♪ ' + s.title; cap.classList.add('on');
     clearTimeout(cap.t); cap.t = setTimeout(() => cap.classList.remove('on'), 4500);
@@ -76,9 +93,9 @@
   function play() {
     const l = pick();
     if (!l.length) { ui(); return; }
-    const s = choose(l);
+    const s = primed && l.includes(primed.s) ? primed.s : choose(l);
     row = l; on = true; userOff.set(false);
-    if (cur === s && el) { const a = el; a.loop = row.length < 2; a.play().then(() => fade(a, VOL)).catch(() => { on = false; ui(); }); }
+    if (cur === s && el) { const a = el; a.loop = row.length < 2; a.play().then(() => fade(a, VOL, null, FADE_IN)).catch(() => { on = false; ui(); }); }
     else start(s);
     ui();
   }
@@ -103,17 +120,20 @@
     row = l;
     if (!l.includes(cur)) { save(); start(choose(l)); } else if (el) el.loop = l.length < 2;
   };
-  M.on('season', (i) => { season = i; repick(); });
-  M.on('night', (v) => { night = v; repick(); });
+  M.on('season', (i) => { season = i; repick(); prime(); });
+  M.on('night', (v) => { night = v; repick(); prime(); });
   M.on('select', repick);
   M.on('deselect', repick);
   const all = $('#views [data-v="all"]');
   if (all) all.addEventListener('click', () => setTimeout(repick, 0));     // 「全体」で地方を忘れた後に（入口.js が先に忘れる）
-  // 入口で地方・全体・遊覧を押した時（押した続きなので鳴らせる）。前に自分で止めていたら鳴らさない
-  for (const q of ['#o-regions .list', '#o-all', '#o-tour']) {
-    const e = $(q);
-    if (e) e.addEventListener('click', () => { if (!on && !userOff.get() && songs.size) play(); });
-  }
+  // 入口で何かを選んだ時（押した続きなので鳴らせる）。前に自分で止めていたら鳴らさない。
+  // 地方を選んだ時だけにしていた間は、遊覧・すごろく・クイズ・宝さがしから入ると鳴らず、スマホではたたんだメニューの中の「音楽」を探すまで鳴らなかった（2026-11-18）
+  const entry = $('#o-regions');
+  if (entry) entry.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('button');
+    if (!b || b.matches('.o-back, .chips button, #o-retry')) return;
+    if (!on && !userOff.get() && songs.size) play();
+  });
   // 見えない間は止め、戻ったら続きから（鳴らしていた時だけ）
   let wasOn = false;
   document.addEventListener('visibilitychange', () => {
@@ -127,18 +147,18 @@
     const now = performance.now(), dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (fades.length) {
-      for (const f of fades) { f.t = Math.min(1, f.t + dt / FADE); f.a.volume = Math.max(0, Math.min(1, f.from + (f.to - f.from) * f.t)); }
+      for (const f of fades) { f.t = Math.min(1, f.t + dt / f.dur); f.a.volume = Math.max(0, Math.min(1, f.from + (f.to - f.from) * f.t)); }
       for (const f of fades.filter((g) => g.t >= 1)) if (f.done) f.done();
       fades = fades.filter((f) => f.t < 1);
     }
     if (on && now - saved > 3000) { saved = now; save(); }
   });
-  M.on('ready', () => { season = M.inner.season; night = M.isNight; ui(); });
+  M.on('ready', () => { season = M.inner.season; night = M.isNight; ui(); setTimeout(prime, 1500); });
   ui();
 
   // 検査用
   window.BGM = {
-    get state() { return { have: songs.size, on, song: cur && cur.no, list: row.map((s) => s.no), t: el ? el.currentTime : 0, paused: el ? el.paused : true, vol: el ? el.volume : 0, off: userOff.get() }; },
+    get state() { return { have: songs.size, on, song: cur && cur.no, list: row.map((s) => s.no), t: el ? el.currentTime : 0, paused: el ? el.paused : true, vol: el ? el.volume : 0, off: userOff.get(), primed: primed && primed.s.no }; },
     play, stop: () => stop(true),
     // 別のブラウザへ出る前に、その場で止める（LINE の中のページは開きなおした後も裏で生きていて、移った先から止められない。
     // 少しずつ下げる止め方は、裏に回ると毎コマが来ずに途中の音量で鳴り続ける）。本人が止めた扱いにはしない
