@@ -60,7 +60,7 @@
   }, true);
   // 窓の外のどこを押してもしまう（地図の空いた所は M.onDismiss が受けて、県は浮いたまま）。画面の向きや大きさが変わった時も
   // （本人 2026-10-30「２回目枠外を押したときも勝手に閉じる」「出したまま画面の向きを変えると延々と残ってしまう」）
-  addEventListener('pointerdown', (e) => { if (cur && !box.contains(e.target) && !cur.tag.contains(e.target) && e.target.id !== 'gl') close(); }, true);
+  addEventListener('pointerdown', (e) => { if (cur && !box.contains(e.target) && !cur.tag.contains(e.target) && e.target.id !== 'gl' && !e.target.closest('#back-one')) close(); }, true);     // ひとつ前へは、押した続きで戻る.js が閉じる
   addEventListener('resize', () => { if (cur) close(); });
   window.HITO = { open, close, get state() { return cur && { name: cur.n.name, text: box.innerText }; } };
 })();

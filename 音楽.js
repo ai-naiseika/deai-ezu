@@ -140,5 +140,8 @@
   window.BGM = {
     get state() { return { have: songs.size, on, song: cur && cur.no, list: row.map((s) => s.no), t: el ? el.currentTime : 0, paused: el ? el.paused : true, vol: el ? el.volume : 0, off: userOff.get() }; },
     play, stop: () => stop(true),
+    // 別のブラウザへ出る前に、その場で止める（LINE の中のページは開きなおした後も裏で生きていて、移った先から止められない。
+    // 少しずつ下げる止め方は、裏に回ると毎コマが来ずに途中の音量で鳴り続ける）。本人が止めた扱いにはしない
+    hush() { on = false; if (el) el.pause(); ui(); },
   };
 })();

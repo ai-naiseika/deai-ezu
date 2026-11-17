@@ -14,7 +14,9 @@
   const far = (a, b) => a.w !== b.w || a.sel !== b.sel || Math.hypot(a.g.x - b.g.x, a.g.z - b.g.z) > 0.3 * Math.min(a.g.D, b.g.D)
     || Math.abs(Math.log(a.g.D / b.g.D)) > 0.4 || turn(a.g.th, b.g.th) > 0.6 || Math.abs(a.g.ph - b.g.ph) > 0.35;
   const busy = () => ['touring', 'flying'].some((c) => document.body.classList.contains(c)) || document.querySelector('#veil.on');
-  const ui = () => { btn.disabled = !stack.length; };
+  // 窓が開いている間も押せる（押すと、まず窓を閉じる）。窓は0.3秒ごとに見る（毎コマ20か所を探すと重い）
+  const ui = () => { btn.disabled = !stack.length && !(M.layers && M.layers()); };
+  setInterval(ui, 300);
 
   M.on('frame', () => {
     const g = M.goal, k = [g.x, g.z, g.D, g.th, g.ph].map((v) => v.toFixed(3)).join(), t = performance.now();
@@ -30,6 +32,15 @@
   M.on('world', (w) => { if (pending && w && w.name === pending.w) { M.view(pending.g); pending = null; } });
 
   function back() {
+    // 開いている窓（豆知識・駅の案内・紹介のくわしい説明…）があれば、まず1つ閉じる。地図は動かさない
+    // （本人 2026-11-17「県の中で知識から離れようと戻ると、すぐ空の上や県の外へ戻りすぎる」＝前は窓を開いたまま、前の眺めへ飛んだ）
+    const open = M.layers && M.layers();
+    if (open) {
+      const k = new KeyboardEvent('keydown', { code: 'Escape', key: 'Escape', bubbles: true });
+      k.fromBack = true;
+      document.body.dispatchEvent(k);
+      if (M.layers() !== open) { ui(); return; }
+    }
     const S = stack.pop();
     ui();
     if (!S) return;

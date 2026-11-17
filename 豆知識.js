@@ -158,7 +158,7 @@
   function closeCard() { card.classList.remove('open'); cur = null; }
 
   // ---------------------------------------------------------------- 絵にして送る（ゲームの案.md「人に言いたくなる：豆知識を1枚の札にして送る」・2026-11-09）：
-  // 縦長の1枚（1080×1350）に題・県・本文・場所・出どころ。字は見る人の端末の字で描く。地図の住所は入れない（試しの公開の間）。
+  // 縦長の1枚（幅1080・高さは1350から本文の長さで伸びる）に、その場所の鳥瞰図・題・県・本文・場所・出どころ。字は見る人の端末の字で描く。地図の住所は入れない（試しの公開の間）。
   // 先に絵とファイルを作って見せ、「送る」の押した時にそのまま渡す（作るのを待ってから送ると、スマホが押した操作と見なさず送れないことがある）
   const pic = el('div');
   pic.id = 'mame-pic'; pic.setAttribute('role', 'dialog'); pic.setAttribute('aria-label', '豆知識の絵の札');
@@ -182,51 +182,133 @@
     out[max - 1] = out[max - 1].slice(0, -1) + '…';
     return out;
   }
-  function drawCard(B) {
-    const d = B.d, W = 1080, H = 1350, c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    const g = c.getContext('2d'), font = (s, w = 700) => { g.font = `${w} ${s}px ${FONT}`; }, X = 100, MW = W - 200;
+  // 絵（本人 2026-11-17「送るって言っても何の絵もなくてカードだけとはとても寂しい」）：その場所の鳥瞰図を地図から写して上に置き、場所に朱の印を立てる。
+  // 右下に日本の小さな地図（その県を朱で）。地名や名物の札は画面に重ねた部品なので写らない（地図の絵だけ）。写せない時は、前の字だけの札
+  const PX = 100, PY = 182, PW = 880, PH = 495;
+  function drawShot(g, B, shot) {
+    const r = shot.c, k = PH / PW;
+    // 写す広さ：パソコンは画面の7割（場所が小さくなりすぎないように）、スマホは画面の幅いっぱい。場所を真ん中に、はみ出す時は画面の中へ寄せる
+    const sw = Math.min(r.width, r.height / k, Math.max(PW, r.width * 0.7)), sh = sw * k;
+    const sx = Math.min(Math.max(shot.x - sw / 2, 0), r.width - sw), sy = Math.min(Math.max(shot.y - sh / 2, 0), r.height - sh);
+    g.save();
+    g.beginPath(); g.rect(PX, PY, PW, PH); g.clip();
+    // 空は地図の絵ではなくページの地の色なので、写した絵の下に空の色を敷く
+    const sky = g.createLinearGradient(0, PY, 0, PY + PH), night = M.isNight;
+    sky.addColorStop(0, night ? '#1d2436' : '#b9d0de'); sky.addColorStop(0.6, night ? '#39405a' : '#efe6cf');
+    g.fillStyle = sky; g.fillRect(PX, PY, PW, PH);
+    g.drawImage(r, sx, sy, sw, sh, PX, PY, PW, PH);
+    // 場所の印（朱のしずく）
+    const px = PX + (shot.x - sx) / sw * PW, py = PY + (shot.y - sy) / sh * PH;
+    if (px > PX && px < PX + PW && py > PY && py < PY + PH) {
+      g.save(); g.translate(px, py);
+      g.shadowColor = 'rgba(20,14,4,.45)'; g.shadowBlur = 10; g.shadowOffsetY = 4;
+      g.beginPath(); g.moveTo(0, 0); g.bezierCurveTo(-6, -14, -22, -30, -22, -46); g.arc(0, -46, 22, Math.PI, 0); g.bezierCurveTo(22, -30, 6, -14, 0, 0); g.closePath();
+      g.fillStyle = '#c8402c'; g.fill();
+      g.shadowColor = 'transparent'; g.lineWidth = 3; g.strokeStyle = '#fffaf0'; g.stroke();
+      g.beginPath(); g.arc(0, -46, 8, 0, Math.PI * 2); g.fillStyle = '#fffaf0'; g.fill();
+      g.restore();
+    }
+    // 日本の小さな地図（どこの話かが、知らない人にも分かるように）
+    // 収める範囲は、各県のいちばん大きい島だけで測る（小笠原・沖縄まで入れると本土が箱の隅に小さく寄り、県の朱が点になった）。沖縄の豆知識の時は沖縄も
+    const J = window.JAPAN, map = M.miniMap && M.miniMap();
+    if (J && map) {
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      for (const jp of J.prefs) {
+        if (jp.n === 47 && B.d.pref !== 47) continue;
+        const r = jp.ring.reduce((a, q) => (q.length > a.length ? q : a), []);
+        for (let i = 0; i < r.length; i += 2) { x0 = Math.min(x0, r[i]); x1 = Math.max(x1, r[i]); y0 = Math.min(y0, r[i + 1]); y1 = Math.max(y1, r[i + 1]); }
+      }
+      const bw = x1 - x0, bh = y1 - y0, S = 200, ix = PX + PW - S - 14, iy = PY + PH - S - 14, s = (S - 16) / Math.max(bw, bh);
+      g.fillStyle = 'rgba(250,244,226,.92)'; g.fillRect(ix, iy, S, S);
+      g.save(); g.beginPath(); g.rect(ix, iy, S, S); g.clip();
+      g.translate(ix + (S - bw * s) / 2 - x0 * s, iy + (S - bh * s) / 2 - y0 * s); g.scale(s, s);
+      J.prefs.forEach((jp, i) => { g.fillStyle = jp.n === B.d.pref ? '#c8402c' : '#c2b48f'; g.fill(new Path2D(map.d[i])); });
+      g.restore();
+      g.strokeStyle = '#c9a24a'; g.lineWidth = 2; g.strokeRect(ix, iy, S, S);
+    }
+    g.restore();
+    g.strokeStyle = '#b8922e'; g.lineWidth = 3; g.strokeRect(PX, PY, PW, PH);
+  }
+  function drawCard(B, shot) {
+    const d = B.d, W = 1080, c = document.createElement('canvas'), X = 100, MW = W - 200;
+    const g = c.getContext('2d'), font = (s, w = 700) => { g.font = `${w} ${s}px ${FONT}`; };
+    // 先に行を折って、札の高さを決める（絵を入れた分、長い豆知識は縦に伸ばす）
+    font(72); const tl = wrap(g, d.title, MW, 2);
+    font(46, 400); const bl = wrap(g, d.text || '', MW, 9);
+    font(32, 400); const wl = d.where ? wrap(g, '場所：' + d.where, MW, 2) : [];
+    font(28, 400); const sl = wrap(g, '出どころ：' + (d.sources || []).map((s) => s.title).join('／'), MW, 2);
+    const top = shot ? PY + PH + 95 : 262;
+    const H = Math.max(1350, top + tl.length * 92 + 44 + bl.length * 76 + (wl.length ? 18 + wl.length * 46 : 0) + 60 + 214);
+    c.width = W; c.height = H;      // 大きさを変えると書き方の設定が消えるので、ここから描く
     g.fillStyle = '#f7f0dc'; g.fillRect(0, 0, W, H);
     g.strokeStyle = '#b8922e'; g.lineWidth = 8; g.strokeRect(36, 36, W - 72, H - 72);
     g.strokeStyle = '#c8402c'; g.lineWidth = 2; g.strokeRect(54, 54, W - 108, H - 108);
     font(40); g.fillStyle = '#c8402c'; g.fillText('豆知識', X, 150);
     font(36, 400); g.fillStyle = '#6a6250'; g.fillText(`${d.cat}・${P ? M.FULL(P[B.k].name) : ''}`, X + 150, 150);
+    if (shot) drawShot(g, B, shot);
     font(72); g.fillStyle = '#2a3146';
-    let y = 262;
-    for (const l of wrap(g, d.title, MW, 2)) { g.fillText(l, X, y); y += 92; }
+    let y = top;
+    for (const l of tl) { g.fillText(l, X, y); y += 92; }
     g.strokeStyle = '#c9b88a'; g.lineWidth = 2; g.setLineDash([6, 6]); g.beginPath(); g.moveTo(X, y - 34); g.lineTo(W - X, y - 34); g.stroke(); g.setLineDash([]);
     font(46, 400); y += 44;
-    for (const l of wrap(g, d.text || '', MW, 9)) { g.fillText(l, X, y); y += 76; }
+    for (const l of bl) { g.fillText(l, X, y); y += 76; }
     font(32, 400); g.fillStyle = '#6a6250';
-    if (d.where) { y += 18; for (const l of wrap(g, '場所：' + d.where, MW, 2)) { g.fillText(l, X, y); y += 46; } }
+    if (wl.length) { y += 18; for (const l of wl) { g.fillText(l, X, y); y += 46; } }
     font(28, 400);
     let ys = H - 214;
-    for (const l of wrap(g, '出どころ：' + (d.sources || []).map((s) => s.title).join('／'), MW, 2)) { g.fillText(l, X, ys); ys += 40; }
+    for (const l of sl) { g.fillText(l, X, ys); ys += 40; }
     font(34); g.textAlign = 'center'; g.fillText('にっぽん であい絵図（AI内製化工房）', W / 2, H - 94);
     return c;
   }
   function showPic(B) {
-    const c = drawCard(B), name = `豆知識_${B.d.title.replace(/[\\/:*?"<>|]/g, '')}.png`;
+    let shot = null;
+    // 写せない時（WebGL が止まった・別の県の中にいる）は字だけの札
+    try { if (M.shot && B.k >= 0 && !(M.inside && M.sel !== B.k)) shot = M.shot(B.k, B.d.x, B.d.z); } catch (e) { shot = null; }
+    const c = drawCard(B, shot), name = `豆知識_${B.d.title.replace(/[\\/:*?"<>|]/g, '')}.png`;
     let file = null;
     c.toBlob((b) => { file = b && new File([b], name, { type: 'image/png' }); }, 'image/png');
     pic.textContent = '';
-    const row = el('div', 'row'), keep = el('button', null, '送る・保存する'), no = el('button', null, 'もどる');
-    keep.addEventListener('click', () => {
-      if (!file) return;
-      if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file] }).catch(() => {}); return; }
-      const a = document.createElement('a'), u = URL.createObjectURL(file);
-      a.href = u; a.download = name; a.click();
-      setTimeout(() => URL.revokeObjectURL(u), 2000);
-    });
+    const row = el('div', 'row'), no = el('button', null, 'もどる');
+    if (window.LINEAPP && LINEAPP.inLine) {
+      // LINE の中では送れない・保存できない（本人 2026-11-17）。いつものブラウザで、この豆知識を開きなおす
+      const a = el('a', null, 'いつものブラウザで開いて送る');
+      a.href = LINEAPP.out({ mame: B.d.id });
+      a.addEventListener('click', LINEAPP.hush);
+      row.append(a, no);
+      pic.append(c, el('p', 'line-say', 'LINE の中では絵を送れません。Chrome や Safari で、この豆知識を開きなおします'), row);
+    } else {
+      const keep = el('button', null, '送る・保存する');
+      keep.addEventListener('click', () => {
+        if (!file) return;
+        if (navigator.canShare && navigator.canShare({ files: [file] })) { navigator.share({ files: [file] }).catch(() => {}); return; }
+        const a = document.createElement('a'), u = URL.createObjectURL(file);
+        a.href = u; a.download = name; a.click();
+        setTimeout(() => URL.revokeObjectURL(u), 2000);
+      });
+      row.append(keep, no);
+      pic.append(c, row);
+    }
     no.addEventListener('click', closePic);
-    row.append(keep, no);
-    pic.append(c, row);
     pic.classList.add('open');
+  }
+  // 住所の ?mame=<id>（LINE から開きなおした時）：その豆知識を開く。入口は閉じて、その県へ
+  const want = /[?&]mame=([^&#]+)/.exec(location.search);
+  if (want) {
+    const id = decodeURIComponent(want[1]);
+    try { const u = new URL(location.href); u.searchParams.delete('mame'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { /* 別の枠の中 */ }
+    M.on('shown', () => setTimeout(() => {
+      const B = beans.find((q) => q.d.id === id);
+      if (!B || B.k < 0) return;
+      if (window.OPENING && OPENING.open) OPENING.close();
+      goTo(B, true);
+    }, 300));
   }
   function closePic() { pic.classList.remove('open'); pic.textContent = ''; }
   M.onDismiss(() => { if (!card.classList.contains('open')) return false; closeCard(); return true; });
   // 札の外のどこを押してもしまう（地図の空いた所は M.onDismiss・押した豆は豆の側でしまう）。画面の向きや大きさが変わった時も（本人 2026-10-30）
-  addEventListener('pointerdown', (e) => { if (card.classList.contains('open') && !card.contains(e.target) && !(cur && cur.el.contains(e.target)) && e.target.id !== 'gl') closeCard(); }, true);
+  // 絵の札（その豆知識から作った窓）の中を押した時はしまわない（絵の札の「もどる」で、豆知識の札まで閉じていた。2026-11-17）。
+  // 「ひとつ前へ」も押した時はしまわない（押した続きで戻る.js が1つ閉じる。ここで閉じると、続けて地図まで前の眺めへ飛んだ）
+  addEventListener('pointerdown', (e) => { if (card.classList.contains('open') && !card.contains(e.target) && !pic.contains(e.target) && !(cur && cur.el.contains(e.target)) && e.target.id !== 'gl' && !e.target.closest('#back-one')) closeCard(); }, true);
   addEventListener('resize', () => { if (card.classList.contains('open')) closeCard(); });
 
   // ---------------------------------------------------------------- 豆知識帳（見つけた数・地方ごと・県ごと。開いていない豆は「？」と種類だけ）

@@ -101,7 +101,7 @@
   M.onDismiss(() => { if (!cur) return false; close(); return true; });
   M.on('deselect', close);
   // 案内の外のどこを押してもしまう（地図の空いた所は M.onDismiss）。画面の向きや大きさが変わった時も（本人 2026-10-30）
-  addEventListener('pointerdown', (e) => { if (cur && !card.contains(e.target) && !(cur.label && cur.label.contains(e.target)) && e.target.id !== 'gl') close(); }, true);
+  addEventListener('pointerdown', (e) => { if (cur && !card.contains(e.target) && !(cur.label && cur.label.contains(e.target)) && e.target.id !== 'gl' && !e.target.closest('#back-one')) close(); }, true);     // ひとつ前へは、押した続きで戻る.js が閉じる
   addEventListener('resize', () => { if (cur) close(); });
   addEventListener('keydown', (e) => {
     if (e.code === 'Escape' && card.classList.contains('open') && !e.target.closest('input')) { close(); e.stopImmediatePropagation(); }

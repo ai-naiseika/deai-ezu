@@ -997,6 +997,10 @@
   // もどる：すぐ下ろし、履歴も1つ戻す。自分で戻した履歴の知らせは無視する
   // （知らせは遅れて届くので、その間に押した次の県を下ろしてしまわないように）
   let popping = false;
+  // もどる（Esc）・ひとつ前へ・端末の戻るは、窓の中の一段（紹介のくわしい説明→一覧）を先に戻す。地図の空いた所を押した時は、これまでどおり県ごとしまう
+  // （本人 2026-11-17「県の中で知識から離れようと戻ると、すぐ空の上や県の外へ戻りすぎる」）
+  const steps = [];
+  const stepIn = () => steps.some((f) => f());
   function back() {
     const st = history.state, g = st && st.layer ? 1 : 0;      // 上に窓の段があれば、それごと戻る
     if (inside) {
@@ -1011,7 +1015,7 @@
   // ---------------------------------------------------------------- 端末の「戻る」で窓を閉じる（本人のスマホ 2026-11-09。前は窓が開いたまま県を下ろす・ページを出た）
   // 窓・遊覧・空を飛ぶ・入り直したはじめの画面が開いている間だけ、履歴のいちばん上に「窓の段」を1つ積む。
   // 「戻る」でその段を戻ると、Esc と同じ手順で1つ閉じ（地図は動かさない）、まだ開いていればまた積む。ボタンで閉じ切った時は、積んだ段を自分で戻す
-  const WINS = ['body.touring', 'body.flying', 'body.again', '#deai.open', '#deai .pic', '#quiz.open', '#mame-book.open', '#mame-card.open', '#eki-card.open',
+  const WINS = ['body.touring', 'body.flying', 'body.again', '#card.open:not(.mini) #c-intro .detail', '#deai.open', '#deai .pic', '#quiz.open', '#mame-book.open', '#mame-card.open', '#eki-card.open',
     '#credits.open', '#cal.open', '#legend.open', '#natdata.open', '#fuda.open', '#hito.open', '#bar .dock.open', '#en-card.open', '#mame-pic.open', '#sugo.open', '#takara.open'];
   const layerSig = () => WINS.filter((q) => document.querySelector(q)).join();
   let layered = false, stuck = '', under = '';
@@ -1075,7 +1079,8 @@
       for (const I of ISLES) I.pinned = false;
       place(); setHover(-1);
       document.body.classList.add('inside');
-      if (w.warpIn) w.warpIn();                        // 寄せた島の点を寄せる（県の中.js。知らせを受けて置き直す側が、寄せた後の位置を使う）
+      $('#c-back').textContent = '全国の地図へ（Esc）';     // 県の中の「もどる」は県の外へ出る。行き先を名前に（「ひとつ前」と読まれて、押すと戻りすぎた。2026-11-17）
+      if (w.warpIn) w.warpIn();                       // 寄せた島の点を寄せる（県の中.js。知らせを受けて置き直す側が、寄せた後の位置を使う）
       emit('world', w);
       // 入った後の画面の並び（スマホは札の窓をたたむ）で、県が空いた所に収まる眺めを測り直す
       if (w.fitHome) { w.fitHome(); Object.assign(goal, w.home); keepIn(goal); Object.assign(cam, goal); place(); }
@@ -1092,6 +1097,7 @@
       if (outView) { Object.assign(goal, outView); Object.assign(cam, outView); for (const k in camV) camV[k] = 0; }
       place();
       document.body.classList.remove('inside');
+      $('#c-back').textContent = 'もどる（Esc）';
       if (w.warpOut) w.warpOut();
       emit('world', null);
       if (then) then();
@@ -1226,7 +1232,7 @@
 
   addEventListener('keydown', (e) => {
     if (free || (e.target.closest && e.target.closest('input, textarea'))) return;   // 検索の窓に打っている字で、地図を回さない
-    if (e.code === 'Escape') { if (!e.fromBack) { for (const I of ISLES) I.pinned = false; back(); } }
+    if (e.code === 'Escape') { if (e.fromBack) stepIn(); else if (!stepIn()) { for (const I of ISLES) I.pinned = false; back(); } }
     else if (e.code === 'ArrowLeft') goal.th += 0.26;
     else if (e.code === 'ArrowRight') goal.th -= 0.26;
     else if (e.code === 'ArrowUp') goal.ph = clamp(goal.ph + 0.1, PH[0], PH[1]);
@@ -1259,7 +1265,7 @@
     goal.th = near(goal.th, [0, -Math.PI / 2, Math.PI, Math.PI / 2][+b.dataset.v]);
   }));
   $('#compass').addEventListener('click', () => { goal.th = near(goal.th, 0); });
-  $('#c-back').addEventListener('click', back);
+  $('#c-back').addEventListener('click', () => { if (!stepIn()) back(); });
 
   // ---------------------------------------------------------------- 県名の札（重なる札は、小さい県から省く）
   const labels = [];
@@ -1814,6 +1820,19 @@
     labels(on) { labelsOn = on; },
     get vw() { return VW; }, get vh() { return VH; },
     P, cam, goal, HOME, OVER, LIFT, onDismiss: (f) => dismissers.push(f), sheet: () => !!SHEET(), phone: PHONE,
+    onStep: (f) => steps.push(f), layers: layerSig,
+    // 見る点を (x, z) に置いた眺めを1枚に写す（豆知識の絵の札）。WebGL の画面は、描いたのと同じ処理の中でだけ写せる
+    // （描き込みを残す設定は毎コマ重くなるので使わない）。写した後は元の眺めで描き直す（動かした眺めが1コマ見えないように）
+    shot(k, x, z) {
+      const keep = { x: cam.x, y: cam.y, z: cam.z }, y = this.groundY(k, x, z) + (inside ? 0 : liftY(k));
+      if (!free) { cam.x = x; cam.z = z; if (inside) cam.y = y; }       // 空を飛ぶ間は、見ている眺めのまま
+      place(); draw();
+      const c = document.createElement('canvas');
+      c.width = cv.width; c.height = cv.height; c.getContext('2d').drawImage(cv, 0, 0);
+      const s = this.project(x, y, z), r = cv.width / VW;
+      Object.assign(cam, keep); place(); draw();
+      return { c, x: s.x * r, y: s.y * r };
+    },
     view(v, now) { Object.assign(goal, v); keepIn(goal); if (now) { Object.assign(cam, goal); for (const k in camV) camV[k] = 0; place(); } },
     // 自前でカメラを動かす（旅.js の空を飛ぶ）。f＝毎コマ cam を書く関数、null で、いまの眺めからばねで見る点のまわりの作りへ戻る
     free(f) { free = f || null; if (!f) { Object.assign(goal, cam); keepIn(goal); for (const k in camV) camV[k] = 0; } },

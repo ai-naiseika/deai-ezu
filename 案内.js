@@ -62,7 +62,7 @@
   $('#note').addEventListener('click', () => cred.classList.add('open'));
   $('#credits-close').addEventListener('click', credOff);
   M.onDismiss(credOff);
-  addEventListener('pointerdown', (e) => { if (cred.classList.contains('open') && !cred.contains(e.target) && !e.target.closest('#note') && e.target.id !== 'gl') credOff(); }, true);
+  addEventListener('pointerdown', (e) => { if (cred.classList.contains('open') && !cred.contains(e.target) && !e.target.closest('#note') && e.target.id !== 'gl' && !e.target.closest('#back-one')) credOff(); }, true);     // ひとつ前へは、押した続きで戻る.js が閉じる
   addEventListener('keydown', (e) => { if (e.code === 'Escape' && credOff()) e.stopImmediatePropagation(); }, true);
   // スマホ：県の中にいる間は、県の札の窓を題とボタンだけにたたむ（窓が画面の下半分を覆い、真ん中に寄せた駅の札が窓の下に隠れた）。
   // 題を押すと開く・たたむ。大きさが変わったことを、札を並べる側（県の中.js の地名・吹き出し）に resize で知らせる
@@ -436,6 +436,12 @@
     return d;
   }
   M.openItem = (it, show) => { if (cardK >= 0) openItem(it, show); };       // 遊覧から、着いた名所のくわしい説明を札の窓に出す（show＝遊覧中でも窓を開く）
+  // もどる（Esc）・ひとつ前へ・端末の戻る：くわしい説明を読んでいる時は、県の外へ出ずに一覧へ（本人 2026-11-17「戻りすぎる」）。遊覧中は遊覧の終わり方のまま
+  if (M.onStep) M.onStep(() => {
+    if (cardK < 0 || !$('#c-intro .detail') || !cardEl.classList.contains('open') || cardEl.classList.contains('mini') || document.body.classList.contains('touring')) return false;
+    pins.forEach((q) => q.el.classList.remove('on')); renderList(cardK);
+    return true;
+  });
   // 遊覧の行き先の印は、灯りの外でも名前の札を出す（本人 2026-10-30「マウスを重ねなくてもその場所のカード表示していい。観光してるのだし」）
   M.tourPin = (it) => { for (const q of pins) { q.tour = q.it === it; q.el.classList.toggle('tour', q.tour); } };
   M.MARK = MARK; M.safeUrl = safeUrl;                            // 全国の遊覧の札も、同じ印と同じ確かめ方で
