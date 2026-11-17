@@ -996,20 +996,26 @@
   }
   // もどる：すぐ下ろし、履歴も1つ戻す。自分で戻した履歴の知らせは無視する
   // （知らせは遅れて届くので、その間に押した次の県を下ろしてしまわないように）
-  let popping = false;
+  let popping = false, popAt = 0, later = null;
+  // 自分で履歴を戻す。知らせ（popstate）が届くまでは popping。届かないまま1秒たったら待つのをやめる（戻る先が無く知らせが来ない時に、戻るが効かなくならないように）
+  const selfGo = (n) => { popping = true; popAt = performance.now(); history.go(n); };
+  const pend = () => { if (popping && performance.now() - popAt > 1000) popping = false; return popping; };
   // もどる（Esc）・ひとつ前へ・端末の戻るは、窓の中の一段（紹介のくわしい説明→一覧）を先に戻す。地図の空いた所を押した時は、これまでどおり県ごとしまう
   // （本人 2026-11-17「県の中で知識から離れようと戻ると、すぐ空の上や県の外へ戻りすぎる」）
   const steps = [];
   const stepIn = () => steps.some((f) => f());
   function back() {
+    // 自分で戻した知らせを待っている間（窓を閉じて窓の段を外している途中）は、届いてから戻す。待たずに戻すと、まだ窓の段にいるつもりで数えて
+    // 1つ戻りすぎ、入口まで出た（2026-11-17：札の窓を開いたまま Esc → すぐ「もどる」。全部の検査が時々「日本のデータ」が見えないまま止まった）
+    if (pend()) { later = back; return; }
     const st = history.state, g = st && st.layer ? 1 : 0;      // 上に窓の段があれば、それごと戻る
     if (inside) {
       leave();
-      if (st && st.inside) { popping = true; layered = false; history.go(-1 - g); }
+      if (st && st.inside) { layered = false; selfGo(-1 - g); }
       return;
     }
     deselect();
-    if (st && st.sel != null) { popping = true; layered = false; history.go(-1 - g); }
+    if (st && st.sel != null) { layered = false; selfGo(-1 - g); }
   }
 
   // ---------------------------------------------------------------- 端末の「戻る」で窓を閉じる（本人のスマホ 2026-11-09。前は窓が開いたまま県を下ろす・ページを出た）
@@ -1027,17 +1033,18 @@
     else history.replaceState(st, '');
   }
   function layerSync() {
-    if (popping) return;                                       // 自分で戻した知らせを待つ間は積まない（知らせは遅れて届く）
+    if (pend()) return;                                        // 自分で戻した知らせを待つ間は積まない（知らせは遅れて届く）
     const sig = layerSig();
     if (sig !== stuck) stuck = '';
     if (sig && !layered && !stuck) { under = where(history.state); history.pushState(Object.assign({}, history.state, { layer: 1 }), ''); layered = true; }
-    else if (!sig && layered) { layered = false; if (history.state && history.state.layer) { popping = true; history.back(); } }
+    else if (!sig && layered) { layered = false; if (history.state && history.state.layer) selfGo(-1); }
   }
   setInterval(layerSync, 300);
   for (const t of ['click', 'keyup']) addEventListener(t, () => setTimeout(layerSync, 0), true);
 
   addEventListener('popstate', (e) => {
-    if (popping) { popping = false; e.selfPop = true; return; }     // 自分で戻した知らせ（入口.js も見る：地図の中のボタンで戻した時は入口を出さない）
+    // 自分で戻した知らせ（入口.js も見る：地図の中のボタンで戻した時は入口を出さない）。待たせていた「戻る」があれば、ここから
+    if (popping) { popping = false; e.selfPop = true; if (later) { const f = later; later = null; setTimeout(f, 0); } return; }
     let s = e.state;
     if (layered && !(s && s.layer)) {
       layered = false;
