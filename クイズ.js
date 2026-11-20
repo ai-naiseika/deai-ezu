@@ -175,6 +175,7 @@
     if (!list.length) return;
     S = { mode, list, i: 0, score: 0, ok: 0, r };
     box.classList.add('open'); open.classList.add('on');
+    if (M.roomWhole) M.roomWhole();       // 横向きのスマホは窓が右の列：日本全体を窓の左に収め直す（地図の県を押して答える）
     ask();
   }
   function ask() {

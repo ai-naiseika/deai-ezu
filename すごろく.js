@@ -319,6 +319,7 @@
     box.classList.add('open');
     if (ico) ico.classList.add('on');
     if (L.prof) menu(); else nameView();
+    if (M.roomWhole) M.roomWhole();       // 横向きのスマホは窓が右の列：日本全体を窓の左に収め直す
   }
   function menu() {
     head(false);
@@ -700,8 +701,10 @@
   function visit(n) {
     const p = prefOf(n), f = p.frame, W = M.vw, H = M.vh, c = box.getBoundingClientRect(), Lf = M.LIFT;
     const pts = [[f[0], f[1], Lf], [f[2], f[1], Lf], [f[0], f[3], Lf], [f[2], f[3], Lf]];
-    const side = c.width > 0 && c.right < W * 0.5;
-    const area = side ? [(c.right + 16) / W * 2 - 1, 0.92, -0.75, 0.72] : [-0.9, 0.9, c.width > 0 ? 1 - (c.top - 16) / H * 2 : -0.6, 0.72];
+    const side = c.width > 0 && c.right < W * 0.5, right = c.width > 0 && c.left > W * 0.5;     // 右＝横向きのスマホ（読む窓は右の列。2026-11-20）
+    const bar = document.getElementById('bar').getBoundingClientRect(), low = bar.height ? Math.max(-0.75, 1 - (bar.top - 10) / H * 2) : -0.75;
+    const area = side ? [(c.right + 16) / W * 2 - 1, 0.92, -0.75, 0.72] : right ? [-0.92, (c.left - 16) / W * 2 - 1, low, 0.72]
+      : [-0.9, 0.9, c.width > 0 ? 1 - (c.top - 16) / H * 2 : -0.6, 0.72];
     M.tourLift(p.k);
     M.view(M.fit(M.HOME.th, 0.62, pts, area));
   }

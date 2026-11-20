@@ -961,6 +961,20 @@
     return px[0] - 1;
   }
 
+  // 右の列の窓（パソコンの札の窓・縁の札、横向きのスマホの読む窓）が画面の右で占める幅。open＝開いている窓だけ（閉じた札の窓も組版は済んでいる）
+  const SIDE = ['#card', '#tour', '#mame-card', '#eki-card', '#en-card', '#quiz', '#sugo'];
+  function rightPad(open) {
+    let w = 0;
+    for (const q of SIDE) {
+      const e = $(q);
+      if (!e || !e.offsetWidth || (open && getComputedStyle(e).visibility === 'hidden')) continue;
+      const r = e.getBoundingClientRect();
+      if (r.left > VW * 0.4 && r.right > VW - 40 && r.top < VH * 0.3) w = Math.max(w, VW - r.left);
+    }
+    return w;
+  }
+  const PXK = 2 * Math.tan(14 * Math.PI / 180);     // 画角 28°：見る点から距離 1 の所で、画面の高さ 1 画素が占める長さ × 画面の高さ
+
   let sel = -1, hov = -1, saved = null, tourK = -1;   // tourK＝全国の遊覧で浮かせている県（札の窓は開かない）
   function select(k, how) {
     if (k === sel) return;
@@ -970,9 +984,10 @@
     extras(p);
     const size = Math.max(f[2] - f[0], f[3] - f[1]);
     if (!SHEET()) {
-      // 右に札の窓が開くので、浮かせた県は左の空いた所の真ん中に（見る向きの右へ、注視点を少しずらす）
-      const D = clamp(size * 1.9 + 240, 420, 2200);
-      Object.assign(goal, { x: (f[0] + f[2]) / 2 + Math.cos(goal.th) * D * 0.1, z: (f[1] + f[3]) / 2 + Math.sin(goal.th) * D * 0.1, y: LIFT * 0.55, D, ph: 0.6 });
+      // 右に札の窓が開くので、浮かせた県は左の空いた所の真ん中に（見る向きの右へ、注視点をずらす）。ずらす量は右の列の本当の幅から
+      // （前は距離の1割＝パソコンの窓の分。横向きのスマホでは窓が画面の3〜4割を占め、県が窓の下に入りかけた 2026-11-20）
+      const D = clamp(size * 1.9 + 240, 420, 2200), pad = rightPad(false), s = pad ? pad / 2 * PXK / VH : 0.1;
+      Object.assign(goal, { x: (f[0] + f[2]) / 2 + Math.cos(goal.th) * D * s, z: (f[1] + f[3]) / 2 + Math.sin(goal.th) * D * s, y: LIFT * 0.55, D, ph: 0.6 });
     }
     if (how) writeHist({ sel: k }, how);
     $('#c-name').textContent = FULL(p.name);
@@ -1799,6 +1814,30 @@
     project(x, y, z) {
       tmp.set(x, y, z).project(camera);
       return { x: (tmp.x + 1) / 2 * VW, y: (1 - tmp.y) / 2 * VH, ok: tmp.z < 1 };
+    },
+    // 右の列に窓が開いた時、押した物（豆知識の豆・駅の札）が窓の裏に入ったら、窓の左の空いた所の真ん中へ寄せる
+    // （本人 2026-11-20「この絵図は絵図と豆知識の両方が主役です」：横向きのスマホでは、右寄りの豆を押すと、開いた札の裏に豆が隠れた）
+    // 測るのは行き先の眺め（goal）で：県へ飛ぶ途中に開いた時も、着いた後の画面で見る
+    reveal(x, y, z) {
+      const pad = rightPad(true);
+      if (!pad || free) return false;
+      const keep = Object.assign({}, cam);
+      Object.assign(cam, goal); place();
+      tmp.set(x, y, z).project(camera);
+      const sx = (tmp.x + 1) / 2 * VW, front = tmp.z < 1;
+      const d = tmp.set(x, y, z).sub(camera.position).dot(camera.getWorldDirection(new T.Vector3()));
+      Object.assign(cam, keep); place();
+      if (!front || sx < VW - pad - 30) return false;
+      const L = (sx - (VW - pad) / 2) * PXK / VH * d;
+      goal.x += Math.cos(goal.th) * L; goal.z += Math.sin(goal.th) * L; keepIn(goal);
+      return true;
+    },
+    // 右の列に窓が開いた時、日本全体を見ていたら、窓の左の空いた所に日本を収め直す（横向きのスマホのクイズ：地図の県を押して答えるのに、東北と北海道が窓の裏に入った）
+    roomWhole() {
+      const pad = rightPad(true);
+      if (!pad || inside || sel >= 0 || free) return;
+      const b = $('#bar').getBoundingClientRect(), low = b.height ? Math.max(-0.665, 1 - (b.top - 8) / VH * 2) : -0.665;
+      Object.assign(goal, fitAll(HOME.th, HOME.ph, null, [-0.95, (VW - pad - 12) / VW * 2 - 1, low, 0.785]));
     },
     groundY(k, x, z) {
       if (inside && inside.heightAt) return inside.heightAt(x, z);

@@ -92,6 +92,7 @@
     bClose.addEventListener('click', close);
     row.appendChild(bClose); card.appendChild(row);
     card.classList.add('open');
+    if (M.reveal) M.reveal(sx, M.groundY(M.sel, sx, sz), sz);      // 横向きのスマホは札が右の列に出る：駅が札の裏に入ったら、左の空いた所へ寄せる
   }
   function close() {
     if (cur && cur.label) cur.label.classList.remove('on');

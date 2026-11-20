@@ -57,29 +57,43 @@
   // 見る点を画面の真ん中に置いていたので、背の低いスマホ（360×640）では札が説明の箱の裏に隠れた）。札は点の上に立つので、その分だけ下げて見る。
   // 箱の高さは着くたびに測る（ふりがなの段・文の長さで変わる）。見る点を、カメラの側へ地面にそって ahead だけずらす（画角 28° の式）。
   // 県の中では地図が見る点の高さをその場の地面に合わせるので、ずらした先の地面と行き先の高さの差も式に入れる（入れないと、山側へずらした時に行き先が箱へ沈んだ）
+  // 横向きのスマホは説明の箱が右の列に出るので（本人 2026-11-20「横向きにすると…画面いっぱい解説の画面で肝心の絵図が見えません」）、空きは箱の左。
+  // 右の列（右の端に付いた上からの窓）は空きの右の端に、それ以外は上の欄か下の箱・並びとして数える。横は、見る点を見る向きの右へずらすと行き先が左に見える
   const FOV = 28 * Math.PI / 180, LABEL = 18;
   let gap = null;
   function measure() {
-    const s = $('#search').getBoundingClientRect(), b = box.getBoundingClientRect();
-    gap = { top: s.height ? s.bottom : 0, bottom: b.height ? b.top : innerHeight };
+    const W = innerWidth, H = innerHeight;
+    gap = { top: 0, bottom: H, left: 0, right: W };
+    for (const q of ['#search', '#tour', '#card', '#bar']) {
+      const e = $(q), c = e && e.offsetWidth ? e.getBoundingClientRect() : null;
+      if (!c || !c.height) continue;
+      if (c.left > W * 0.35 && c.right > W - 40 && c.top < H * 0.3) gap.right = Math.min(gap.right, c.left);
+      else if (q === '#card') continue;
+      else if (c.top + c.bottom < H) gap.top = Math.max(gap.top, c.bottom);
+      else gap.bottom = Math.min(gap.bottom, c.top);
+    }
   }
   addEventListener('resize', () => { gap = null; });
-  function ahead(s, D, ph, th) {
+  // 見る点：行き先から、カメラの側へ地面にそって a、見る向きの右へ l だけずらした所
+  function aim(s, D, ph, th) {
     if (!gap) measure();
-    const px = Math.min(innerHeight * 0.4, innerHeight / 2 - ((gap.top + gap.bottom) / 2 + LABEL));
-    if (px <= 0) return 0;
-    const k = px * 2 * Math.tan(FOV / 2) / innerHeight, c = Math.cos(ph), sn = Math.sin(ph), q = sn - k * c;
-    if (q < 0.05) return 0;
+    const H = innerHeight, f = 2 * Math.tan(FOV / 2) / H, c = Math.cos(ph), sn = Math.sin(ph);
+    const px = Math.min(H * 0.4, H / 2 - ((gap.top + gap.bottom) / 2 + LABEL)), hx = innerWidth / 2 - (gap.left + gap.right) / 2;
+    const side = (a) => hx * f * (D + a * c);
+    const at = (a, l) => ({ x: s.x - Math.sin(th) * a + Math.cos(th) * l, z: s.z + Math.cos(th) * a + Math.sin(th) * l });
+    const k = px * f, q = sn - k * c;
+    if (px <= 0 || q < 0.05) return at(0, side(0));
     const flat = k * D / q;
-    if (T.mode !== 'in') return flat;
+    if (T.mode !== 'in') return at(flat, side(flat));
     // 県の中は、ずらした先の地面の高さしだいで答えが変わるので、半分ずつ狭めて解く。くり返し代入すると、深い谷（上高地）では
     // ずらすほど山を登って答えが跳ね、札が画面の上へ出た
-    const g = (a) => a * q + (s.y - M.groundY(-1, s.x - Math.sin(th) * a, s.z + Math.cos(th) * a)) * (c + k * sn) - k * D;
+    const l0 = side(flat);
+    const g = (a) => { const p = at(a, l0); return a * q + (s.y - M.groundY(-1, p.x, p.z)) * (c + k * sn) - k * D; };
     let lo = 0, hi = flat * 2;
-    if (g(lo) >= 0) return 0;
-    if (g(hi) <= 0) return hi;
+    if (g(lo) >= 0) return at(0, side(0));
+    if (g(hi) <= 0) return at(hi, side(hi));
     for (let n = 0; n < 14; n++) { const m = (lo + hi) / 2; if (g(m) < 0) lo = m; else hi = m; }
-    return (lo + hi) / 2;
+    return at((lo + hi) / 2, side((lo + hi) / 2));
   }
 
   // ---- 立ち寄る所（どちらの遊覧も同じ形）：見る所・近さ・角・題・文・くわしく
@@ -242,8 +256,8 @@
     if (!T.stay) {
       const f = T.fly;
       f.t += dt;
-      const u = clamp(f.t / f.dur, 0, 1), e = ease(u), arc = Math.sin(Math.PI * e), a = ahead(s, s.D, s.ph, f.th);
-      g.x = lerp(f.from.x, s.x - Math.sin(f.th) * a, e); g.z = lerp(f.from.z, s.z + Math.cos(f.th) * a, e); g.y = lerp(f.from.y, s.y, e);
+      const u = clamp(f.t / f.dur, 0, 1), e = ease(u), arc = Math.sin(Math.PI * e), a = aim(s, s.D, s.ph, f.th);
+      g.x = lerp(f.from.x, a.x, e); g.z = lerp(f.from.z, a.z, e); g.y = lerp(f.from.y, s.y, e);
       g.D = lerp(f.from.D, s.D, e) + f.lift * arc;
       g.ph = lerp(f.from.ph, s.ph, e) + 0.12 * arc;
       g.th = lerp(f.from.th, f.th, ease(clamp(u / 0.6, 0, 1)));
@@ -253,8 +267,8 @@
       T.stay.t += dt;
       g.th += dt * (T.mode === 'nat' ? 0.02 : 0.07);    // 着いた所のまわりを、ゆっくり回る
       if (T.mode === 'in') { g.ph = Math.max(PH_STOP, g.ph - dt * 0.05); M.clearView(g); }
-      const a = ahead(s, g.D, g.ph, g.th);              // 回っても、行き先は空きの真ん中のまま
-      g.x = s.x - Math.sin(g.th) * a; g.z = s.z + Math.cos(g.th) * a;
+      const a = aim(s, g.D, g.ph, g.th);                // 回っても、行き先は空きの真ん中のまま
+      g.x = a.x; g.z = a.z;
       if (T.stay.t >= T.stay.dur) {
         if (T.i === T.stops.length - 1) end(); else go(T.i + 1);
       }

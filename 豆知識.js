@@ -124,6 +124,8 @@
     const isNew = record(B);
     if (window.YURAN && YURAN.state && !YURAN.state.paused) YURAN.pause(true);     // 遊覧中に押したら、読む間は止める
     show(B, isNew);
+    // 横向きのスマホは札が右の列に出る：豆が札の裏に入ったら、札の左の空いた所へ寄せる（本人 2026-11-20「絵図と豆知識の両方が主役」）
+    if (M.reveal && B.k >= 0) M.reveal(B.d.x, (B.y != null ? B.y : M.groundY(B.k, B.d.x, B.d.z)) + M.liftY(B.k), B.d.z);
     // 文と出どころは県ごとのファイル（案内.js の M.loadIntro）。まだ届いていなければ、届いた時に同じ札が開いたままなら描き直す
     if (B.d.text == null && M.loadIntro) M.loadIntro(B.d.pref).then(() => { if (cur === B) show(B, isNew); },
       () => { if (cur === B) card.querySelector('.text').textContent = '文を読めませんでした（通信を確かめてください）'; });

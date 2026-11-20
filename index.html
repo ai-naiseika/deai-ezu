@@ -990,6 +990,9 @@
     #legend { left: 6px; right: 6px; top: auto; bottom: calc(var(--bar-h) + 10px); width: auto; max-height: 40vh; overflow-y: auto; box-sizing: border-box; }
     #pop { left: 6px; right: 6px; width: auto; bottom: calc(var(--bar-h) + 10px); box-sizing: border-box; }
     #tour { bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); }
+    /* 遊覧の間は、下の並びを音楽とたたむだけに（2段の並びと箱で画面の4割近くを覆っていた。本人 2026-11-20「絵図と豆知識の両方が主役」）。箱は1段になった並びのすぐ上へ下がる */
+    body.touring #bar > :not(#bgm):not(#wide-open) { display: none !important; }
+    body.touring #bar { left: 50%; right: auto; transform: translateX(-50%); }
     /* 遊覧のボタンは1行に（幅360のスマホで「くわ/しく」「一時/停止」と2〜3行に折れ、箱が地図の半分近くを覆った 2026-11-19）。入らない狭い画面では2段に */
     #tour .ctl { gap: 4px; flex-wrap: wrap; }
     #tour .ctl button { white-space: nowrap; font-size: 12.5px; padding: 7px 5px; }
@@ -1040,7 +1043,7 @@
     #o-regions { right: 8px; width: 280px; padding: 8px 10px; max-height: calc(100vh - 16px); }
     #o-regions p { font-size: 13px; margin-bottom: 4px; } #o-regions .chips button { font-size: 12px; padding: 2px 7px; }
     #o-regions .list button.o-cloud { font-size: 13px; padding: 18px 2px 5px; }
-    #card { right: 8px; top: 8px; width: 260px; padding: 10px 12px; box-sizing: border-box; max-height: calc(100vh - 80px); }
+    #card { right: 8px; top: 8px; width: var(--side-w); padding: 10px 12px; box-sizing: border-box; max-height: calc(100vh - 80px); }
     #card h2 { font-size: 24px; margin: 0 0 2px; }
     #compass { right: 8px; bottom: 8px; width: 44px; height: 44px; }
     #bar #wide-open { display: inline-flex; }
@@ -1055,6 +1058,45 @@
       max-height: 1.5em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; background: rgba(250,244,226,.85); padding: 1px 6px; box-sizing: border-box; }
     body.night #note { color: #6a6250; }
     #legend { left: 12px; top: 156px; max-height: calc(100vh - 170px); overflow-y: auto; box-sizing: border-box; }
+    /* 読む窓は右の1列に、1枚ずつ。左を絵図にあける（本人 2026-11-20「スマホで横向きにすると遊覧中特にですが、画面いっぱい解説の画面で肝心の絵図が見えません」
+       「この絵図は絵図と豆知識の両方が主役です」）：遊覧の箱・豆知識の札・駅の札を真ん中に出していたので、地図は 844×390 で3割前後しか見えず、
+       クイズとすごろくの窓は高さが 24px につぶれていた。右の列は県の札の窓と同じ所で、下の並びの上まで */
+    :root { --side-w: clamp(250px, 36vw, 320px); }   /* 県の札の窓も同じ幅（窓が入れ替わる時に幅が跳ねない） */
+    #tour, #mame-card, #eki-card, #en-card, #quiz, #sugo { left: auto; right: 8px; top: 8px; bottom: auto; transform: none; width: var(--side-w);
+      max-height: calc(100vh - var(--bar-h) - 14px); overflow-y: auto; box-sizing: border-box; padding: 8px 10px; }
+    body:has(#mame-card.open) #card, body:has(#eki-card.open) #card, body:has(#en-card.open) #card, body:has(#quiz.open) #card, body:has(#sugo.open) #card,
+    body.touring #card { display: none !important; }
+    body:is(:has(#mame-card.open), :has(#eki-card.open), :has(#quiz.open), :has(#sugo.open)) :is(#deai-open, #mame-open, #fuda-open, #in-yuran) { display: none; }   /* 縦と同じく、読む間は左のボタンをしまう */
+    #mame-card h3, #eki-card h3, #en-card h3 { font-size: 18px; }
+    #mame-card .text, #en-card .text { font-size: 14px; line-height: 1.7; }
+    #mame-card .row button, #eki-card button { font-size: 13px; padding: 5px 8px; }
+    /* 豆知識の札も、文の所だけを巻く（ボタンはいつも見える） */
+    #mame-card.open { display: flex; flex-direction: column; overflow: hidden; }
+    #mame-card > * { flex: none; }
+    #mame-card .text { flex: 0 1 auto; overflow-y: auto; min-height: 3.4em; }
+    #mame-card details.src[open] { flex: 0 1 auto; overflow-y: auto; min-height: 3em; }
+    #mame-card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    #mame-toast { left: calc((100vw - var(--side-w) - 16px) / 2); max-width: calc(100vw - var(--side-w) - 40px); box-sizing: border-box; top: 56px; }
+    /* 遊覧の間は、読む窓と絵図だけに（検索・左のボタン・出典の注をしまい、下の並びは音楽とたたむだけ＝縦と同じ）。
+       右の列は下の端まで使い、下の並び・方位は絵図の側の下へ。文が長い時は、文の所だけを巻く（ボタンはいつも見える） */
+    body.touring #search, body.touring #deai-open, body.touring #mame-open, body.touring #fuda-open, body.touring #in-yuran, body.touring #fuda,
+    body.touring #legend, body.touring #note { display: none !important; }
+    body.touring #bar > :not(#bgm):not(#wide-open) { display: none !important; }
+    body.touring #tour { max-height: calc(100vh - 16px); }
+    body.touring #bar, body.touring #bgm-cap { left: calc((100vw - var(--side-w) - 16px) / 2); }
+    body.touring #compass { right: calc(var(--side-w) + 16px); }
+    body.touring #menu-open { right: calc(var(--side-w) + 68px); }
+    #tour { overflow: hidden; }
+    #tour.open { display: flex; flex-direction: column; }
+    #tour .head { flex-wrap: wrap; gap: 0 6px; flex: none; }
+    #tour #t-name { font-size: 17px; flex-basis: 100%; }
+    #tour.flying #t-name { font-size: 15px; }
+    #tour #t-text { font-size: 13.5px; line-height: 1.7; overflow-y: auto; min-height: 3.4em; flex: 0 1 auto; }
+    #tour #t-when { flex: none; margin-bottom: 4px; }
+    #tour #t-src { max-height: none; min-height: 4em; flex: 0 1 auto; overflow-y: auto; }
+    #tour .ctl { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; flex: none; }
+    #tour .ctl button { white-space: nowrap; font-size: 12.5px; padding: 6px 2px; }
+    #t-prev { order: 1; } #t-pause { order: 2; } #t-next { order: 3; } #t-more { order: 4; } #t-end { order: 5; grid-column: span 2; }
   }
 </style>
 </head>
