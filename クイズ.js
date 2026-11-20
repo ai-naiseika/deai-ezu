@@ -322,6 +322,7 @@
     box.append(head, el('p', null, lead + '合っていても違っていても、答えの説明を読めば豆知識帳とであい帖に入ります。速く答えるほど点が増えます。'),
       ...btns, b1, b2, b3, b4, logView(save(L)));
     box.classList.add('open'); open.classList.add('on');
+    if (M.roomWhole) M.roomWhole();       // 横向きのスマホは窓が右の列：日本全体を窓の左に収め直す
   }
   function stop() { S = null; box.classList.remove('open'); open.classList.remove('on'); }
   // 地図の県を押して答える（答えの県を浮かせる時の「選ぶ」は数えない）

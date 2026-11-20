@@ -1075,7 +1075,8 @@
     #mame-card > * { flex: none; }
     #mame-card .text { flex: 0 1 auto; overflow-y: auto; min-height: 3.4em; }
     #mame-card details.src[open] { flex: 0 1 auto; overflow-y: auto; min-height: 3em; }
-    #mame-card .row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    #mame-card .row { gap: 4px; }
+    #mame-card .row button { flex: 1 1 auto; white-space: nowrap; padding: 5px 6px; }   /* 字の途中で折らない（2列の升に入れると「まだ知らない豆知識／へ」と折れた） */
     #mame-toast { left: calc((100vw - var(--side-w) - 16px) / 2); max-width: calc(100vw - var(--side-w) - 40px); box-sizing: border-box; top: 56px; }
     /* 遊覧の間は、読む窓と絵図だけに（検索・左のボタン・出典の注をしまい、下の並びは音楽とたたむだけ＝縦と同じ）。
        右の列は下の端まで使い、下の並び・方位は絵図の側の下へ。文が長い時は、文の所だけを巻く（ボタンはいつも見える） */
