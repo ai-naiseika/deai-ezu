@@ -36,15 +36,16 @@
     if (mode.time === 'now') setHour(d.getHours() + d.getMinutes() / 60, now);
   }
   M.on('ready', () => { ready = true; season = M.inner.season; follow(true); ui(); });
-  setInterval(() => follow(false), 60000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) follow(false); });
+  // 時計で進む分・季節めぐり・時間を流すは、人がその時に選んだ変化ではないので M.auto で包む（音楽は曲の途中で替えず、曲の終わりで次の季節・夜の曲へ）
+  setInterval(() => M.auto(() => follow(false)), 60000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) M.auto(() => follow(false)); });
   // 季節めぐり・時間を流す：毎コマの知らせで進める（隠れている間は止まる）
   let last = performance.now();
   M.on('frame', () => {
     const t = performance.now(), dt = Math.min(0.1, (t - last) / 1000);
     last = t;
-    if (mode.time === 'flow' && (flowAt += dt) >= 0.2) { setHour(hour + flowAt * 0.1); flowAt = 0; }        // 1秒に6分＝1日を4分
-    if (mode.season === 'meguri' && !busy() && (meguriAt += dt) >= 40) { meguriAt = 0; setSeason((season + 1) % 4); }
+    if (mode.time === 'flow' && (flowAt += dt) >= 0.2) { M.auto(() => setHour(hour + flowAt * 0.1)); flowAt = 0; }        // 1秒に6分＝1日を4分
+    if (mode.season === 'meguri' && !busy() && (meguriAt += dt) >= 40) { meguriAt = 0; M.auto(() => setSeason((season + 1) % 4)); }
   });
 
   // ---------------------------------------------------------------- 季節と時刻の窓

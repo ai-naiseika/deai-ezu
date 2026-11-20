@@ -8,6 +8,7 @@
   if (!M || !IN) return;
   const $ = (s) => document.querySelector(s);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const R = (e, s, p) => (window.RUBY ? RUBY.text(e, s, p) : ((e.textContent = s), e));     // ふりがな（ふりがな.js。無い時は字だけ）
   const KEY = 'zenkoku3d-deai-v1', MAME_KEY = 'zenkoku3d-mame-v1', QUIZ_KEY = 'zenkoku3d-quiz-v1';
   const pad = (n) => String(n).padStart(2, '0');
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -324,7 +325,7 @@
   function shunCard(it) {
     const c = el('div', 'shun'), ic = el('span', 'tool-ic');
     ic.innerHTML = SHUN_ICON[it.cat] || SHUN_ICON.特産;
-    c.append(ic, el('b', null, it.name), el('small', null, `${prefOf(it.pref).name}・${monthsText(it.months)}`));
+    c.append(ic, R(el('b'), it.name, it.pref), el('small', null, `${prefOf(it.pref).name}・${monthsText(it.months)}`));
     return c;
   }
   function renderShun() {
@@ -367,7 +368,7 @@
       row.dataset.en = e.id;
       const k = e.prefs.filter((n) => stageNow(n) >= 1).length;
       const route = e.prefs.map((n) => (stageNow(n) >= 1 ? prefOf(n).name : '？')).join(e.kind === '巡り' ? '・' : ' → ');
-      tx.append(el('b', null, date ? e.name : '？？の道'), el('small', null, e.teaser), el('small', 'route', date ? route : `${route}（${k} / ${e.prefs.length}）`));
+      tx.append(date ? R(el('b'), e.name, e.prefs[0]) : el('b', null, '？？の道'), R(el('small'), e.teaser, e.prefs[0]), el('small', 'route', date ? route : `${route}（${k} / ${e.prefs.length}）`));
       row.append(enIcon(!date), tx);
       if (date && window.EN) {
         const b = el('button', null, '地図で見る');

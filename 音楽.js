@@ -50,10 +50,12 @@
     const k = keep.get();
     return l.find((s) => s === cur) || l.find((s) => k && s.no === k.no) || l[Math.floor(Math.random() * l.length)];
   }
+  // 曲の終わりで次へ。並びに今の曲が無い（地図がひとりでに季節・夜・地方を変えた後）は、その時の決まりの曲へ
   function next(a) {
-    if (a !== el || !on || row.length < 2) return;
+    if (a !== el || !on) return;
     const i = row.indexOf(cur);
-    start(row[(i + 1) % row.length]);
+    if (i >= 0 && row.length < 2) return;
+    start(i < 0 ? choose(row) : row[(i + 1) % row.length]);
   }
   function save() {
     if (cur && el) keep.set({ no: cur.no, t: el.currentTime, on });
@@ -112,13 +114,17 @@
     btn.classList.toggle('on', on);
   }
   btn.addEventListener('click', () => (on ? stop(true) : play()));
-  // 季節・夜・地方が変わったら、鳴っている時だけ曲を替える（鳴っていない時は、次に鳴らす時に選ぶ）
+  // 季節・夜・地方が変わったら、鳴っている時だけ曲を替える（鳴っていない時は、次に鳴らす時に選ぶ）。
+  // 地図がひとりでに変えた時（M.isAuto：遊覧の名所ごとの季節の色・季節めぐり・時計・クイズの答えの県）は曲の途中で替えず、今の曲の終わりで次の決まりの曲へ
+  // （本人 2026-11-19「BGMが曲の途中でどんどん勝手に切り替わります（遊覧中でした）」）。人が季節の札・夜・県を選んだ時は、その場で替える
   const repick = () => {
     if (!on) return;
     const l = pick();
     if (!l.length) return;
     row = l;
-    if (!l.includes(cur)) { save(); start(choose(l)); } else if (el) el.loop = l.length < 2;
+    if (l.includes(cur)) { if (el) el.loop = l.length < 2; return; }
+    if (M.isAuto) { if (el) el.loop = false; return; }
+    save(); start(choose(l));
   };
   M.on('season', (i) => { season = i; repick(); prime(); });
   M.on('night', (v) => { night = v; repick(); prime(); });
@@ -160,6 +166,7 @@
   window.BGM = {
     get state() { return { have: songs.size, on, song: cur && cur.no, list: row.map((s) => s.no), t: el ? el.currentTime : 0, paused: el ? el.paused : true, vol: el ? el.volume : 0, off: userOff.get(), primed: primed && primed.s.no }; },
     play, stop: () => stop(true),
+    toEnd() { if (el && isFinite(el.duration)) el.currentTime = Math.max(0, el.duration - OVER - 1); },     // 曲の終わりの手前へ（曲の終わりで次の決まりへ移るかの検査）
     // 別のブラウザへ出る前に、その場で止める（LINE の中のページは開きなおした後も裏で生きていて、移った先から止められない。
     // 少しずつ下げる止め方は、裏に回ると毎コマが来ずに途中の音量で鳴り続ける）。本人が止めた扱いにはしない
     hush() { on = false; if (el) el.pause(); ui(); },

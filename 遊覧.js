@@ -53,6 +53,34 @@
 
   let T = null;
   const box = $('#tour');
+  // 行き先を、上の検索の欄と下の説明の箱にはさまれた空きの真ん中に見せる（本人 2026-11-19「塩硝 遊覧中説明は出ても札が見えない」「井波彫刻も」：
+  // 見る点を画面の真ん中に置いていたので、背の低いスマホ（360×640）では札が説明の箱の裏に隠れた）。札は点の上に立つので、その分だけ下げて見る。
+  // 箱の高さは着くたびに測る（ふりがなの段・文の長さで変わる）。見る点を、カメラの側へ地面にそって ahead だけずらす（画角 28° の式）。
+  // 県の中では地図が見る点の高さをその場の地面に合わせるので、ずらした先の地面と行き先の高さの差も式に入れる（入れないと、山側へずらした時に行き先が箱へ沈んだ）
+  const FOV = 28 * Math.PI / 180, LABEL = 18;
+  let gap = null;
+  function measure() {
+    const s = $('#search').getBoundingClientRect(), b = box.getBoundingClientRect();
+    gap = { top: s.height ? s.bottom : 0, bottom: b.height ? b.top : innerHeight };
+  }
+  addEventListener('resize', () => { gap = null; });
+  function ahead(s, D, ph, th) {
+    if (!gap) measure();
+    const px = Math.min(innerHeight * 0.4, innerHeight / 2 - ((gap.top + gap.bottom) / 2 + LABEL));
+    if (px <= 0) return 0;
+    const k = px * 2 * Math.tan(FOV / 2) / innerHeight, c = Math.cos(ph), sn = Math.sin(ph), q = sn - k * c;
+    if (q < 0.05) return 0;
+    const flat = k * D / q;
+    if (T.mode !== 'in') return flat;
+    // 県の中は、ずらした先の地面の高さしだいで答えが変わるので、半分ずつ狭めて解く。くり返し代入すると、深い谷（上高地）では
+    // ずらすほど山を登って答えが跳ね、札が画面の上へ出た
+    const g = (a) => a * q + (s.y - M.groundY(-1, s.x - Math.sin(th) * a, s.z + Math.cos(th) * a)) * (c + k * sn) - k * D;
+    let lo = 0, hi = flat * 2;
+    if (g(lo) >= 0) return 0;
+    if (g(hi) <= 0) return hi;
+    for (let n = 0; n < 14; n++) { const m = (lo + hi) / 2; if (g(m) < 0) lo = m; else hi = m; }
+    return (lo + hi) / 2;
+  }
 
   // ---- 立ち寄る所（どちらの遊覧も同じ形）：見る所・近さ・角・題・文・くわしく
   function inStops(w, k) {
@@ -101,7 +129,7 @@
     const fill = () => {
       const d = $('#t-src');
       d.textContent = '';
-      for (const t of (it.text || []).slice(1)) { const p = document.createElement('p'); p.textContent = t; d.appendChild(p); }
+      for (const t of (it.text || []).slice(1)) { const p = document.createElement('p'); if (window.RUBY) RUBY.text(p, t, it.pref); else p.textContent = t; d.appendChild(p); }
       srcList(d, it.sources);
       box.classList.add('src');
     };
@@ -164,13 +192,14 @@
     box.classList.remove('src');
     if (nat) M.tourLift(s.k);
     else if (M.tourPin) M.tourPin(s.it);          // 行き先の印の札は、飛び立った時から出しておく（どこへ向かうかが地図で分かる）
-    // 月のある紹介は、いちばん多く重なる季節の色で見せる（色は飛んでいる間にゆっくり変わる）
+    // 月のある紹介は、いちばん多く重なる季節の色で見せる（色は飛んでいる間にゆっくり変わる）。人が選んだ季節ではないので auto で包む
+    // （本人 2026-11-19「BGMが曲の途中でどんどん勝手に切り替わります（遊覧中でした）」：名所ごとに季節の曲へ替わっていた）
     T.season = null;
     if (s.months.length) {
       const c = [0, 0, 0, 0];
       for (const m of s.months) c[seasonOf(m)]++;
       T.season = c.indexOf(Math.max(...c));
-      if (T.season !== M.inner.season) M.season(T.season);
+      if (T.season !== M.inner.season) M.auto(() => M.season(T.season));
     }
     caption(true);
   }
@@ -179,11 +208,15 @@
     $('#t-step').textContent = `${T.i + 1} / ${T.stops.length}`;
     const cat = $('#t-cat');
     cat.textContent = s.cat; cat.className = 'cat c-' + s.cat;
-    $('#t-name').textContent = flying ? `つぎは ${s.name.split('　')[0]} へ` : s.name;
-    $('#t-text').textContent = flying ? '' : s.text;
+    // 名前と文にふりがな（本人 2026-11-19「どれも読めない」：遊覧の箱だけ字をそのまま書いていた）。県で読みの違う名前は、その県の読みで
+    const pref = s.it ? s.it.pref : s.k >= 0 ? M.P.find((p) => p.k === s.k).n : null;
+    const R = (e, t) => (window.RUBY ? RUBY.text(e, t, pref) : (e.textContent = t));
+    R($('#t-name'), flying ? `つぎは ${s.name.split('　')[0]} へ` : s.name);
+    R($('#t-text'), flying ? '' : s.text);
     $('#t-when').textContent = flying ? '' : [s.when, T.season != null ? `（${SEASON[T.season]}の色で見せています）` : ''].filter(Boolean).join('　');
     $('#t-pause').textContent = T.paused ? '続きから' : '一時停止';
     box.classList.toggle('flying', flying);
+    if (!flying) gap = null;                          // 着いた時の箱で測り直す（飛ぶ間の小さい箱では測らず、前に着いた時の高さのまま行き先へ寄る）
   }
   function arrive() {
     const s = T.stops[T.i];
@@ -209,8 +242,8 @@
     if (!T.stay) {
       const f = T.fly;
       f.t += dt;
-      const u = clamp(f.t / f.dur, 0, 1), e = ease(u), arc = Math.sin(Math.PI * e);
-      g.x = lerp(f.from.x, s.x, e); g.z = lerp(f.from.z, s.z, e); g.y = lerp(f.from.y, s.y, e);
+      const u = clamp(f.t / f.dur, 0, 1), e = ease(u), arc = Math.sin(Math.PI * e), a = ahead(s, s.D, s.ph, f.th);
+      g.x = lerp(f.from.x, s.x - Math.sin(f.th) * a, e); g.z = lerp(f.from.z, s.z + Math.cos(f.th) * a, e); g.y = lerp(f.from.y, s.y, e);
       g.D = lerp(f.from.D, s.D, e) + f.lift * arc;
       g.ph = lerp(f.from.ph, s.ph, e) + 0.12 * arc;
       g.th = lerp(f.from.th, f.th, ease(clamp(u / 0.6, 0, 1)));
@@ -220,6 +253,8 @@
       T.stay.t += dt;
       g.th += dt * (T.mode === 'nat' ? 0.02 : 0.07);    // 着いた所のまわりを、ゆっくり回る
       if (T.mode === 'in') { g.ph = Math.max(PH_STOP, g.ph - dt * 0.05); M.clearView(g); }
+      const a = ahead(s, g.D, g.ph, g.th);              // 回っても、行き先は空きの真ん中のまま
+      g.x = s.x - Math.sin(g.th) * a; g.z = s.z + Math.cos(g.th) * a;
       if (T.stay.t >= T.stay.dur) {
         if (T.i === T.stops.length - 1) end(); else go(T.i + 1);
       }
@@ -254,7 +289,8 @@
   window.YURAN = {
     start, startNat, end, go: (i) => T && go(i), pause,
     order: (n) => natOrder(n).map((p) => p.n),       // 検査用：基点を決めて順路を作る
+    land: () => { if (T && !T.stay && T.fly) T.fly.t = T.fly.dur; },     // 検査用：飛ぶのを済ませて着かせる（全部の行き先を見て回る検査）
     get state() { return T && { mode: T.mode, i: T.i, n: T.stops.length, paused: T.paused, flying: !T.stay, dur: T.fly ? T.fly.dur : null, names: T.stops.map((s) => s.name),
-      prefs: T.stops.map((s) => (s.k >= 0 ? M.P.find((p) => p.k === s.k).n : 0)) }; },
+      prefs: T.stops.map((s) => (s.k >= 0 ? M.P.find((p) => p.k === s.k).n : 0)), at: [T.stops[T.i].x, T.stops[T.i].y, T.stops[T.i].z] }; },
   };
 })();

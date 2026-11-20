@@ -695,6 +695,7 @@
   // 'ready' は1回きり。後から読まれた部品（とき.js など）が知らせの後に受け口を置いても届くよう、済んだ印を残して後から呼ぶ
   // （2026-11-06：紹介.js が大きくなり、最後の とき.js が読まれる前に地図の準備が終わって、季節と時刻が今に合わなかった）
   const DONE = new Set();
+  let autoN = 0;
   const emit = (e, a) => { if (e === 'ready' || e === 'shown') DONE.add(e); (ON[e] || []).forEach((f) => f(a)); };
   const liftV = new Float32Array(NS), greyV = new Float32Array(NS);
   // 浮いた県のぷかぷか（本人 2026-11-02「少し上下にぷかぷか」）：せり上がりが済んでから、上下の幅を0からばねで広げる（動き出しは速さ0）。
@@ -1844,6 +1845,9 @@
     // 自前でカメラを動かす（旅.js の空を飛ぶ）。f＝毎コマ cam を書く関数、null で、いまの眺めからばねで見る点のまわりの作りへ戻る
     free(f) { free = f || null; if (!f) { Object.assign(goal, cam); keepIn(goal); for (const k in camV) camV[k] = 0; } },
     get freeOn() { return !!free; },
+    // 人が選んでいない、ひとりでの変化（遊覧の名所ごとの季節の色・季節めぐり・今に合わせる・クイズの答えの県）は f をこれで包む。
+    // 知らせはその場で届くので、受け口は M.isAuto で見分けられる（音楽.js は曲の途中で替えず、今の曲の終わりで次の決まりの曲へ）
+    auto(f) { autoN++; try { return f(); } finally { autoN--; } }, get isAuto() { return autoN > 0; },
     select(k) { leave(() => select(k, sel < 0 ? 'push' : 'replace')); }, back, season: setSeason, pick,
     night(on, now) { setNight(on); if (now) { U.uNight.value = nightT; U.uDusk.value = duskT; fogColor(); } }, get isNight() { return isNightNow; },
     // 時刻（とき.js）：h＝時（小数）、day＝日付（月の満ち欠けと太陽の道）。now で寄せずにすぐ

@@ -1,6 +1,7 @@
 // ふりがな（本人 2026-11-11「すごろくや豆知識、漢字が読めず苦労するので、漢字にフリガナが欲しい」「特に歴史に関わるなじみのない人や地名や建物などの呼び名」）：
 // 読みは 読み.js（骨/読み/読みを焼く.py が、裏付けの取れた読みだけを台帳から焼く）。名前ごとに「その名前の中の語の読み」を持つので、
 // 同じ字で読みの違う語（上野焼のあがの・上野駅のうえの）を取り違えない。文の中に台帳の名前があれば、その中の語に <ruby> を付ける。
+// 名前でないふだんの言葉の読みは、辞書で焼いた 読み_文.js・読み_県ごと/<県>.js（下の「ふだんの言葉の読み」）。
 // 読み.js は、すごろく・クイズ・豆知識の札を開いた時に初めて読む（最初の読み込みを重くしない）。届く前に書いた字は、届いたら付け直す。
 // 出す・消すは窓の上の「ふりがな」で（端末に覚える。最初は出す）。字は全部 textContent、読みはひらがなだけの物しか使わない
 (function () {
@@ -17,21 +18,87 @@
   let made = -1, byName = {}, byPref = {}, keyMemo = {};
   try { on = localStorage.getItem(KEY) !== '0'; } catch (e) { /* 覚えられない端末では毎回出す */ }
   const paint = () => document.body.classList.toggle('no-ruby', !on);
+  // ふだんの言葉の読み（本人 2026-11-19「フリガナが全然ついてないので、全部付けてほしい」「どれも読めない」）：骨/読み/文の読みを焼く.py が、
+  // 辞書（文の前後で読みを決める）の読みを文ごとに焼く。読み_文.js＝紹介の台帳・縁・宝の文と、画面の字に当てる語（f）。
+  // 読み_県ごと/<県>.js＝その県の紹介の本文（その県の文を書いた時に読む）。台帳の名前を先に当て、残った所にだけ当てる。
+  // 人の名前・地名で台帳に無い物には、辞書の読みを使わない（作業者が確かめた名前で、辞書の読みが合ったのは8割に届かなかった）
+  let bun = null;
+  const perP = {}, perLoad = {}, day = new Date().toISOString().slice(0, 10);     // 日ごとに読み直す（直した読みが古いまま残らない）
+  window.YOMI_BUN = window.YOMI_BUN || {};
+  YOMI_BUN.got = (n, d) => { perP[n] = d; };
+  const script = (src) => new Promise((ok) => {
+    const s = document.createElement('script');
+    s.src = src + '?d=' + day; s.async = true;
+    s.onload = () => ok(true);
+    s.onerror = () => { s.remove(); ok(false); };
+    document.head.appendChild(s);
+  });
+  const refill = (p) => {
+    for (const e of document.querySelectorAll('[data-ruby]')) if (e.isConnected && (p == null || e.dataset.rubyPref === p)) fill(e, e.dataset.ruby, e.dataset.rubyPref);
+  };
 
   function load() {
     if (data || loading) return loading;
-    loading = new Promise((ok) => {
-      const s = document.createElement('script');
-      s.src = '読み.js?d=' + new Date().toISOString().slice(0, 10); s.async = true;     // 日ごとに読み直す（直した読みが古いまま残らない）
-      s.onload = () => {
-        data = window.YOMI || {};
-        for (const e of document.querySelectorAll('[data-ruby]')) if (e.isConnected) fill(e, e.dataset.ruby, e.dataset.rubyPref);
-        ok();
-      };
-      s.onerror = () => { loading = null; ok(); };       // 読めなければ、ふりがな無しのまま（次に開いた時にもう一度）
-      document.head.appendChild(s);
+    loading = Promise.all([script('読み.js'), script('読み_文.js')]).then(([a, b]) => {
+      if (!a) { loading = null; return; }                 // 読めなければ、ふりがな無しのまま（次に開いた時にもう一度）
+      data = window.YOMI || {};
+      if (b && YOMI_BUN.s) bun = YOMI_BUN;
+      refill();
     });
     return loading;
+  }
+  // その県の本文の読み。県の名前は地図の県の表から（紹介_県ごと と同じファイルの名前）
+  function needPref(p) {
+    if (p == null || p === '' || perP[p] || perLoad[p]) return;
+    const P = window.MAP3D && MAP3D.P && MAP3D.P.find((q) => String(q.n) === String(p));
+    if (!P) return;
+    perLoad[p] = script('読み_県ごと/' + P.name + '.js').then((ok) => {
+      if (!ok || !perP[p]) { delete perLoad[p]; return; }
+      if (data) refill(String(p));
+    });
+  }
+  // 文の指紋（骨/読み/文の読みを焼く.py の key_of と同じ：FNV-1a を UTF-16 の1字ずつ・36進＋「.」＋字数）
+  function key(s) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(36) + '.' + s.length.toString(36);
+  }
+  function entry(s, p) {
+    const k = key(s);
+    if (bun && bun.s[k]) return [bun, bun.s[k]];
+    const d = perP[p];
+    return d && d.s[k] ? [d, d.s[k]] : null;
+  }
+  // 台帳の名前が当たらなかった所に、ふだんの言葉の読みを。焼いた文なら文ごとの読み（字が本当にその位置にある物だけ）、
+  // 焼いていない字（問いの型・画面の字）なら、残った漢字の並びの頭から、読みの1つしかない語を長い順に
+  function plain(s, p, marks) {
+    const e = entry(s, p);
+    const put = (o, n, r) => { const m = { start: o, r }; for (let x = o; x < o + n; x++) marks[x] = m; };
+    if (e) {
+      let at = 0;
+      for (const u of e[1].split(' ')) {
+        const i = u.indexOf('.'), o = at + parseInt(u.slice(0, i), 36), t = e[0].w[parseInt(u.slice(i + 1), 36)];
+        if (!t) break;
+        const sp = t.indexOf(' '), w = t.slice(0, sp), r = t.slice(sp + 1);
+        at = o + w.length;
+        if (s.substr(o, w.length) === w && HIRA.test(r) && !marks.slice(o, o + w.length).some(Boolean)) put(o, w.length, r);
+      }
+      return;
+    }
+    const f = bun && bun.f;
+    if (!f) return;
+    for (let i = 0; i < s.length;) {
+      if (marks[i] || !KJ.test(s[i])) { i++; continue; }
+      let j = i;
+      while (j < s.length && !marks[j] && KJ.test(s[j])) j++;
+      for (let x = i; x < j;) {
+        let n = Math.min(j - x, 8);
+        while (n >= 2 && !f[s.substr(x, n)]) n--;
+        if (n < 2) { x++; continue; }
+        put(x, n, f[s.substr(x, n)]); x += n;
+      }
+      i = j;
+    }
   }
   function index() {
     const n = Object.keys(data).length;
@@ -76,6 +143,7 @@
         }
       }
     }
+    plain(s, p, marks);
     const out = [];
     for (let i = 0; i < s.length;) {
       const m = marks[i];
@@ -102,6 +170,7 @@
     if (pref == null) delete el.dataset.rubyPref; else el.dataset.rubyPref = String(pref);
     fill(el, s, pref);
     if (!data) load();
+    if (pref != null && (!bun || !bun.s[key(s)])) needPref(String(pref));
     return el;
   }
   // 窓の上の切りかえ
@@ -121,5 +190,5 @@
     document.dispatchEvent(new Event('ruby-change'));
   }
   paint();
-  window.RUBY = { text, button, set, load, parts: (s, pref) => (data ? parts(String(s), pref) : [[String(s), null]]), get on() { return on; }, get ready() { return !!data; } };
+  window.RUBY = { text, button, set, load, need: (p) => { needPref(String(p)); return perLoad[String(p)] || Promise.resolve(); }, parts: (s, pref) => (data ? parts(String(s), pref) : [[String(s), null]]), get on() { return on; }, get ready() { return !!data; } };
 })();

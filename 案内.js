@@ -332,7 +332,7 @@
     const ul = ul0 || el('ul');
     for (const it of its.slice(ul.children.length)) {
       const li = el('li');
-      li.append(el('span', 'cat c-' + it.cat, it.cat), el('span', null, it.name), el('span', 'mark', it.mark || ''));
+      li.append(el('span', 'cat c-' + it.cat, it.cat), window.RUBY ? RUBY.text(el('span'), it.name, it.pref) : el('span', null, it.name), el('span', 'mark', it.mark || ''));
       li.addEventListener('click', () => openItem(it));
       ul.appendChild(li);
     }
@@ -371,7 +371,7 @@
     row('人口密度', `${d.density.toLocaleString(undefined, { maximumFractionDigits: 1 })} 人/km²（全国${rank('density')}位）`);
     row('市町村', `${d.cities}市・${d.towns}町・${d.villages}村`);
     det.appendChild(dl);
-    if (d.note) det.appendChild(el('p', 'note', d.note));
+    if (d.note) det.appendChild(window.RUBY ? RUBY.text(el('p', 'note'), d.note, M.P[k].n) : el('p', 'note', d.note));
     const src = el('p', 'src');
     src.appendChild(document.createTextNode('出典：'));
     [['人口', S.sources.population], ['面積', S.sources.area], ['市町村', S.sources.municipalities]].forEach(([t, s], i) => {

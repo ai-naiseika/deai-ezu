@@ -990,6 +990,9 @@
     #legend { left: 6px; right: 6px; top: auto; bottom: calc(var(--bar-h) + 10px); width: auto; max-height: 40vh; overflow-y: auto; box-sizing: border-box; }
     #pop { left: 6px; right: 6px; width: auto; bottom: calc(var(--bar-h) + 10px); box-sizing: border-box; }
     #tour { bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); }
+    /* 遊覧のボタンは1行に（幅360のスマホで「くわ/しく」「一時/停止」と2〜3行に折れ、箱が地図の半分近くを覆った 2026-11-19）。入らない狭い画面では2段に */
+    #tour .ctl { gap: 4px; flex-wrap: wrap; }
+    #tour .ctl button { white-space: nowrap; font-size: 12.5px; padding: 7px 5px; }
     #mame-card { bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); max-height: 50vh; overflow-y: auto; }
     #en-card { left: 6px; right: auto; top: auto; bottom: calc(var(--bar-h) + 10px); width: calc(100vw - 12px); max-height: 40vh; }
     #sugo { left: 6px; right: 6px; top: auto; bottom: calc(var(--bar-h) + 10px); width: auto; max-height: 46vh; }
@@ -1132,6 +1135,7 @@
 <div id="note">作りかけ　地図データ：国土地理院・国土交通省・総務省統計局・林野庁ほか（いずれも加工して作成）　<button id="credits-open" type="button">出典とご利用にあたって ›</button></div>
 <div id="credits" role="dialog" aria-label="出典とご利用にあたって">
   <h3>出典とご利用にあたって</h3>
+  <p class="credit"><a href="https://ai-naiseika.github.io/" target="_blank" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p>
   <h4>ご利用にあたって</h4>
   <p>この地図は、訪れる方に、各地の魅力を気持ちよく楽しんでいただくための場です。頼まれての宣伝や、どこかを悪く言うための掲載はありません。</p>
   <p>公開されている資料をもとに AI内製化工房 が作ったもので、各機関が作ったものではありません。紹介・豆知識は、公式のページなどで確かめ、できるかぎり正確にしていますが、間違いや、古くなった所があるかもしれません。<b>お気づきの点があれば、ぜひお知らせください。確かめて直します。</b><span class="book-only">お知らせは、<a id="ask-link" href="" target="_blank" rel="noopener noreferrer">絵図帳</a>へどうぞ。</span></p>
@@ -1163,7 +1167,7 @@
     <li>県の形：Made with <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener noreferrer">Natural Earth</a>.</li>
     <li>名所の位置合わせの参考：OpenStreetMap（<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>）</li>
     <li>紹介の文：各地の公式のページなどを参考に AI内製化工房 が書いたものです（出どころは各紹介のリンク）</li>
-    <li>ふりがなの読み：市町村名は「<a href="https://www.soumu.go.jp/denshijiti/code.html" target="_blank" rel="noopener noreferrer">全国地方公共団体コード</a>」（総務省）を加工して作成（カナをひらがなに直すなど）。山の名は国土地理院「日本の主な山岳標高」、そのほかは各地の公式のページなどで確かめた読みです</li>
+    <li>ふりがなの読み：市町村名は「<a href="https://www.soumu.go.jp/denshijiti/code.html" target="_blank" rel="noopener noreferrer">全国地方公共団体コード</a>」（総務省）を加工して作成（カナをひらがなに直すなど）。山の名は国土地理院「日本の主な山岳標高」、そのほかの名前は各地の公式のページなどで確かめた読みです。名前でないふだんの言葉の読みは、形態素解析の辞書「<a href="https://github.com/WorksApplications/SudachiDict" target="_blank" rel="noopener noreferrer">SudachiDict</a>」（Works Applications・Apache License 2.0）で付けた読みで、一つずつは確かめていません（読み違いがあるかもしれません）</li>
     <li>3D表示：three.js r160（MIT License, Copyright © 2010-2023 three.js authors。全文は vendor/three.LICENSE.txt）</li>
     <li>BGM：AI内製化工房のオリジナル曲（Suno で制作）</li>
   </ul>

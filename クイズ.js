@@ -248,7 +248,7 @@
     save(L);
     // 答えの県を浮かせて見せる（全国の問いだけ。地図を押して答えた時の「選ぶ」と区別するため、答えた後に）
     const k = q.opts ? -1 : kOf(q.ans);
-    if (k >= 0) { S.selfSelect = true; M.select(k); S.selfSelect = false; }
+    if (k >= 0) { S.selfSelect = true; M.auto(() => M.select(k)); S.selfSelect = false; }       // 問いごとに地方の曲へ替えない（音楽.js）
     paintDot();
   }
   function finish() {

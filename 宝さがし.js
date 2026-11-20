@@ -32,6 +32,7 @@
   const L = load();
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(L)); } catch (e) { /* 残せない端末では、この開き方の間だけ */ } };
   const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const RB = (e, s, p) => (window.RUBY ? RUBY.text(e, s, p) : ((e.textContent = s), e));     // ふりがな（ふりがな.js。無い時は字だけ）
 
   // 台帳（宝.js）は、宝さがしを開いた時に初めて読む（最初の読み込みを重くしない）
   let D = null, loading = null;
@@ -103,10 +104,10 @@
     for (const t of D.items.filter((x) => x.theme === th)) {
       const card = el('div', 'tk' + (L.found[t.id] ? ' got' : '') + (L.hunt === t.id ? ' hunt' : ''));
       if (L.found[t.id]) {
-        card.append(el('b', null, `✦ ${t.name}`), el('span', 'pref', `（${prefName(t)}）`));
+        card.append(RB(el('b'), `✦ ${t.name}`, t.pref), el('span', 'pref', `（${prefName(t)}）`));
         const more = el('button', 'small', '見る'); more.type = 'button'; more.addEventListener('click', () => found(t)); card.appendChild(more);
       } else {
-        card.appendChild(el('p', 'riddle', t.riddle));
+        card.appendChild(RB(el('p', 'riddle'), t.riddle, t.pref));
         const lv = L.hint[t.id] || 1;
         if (lv >= 2) card.appendChild(piece(t));
         if (lv >= 3) card.appendChild(el('p', 'dir', dirText(t)));
@@ -162,7 +163,7 @@
   }
   function found(t) {
     head(`✦ ${t.name}`, () => themeView(t.theme));
-    box.append(el('p', 'pref', `${tn(t.theme)}・${prefName(t)}`), el('p', 'text', t.text));
+    box.append(el('p', 'pref', `${tn(t.theme)}・${prefName(t)}`), RB(el('p', 'text'), t.text, t.pref));
     if (t.src.length) {
       const s = el('p', 'src', '出どころ：');
       t.src.forEach((x, i) => { const a = el('a', null, x.title); a.href = x.url; a.target = '_blank'; a.rel = 'noopener'; if (i) s.append('・'); s.appendChild(a); });
@@ -177,7 +178,8 @@
   tip.addEventListener('click', () => open(() => { const t = byId(L.hunt); t ? themeView(t.theme) : themes(); }));
   function chip() {
     const t = byId(L.hunt);
-    tip.textContent = t ? `宝さがし中：${t.riddle}` : '';
+    tip.textContent = '';
+    if (t) tip.append('宝さがし中：', RB(document.createElement('span'), t.riddle, t.pref));
     tip.classList.toggle('on', !!t);
     place();
   }

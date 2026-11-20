@@ -5,6 +5,7 @@
   'use strict';
   const M = window.MAP3D;
   if (!M) return;
+  const R = (e, s, p) => (window.RUBY ? RUBY.text(e, s, p) : ((e.textContent = s), e));     // ふりがな（ふりがな.js。無い時は字だけ）
   const box = document.createElement('div');
   box.id = 'hito'; box.setAttribute('role', 'dialog');
   document.body.appendChild(box);
@@ -20,8 +21,8 @@
     if (window.YURAN && YURAN.state && !YURAN.state.paused) YURAN.pause(true);   // 遊覧で回る間に開くと、次のコマでしまわれた
     box.textContent = '';
     const head = el('div', 'head');
-    head.append(el('span', 'cat c-' + (kind === '名所' ? '鉄道' : '食'), kind), el('b', null, n.name));
-    box.append(head, el('p', null, n.note));
+    head.append(el('span', 'cat c-' + (kind === '名所' ? '鉄道' : '食'), kind), R(el('b'), n.name, n.pref));
+    box.append(head, R(el('p'), n.note, n.pref));
     const foot = el('div', 'foot');
     foot.appendChild(el('small', null, `${n.mark} ${(M.MARK && M.MARK[n.mark]) || ''}`));
     for (const s of n.sources) {
