@@ -1070,12 +1070,11 @@
     #mame-card h3, #eki-card h3, #en-card h3 { font-size: 18px; }
     #mame-card .text, #en-card .text { font-size: 14px; line-height: 1.7; }
     #mame-card .row button, #eki-card button { font-size: 13px; padding: 5px 8px; }
-    /* 豆知識の札も、文の所だけを巻く（ボタンはいつも見える） */
-    #mame-card.open { display: flex; flex-direction: column; overflow: hidden; }
-    #mame-card > * { flex: none; }
-    #mame-card .text { flex: 0 1 auto; overflow-y: auto; min-height: 3.4em; }
-    #mame-card details.src[open] { flex: 0 1 auto; overflow-y: auto; min-height: 3em; }
-    #mame-card .row { gap: 4px; }
+    /* 豆知識の札は札ごと巻き、ボタンだけ下に留める（文の所だけを巻くと、題と場所と出どころに押されて本文が2行あまりの窓になり、行の途中で切れた） */
+    #mame-card { padding-bottom: 0; }
+    #mame-card .head, #eki-card .head { flex-wrap: wrap; row-gap: 2px; }
+    #mame-card .head > *, #eki-card .head > * { white-space: nowrap; }   /* 狭い列で「豆知／識」「群馬／県」と折れた */
+    #mame-card .row { gap: 4px; position: sticky; bottom: 0; background: rgb(250,244,226); padding: 6px 0 8px; margin-top: 2px; }
     #mame-card .row button { flex: 1 1 auto; white-space: nowrap; padding: 5px 6px; }   /* 字の途中で折らない（2列の升に入れると「まだ知らない豆知識／へ」と折れた） */
     #mame-toast { left: calc((100vw - var(--side-w) - 16px) / 2); max-width: calc(100vw - var(--side-w) - 40px); box-sizing: border-box; top: 56px; }
     /* 遊覧の間は、読む窓と絵図だけに（検索・左のボタン・出典の注をしまい、下の並びは音楽とたたむだけ＝縦と同じ）。
