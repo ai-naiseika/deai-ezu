@@ -779,6 +779,8 @@
   #sugo .res.ok b { color: #2f7a4a; } #sugo .res.ng b { color: var(--shu); }
   #sugo .res .more { font-size: 13px; line-height: 1.7; margin: 4px 0 6px; }
   #sugo .res .cut { font-size: 12px; color: #6a6250; margin: 0 0 6px; }
+  /* 「つぎ」は窓の下に留める（説明が長い問いは、答えの札が窓より高くなり、「つぎ」が窓の下へ押し出された。375×667 で問いの1割 2026-11-22） */
+  #sugo .res .next { position: sticky; bottom: 0; box-shadow: 0 -10px 10px -4px rgba(250,244,226,.98); }
   #sugo details.src { font-size: 12px; color: #6a6250; margin: 0 0 6px; }
   #sugo details.src summary { cursor: pointer; padding: 8px 0; font-size: 13px; color: #2a5a8a; }
   #sugo details.src ol { margin: 0 0 2px; padding-left: 1.4em; line-height: 1.55; }
