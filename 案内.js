@@ -443,7 +443,16 @@
     return true;
   });
   // 遊覧の行き先の印は、灯りの外でも名前の札を出す（本人 2026-10-30「マウスを重ねなくてもその場所のカード表示していい。観光してるのだし」）
-  M.tourPin = (it) => { for (const q of pins) { q.tour = q.it === it; q.el.classList.toggle('tour', q.tour); } };
+  // 行き先は覚えておき、後から作る印（入ってすぐ遊覧を始めると、印はまだ並べる前だった）・作り直した印にも付ける。
+  // 見る情報で絞って印の無い行き先は、遊覧の間だけ印を作る（本人 2026-11-22「県の中を遊覧した時に…赤丸だけあって文字のカードが消えている」：
+  // 最初の画面で見る情報を観光にすると、神奈川の1・2・4か所目＝食べ物と特産に印が無く、遊覧の説明だけが出ていた）
+  let tourIt = null;
+  function tourMark() {
+    for (let i = pins.length - 1; i >= 0; i--) if (pins[i].extra && pins[i].it !== tourIt) { pins[i].el.remove(); pins.splice(i, 1); }
+    if (tourIt && cardK >= 0 && tourIt.pref === P[cardK].n && !pins.some((q) => q.it === tourIt)) addPins(cardK, 0, [tourIt], true);
+    for (const q of pins) { q.tour = q.it === tourIt; q.el.classList.toggle('tour', q.tour); }
+  }
+  M.tourPin = (it) => { tourIt = it; tourMark(); };
   M.MARK = MARK; M.safeUrl = safeUrl;                            // 全国の遊覧の札も、同じ印と同じ確かめ方で
   function openItem(it, show) {
     dispatchEvent(new CustomEvent('deai', { detail: { id: 'item:' + it.pref + it.name, pref: it.pref } }));     // であい帖へ
@@ -494,26 +503,35 @@
   function makePins(k) {
     $('#pins').textContent = ''; pins = []; pinTodo = k < 0 ? [] : itemsOf(k);
     addPins(k, pinTodo.length);
+    tourMark();
   }
-  function addPins(k, n) {
-    const box = $('#pins'), made = pins.length;
-    for (const it of pinTodo.splice(0, n)) {
+  // extra＝見る情報の外の、遊覧の行き先の印（遊覧が次へ進むと消す）
+  function addPins(k, n, list = pinTodo.splice(0, n), extra = false) {
+    const box = $('#pins'), made = pins.length, inside = !!M.inside;
+    for (const it of list) {
+      const had = pins.find((q) => q.it === it);
+      if (had) { had.extra = false; continue; }                    // 遊覧の間だけ作った印が、見る情報の印になった
+      let im = null;
       // 印の札は名前だけ。色で作物（山吹）か名所（朱）かが分かる（画風見本の鳥瞰図と同じ流儀）
       const d = el('div', 'pin' + (it.cat === '特産' || it.cat === '食' ? ' crop' : '')), lab = el('b', null, it.name);
       // 県の中では、札と点のあいだに名物の絵（名物の絵.js）。絵は県の中へ入った時に入れる
-      // （県を押した時に10枚を描いて画像にすると、せり上がりのコマが67ms止まった）
-      if (it.icon && window.MEIBUTSU) { const im = el('img'); im.alt = ''; im.dataset.icon = it.icon; d.append(lab, im, el('i'), el('u')); }
+      // （県を押した時に10枚を描いて画像にすると、せり上がりのコマが67ms止まった）。入った後に作る印は、ここで入れる
+      // （入口から県を選んで遊覧すると、印は入った後に並ぶので、入った時の知らせでは絵が入らなかった 2026-11-22）
+      if (it.icon && window.MEIBUTSU) { im = el('img'); im.alt = ''; im.dataset.icon = it.icon; if (inside) im.src = MEIBUTSU.url(it.icon); d.append(lab, im, el('i'), el('u')); }
       else d.append(lab, el('i'), el('u'));
       // もう一度押すと、くわしい説明から一覧に戻る
       d.addEventListener('click', () => { if (d.classList.contains('on')) { pins.forEach((q) => q.el.classList.remove('on')); renderList(cardK); } else openItem(it); });
       box.appendChild(d);
-      pins.push({ it, el: d, y: M.groundY(k, it.x, it.z), theme: it.cat === '特産' || it.cat === '食' ? '食' : '名所' });
+      const q = { it, el: d, y: M.groundY(k, it.x, it.z), theme: it.cat === '特産' || it.cat === '食' ? '食' : '名所', extra, tour: it === tourIt };
+      d.classList.toggle('tour', q.tour);
+      pins.push(q);
     }
     // 大きさ（名前あり・種類の札だけ・高さ）は、全部並べた後に1回で測って覚える。毎コマ位置を書いた直後に読むと、
-    // そのたびに組版をやり直した（群馬を押した時、1コマが50msに）
+    // そのたびに組版をやり直した（群馬を押した時、1コマが50msに）。県の中で作った印は絵が入るので、入った時と同じく組版で
     pinCtx.font = pinM.font;
     for (const q of pins.slice(made)) {
       q.wFull = Math.ceil(pinCtx.measureText(q.it.name).width + pinM.pad); q.h = pinM.h;
+      if (inside && q.el.offsetHeight) { q.h = q.el.offsetHeight; q.wFull = q.el.offsetWidth; }
       q.wTag = 12;
       q.named = true;
     }
