@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="ja"><head>
 <meta charset="utf-8">
-<meta name="robots" content="noindex">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://deai-banzuke.ai-naiseika.workers.dev; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>にっぽん であい絵図｜土地の魅力に出会う、四季の鳥瞰図</title>
@@ -109,7 +108,7 @@
   @media (prefers-reduced-motion: reduce) { .o-cloud, .o-cloud::before, .o-cloud > .c, #o-regions.come .o-cloud { animation: none; } #o-mist { display: none; } }
   /* 雲の段は欄の紙を外して空に浮かべる（地方を選ぶ段・県を選ぶ段は、数が多いので紙のまま） */
   #o-regions:is([data-stage="start"], [data-stage="sub"]):not(.paper) { background: none; border-color: transparent; box-shadow: none; overflow: visible; }
-  #o-regions:is([data-stage="start"], [data-stage="sub"]):not(.paper) :is(p, .o-back) { text-shadow: 0 0 3px #fff, 0 0 7px #fff, 0 0 12px #fff; }
+  #o-regions:is([data-stage="start"], [data-stage="sub"]):not(.paper) :is(p, .o-back, .o-book) { text-shadow: 0 0 3px #fff, 0 0 7px #fff, 0 0 12px #fff; }
   #o-regions .o-back { border: 0; background: none; color: #3c5a8c; font-size: 14px; padding: 0 0 6px; cursor: pointer; }
   #o-sub > p { font-weight: 700; margin: 2px 0 8px; }
   #o-regions[data-stage="sub"] > #o-sub.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 6px; align-items: start; }
@@ -1176,13 +1175,13 @@
       <text y="-29" text-anchor="middle" font-size="13" font-weight="700" fill="#c8402c">北</text></g></svg>
 </div>
 <div id="zoom"><button id="zoom-in" type="button" aria-label="寄る">＋</button><button id="zoom-out" type="button" aria-label="引く">－</button></div>
-<div id="note">作りかけ　地図データ：国土地理院・国土交通省・総務省統計局・林野庁ほか（いずれも加工して作成）　<button id="credits-open" type="button">出典とご利用にあたって ›</button></div>
+<div id="note">育成中　地図データ：国土地理院・国土交通省・総務省統計局・林野庁ほか（いずれも加工して作成）　<button id="credits-open" type="button">出典とご利用にあたって ›</button></div>
 <div id="credits" role="dialog" aria-label="出典とご利用にあたって">
   <h3>出典とご利用にあたって</h3>
   <p class="credit"><a href="https://ai-naiseika.github.io/" target="_blank" rel="noopener noreferrer">制作：AI内製化工房 MITA ›</a></p>
   <h4>ご利用にあたって</h4>
   <p>この地図は、訪れる方に、各地の魅力を気持ちよく楽しんでいただくための場です。頼まれての宣伝や、どこかを悪く言うための掲載はありません。</p>
-  <p>公開されている資料をもとに AI内製化工房 が作ったもので、各機関が作ったものではありません。紹介・豆知識は、公式のページなどで確かめ、できるかぎり正確にしていますが、間違いや、古くなった所があるかもしれません。<b>お気づきの点があれば、ぜひお知らせください。確かめて直します。</b><span class="book-only">お知らせは、<a id="ask-link" href="" target="_blank" rel="noopener noreferrer">絵図帳</a>へどうぞ。</span></p>
+  <p>公開されている資料をもとに AI内製化工房 が作ったもので、各機関が作ったものではありません。紹介・豆知識は、公式のページなどで確かめ、できるかぎり正確にしていますが、間違いや、古くなった所があるかもしれません。<b>お気づきの点があれば、ぜひお知らせください。確かめて直します。</b><span class="book-only">お知らせは、<a id="ask-link" href="https://docs.google.com/forms/d/e/1FAIpQLSde8a1uhLmetEb8Dra8qFjgBcJTsWNOjc1yhefaym3k5COQ-A/viewform" target="_blank" rel="noopener noreferrer">絵図帳</a>へどうぞ。</span></p>
   <h4 class="book-only">絵図帳</h4>
   <p class="book-only">宿帳に名前を書くように、ここを訪れた足跡を残していってください。ひとことだけでも歓迎です。書いた内容は工房の主だけが読みます。</p>
   <p class="book-only">「この場所も載せてほしい」「こんな話も入れてほしい」といったご要望も、お気軽にお声がけください。工房主の気分次第で、お応えできないこともありますが、できるだけお応えしたいと思っています。</p>
